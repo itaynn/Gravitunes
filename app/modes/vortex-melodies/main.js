@@ -93,6 +93,8 @@ export default function start(ctx) {
     const offFrame = time.onFrame((t) => {
       active = activeVortices(data, ranks, t, s.maxVoices, trackById);
       const ids = new Set(active.map((v) => v.id));
+      // Keep the soloed vortex's loop phase too, so its motif does not restart every frame.
+      if (solo && solo.until > performance.now() / 1000) ids.add(solo.id);
       for (const id of phase.keys()) if (!ids.has(id)) phase.delete(id);
       if (time.playing && s.bed) {
         const c = bedByFrame[t] || 0, frameDur = 1 / Math.max(0.1, time.fps || 2);
@@ -135,7 +137,7 @@ export default function start(ctx) {
     let lastId = null;
     const ready = throttle(200);
     function probe({ lat, lon }, force = false) {
-      if (!ready(force)) return;
+      if (!ready(force, () => probe({ lat, lon }, force))) return;
       const now = performance.now();
       const t = time.now();
       const all = activeVortices(data, ranks, t, Infinity, trackById);

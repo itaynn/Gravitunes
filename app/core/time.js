@@ -12,6 +12,13 @@ export function createTime(dataset, viewer) {
     viewer.setImage(f.im);
     listeners.forEach((fn) => fn(t));
   }
+  function start() {
+    timer = setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      try { await seek(t + 1); } finally { busy = false; }
+    }, 1000 / fps);
+  }
   const time = {
     now: () => t,
     count: dataset.count,
@@ -24,15 +31,12 @@ export function createTime(dataset, viewer) {
     get playing() { return !!timer; },
     play() {
       if (timer) return;
-      timer = setInterval(async () => {
-        if (busy) return;
-        busy = true;
-        try { await seek(t + 1); } finally { busy = false; }
-      }, 1000 / fps);
+      start();
       emitState();
     },
     pause() { const was = !!timer; clearInterval(timer); timer = null; if (was) emitState(); },
-    setSpeed(f) { fps = f; if (timer) { clearInterval(timer); timer = null; time.play(); } },
+    // Changing speed while playing restarts the interval only: no state event, so a play-state listener may call this.
+    setSpeed(f) { if (f === fps) return; fps = f; if (timer) { clearInterval(timer); start(); } },
     get fps() { return fps; },
     // onPlayState(fn(playing)) fires when play/pause changes.
     onPlayState(fn) { stateListeners.add(fn); return () => stateListeners.delete(fn); },

@@ -55,7 +55,7 @@ export default function start(ctx) {
   function probe({ lat, lon }, { announce = true, force = false, onlyChanged = false, prefix = '' } = {}) {
     last = { lat, lon };
     if (!layers) return;
-    if (!ready(force || onlyChanged)) return;
+    if (!ready(force || onlyChanged, () => probe({ lat, lon }, { announce, force, onlyChanged, prefix }))) return;
     const r = readingsAt(lat, lon);
     for (const n of notesFor(r, state, lon / 180, scale)) {
       if (onlyChanged && lastFreq[n.id] === n.freq) continue;

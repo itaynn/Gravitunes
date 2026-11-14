@@ -111,6 +111,23 @@ console.log('grid tests ok');
   assert.equal(pickVoice(['a', 'b', 'c'], 1), 'c');
   let t = 0; const ready = throttle(150, () => t);
   assert.ok(ready()); t = 100; assert.ok(!ready()); assert.ok(ready(true)); t = 260; assert.ok(ready());
+  // A dropped move with a retry runs it after the window; a later call replaces it.
+  let queued = null; const r2 = throttle(150, () => t, (fn, ms) => (queued = { fn, ms }), () => (queued = null));
+  t = 1000; assert.ok(r2()); t = 1050; let ran = 0;
+  assert.ok(!r2(false, () => ran++)); assert.equal(queued.ms, 100);
+  t = 1100; assert.ok(!r2(false, () => (ran += 10))); queued.fn(); assert.equal(ran, 10);
+
+  // Regression: a play-state listener that calls setSpeed (world orchestra, mapping lab) must not loop.
+  {
+    const { createTime } = await import('../core/time.js');
+    const tm = createTime({ count: 3, load: async () => ({ im: null }), timeOf: () => new Date(0) }, { setImage() {} });
+    let events = 0;
+    tm.onPlayState((p) => { events++; if (p) tm.setSpeed(tm.fps + 1); });
+    tm.play();
+    assert.equal(events, 1); assert.ok(tm.playing); assert.equal(tm.fps, 3);
+    tm.setSpeed(10); assert.equal(events, 1); assert.ok(tm.playing);
+    tm.pause(); assert.equal(events, 2); assert.ok(!tm.playing);
+  }
 
   globalThis.location = new URL('http://x/mode.html?mode=a');
   globalThis.history = { state: null, replaceState() {} };

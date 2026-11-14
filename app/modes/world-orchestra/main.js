@@ -152,7 +152,7 @@ export default function start(ctx) {
     // ---- hover probe
     const ready = throttle(150);
     function probe({ lat, lon }, force = false) {
-      if (!ready(force)) return;
+      if (!ready(force, () => probe({ lat, lon }, force))) return;
       let best = null, bestKm = Infinity;
       cities.forEach((c) => { const d = distKm(lat, lon, c.lat, c.lon); if (d < bestKm) { bestKm = d; best = c; } });
       const place = bestKm < 1200 ? `${best.name} region` : `Near ${fmt(lat, lon)}`;

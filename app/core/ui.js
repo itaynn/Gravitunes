@@ -116,13 +116,18 @@ export function fold(summary, controls, { open = false } = {}) {
   return d;
 }
 
-// Hover throttle: ready(force) is true at most once every `ms` milliseconds (always when force is set),
-// so fast sweeps do not pile up notes and announcements.
-export function throttle(ms = 150, now = () => performance.now()) {
-  let last = -Infinity;
-  return (force = false) => {
+// Hover throttle: ready(force, again) is true at most once every `ms` milliseconds (always when force is set),
+// so fast sweeps do not pile up notes and announcements. When a call is dropped and `again` is given, `again` runs
+// once the window ends (only the latest one), so the last spot of a sweep or a quick key press is still described.
+export function throttle(ms = 150, now = () => performance.now(), schedule = setTimeout, cancel = clearTimeout) {
+  let last = -Infinity, pending = null;
+  return (force = false, again = null) => {
     const t = now();
-    if (!force && t - last < ms) return false;
+    if (pending) { cancel(pending); pending = null; }
+    if (!force && t - last < ms) {
+      if (again) pending = schedule(() => { pending = null; again(); }, ms - (t - last));
+      return false;
+    }
     last = t;
     return true;
   };

@@ -84,10 +84,19 @@ export default function start(ctx) {
       g.save();
       g.globalAlpha = 0.22; g.imageSmoothingEnabled = false; g.drawImage(tint, 0, 0, W, H); g.globalAlpha = 1;
       g.font = '600 13px system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+      // Greedy layout: a label that would overlap one already placed moves down (then up) until it is clear.
+      const placed = [];
+      const hit = (a) => placed.some((b) => a.bx < b.bx + b.w + 2 && b.bx < a.bx + a.w + 2 && a.by < b.by + b.h + 2 && b.by < a.by + a.h + 2);
       for (const c of centers) {
-        const [x, y] = v.toPixel(c.lat, c.lon), text = instruments[c.instrument].label;
-        const w = g.measureText(text).width + 22, h = 18, bx = x - w / 2, by = y - h / 2;
-        const on = c.id === lastKey;
+        const [x, y0] = v.toPixel(c.lat, c.lon), text = instruments[c.instrument].label;
+        const w = g.measureText(text).width + 22, h = 18, box = { c, text, w, h, bx: x - w / 2, by: y0 - h / 2 };
+        for (let k = 1; hit(box) && k < 12; k++) box.by = y0 - h / 2 + Math.ceil(k / 2) * (h + 3) * (k % 2 ? 1 : -1);
+        placed.push(box);
+      }
+      // The highlighted label is drawn last, so it is always on top.
+      placed.sort((a, b) => (a.c.id === lastKey) - (b.c.id === lastKey));
+      for (const { c, text, w, h, bx, by } of placed) {
+        const y = by + h / 2, on = c.id === lastKey;
         g.fillStyle = on ? 'rgba(0,0,0,.92)' : 'rgba(0,0,0,.7)';
         g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, h, 5) : g.rect(bx, by, w, h); g.fill();
         if (on) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }

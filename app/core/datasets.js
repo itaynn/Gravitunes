@@ -137,7 +137,7 @@ export async function loadDataset(id, overrides = {}) {
   };
 
   let lut = null;
-  const colorbarUrl = def.dir + def.colorbar.file;
+  let colorbarUrl = def.dir + def.colorbar.file;
   if (!grid) {
     const cb = pixels(await loadImage(colorbarUrl));
     const { row, x0, x1, ticks, scale } = def.colorbar;
@@ -148,6 +148,16 @@ export async function loadDataset(id, overrides = {}) {
   const { norm, denorm } = makeNorm(def.range, transform);
   const stops = def.colorbar.stops || [[def.range[0], [255, 255, 255]], [def.range[1], [65, 32, 192]]];
 
+  // Grid datasets draw their own colour bar from the stops (the web copies ship no colorbar.png).
+  if (grid && typeof document !== 'undefined') {
+    const c = Object.assign(document.createElement('canvas'), { width: 256, height: 12 });
+    const g = c.getContext('2d');
+    for (let x = 0; x < 256; x++) {
+      const [r, gg, b] = stopColor(stops, denorm(x / 255), transform === 'log10');
+      g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(x, 0, 1, 12);
+    }
+    colorbarUrl = c.toDataURL();
+  }
   const cache = new Map();     // image index or 'g'+t -> { im, data }
   let current = 0;
 
@@ -161,6 +171,17 @@ export async function loadDataset(id, overrides = {}) {
       if (b === grid.nodata) { img.data[i * 4 + 3] = 0; continue; }
       const [r, gg, bb] = stopColor(stops, grid.fromByte(b), transform === 'log10');
       img.data.set([r, gg, bb, 255], i * 4);
+    }
+    // The SVS frames' date/logo boxes sit at the left edge and become no-data holes that show as black boxes.
+    // Visually fill a no-data run that starts at a row's left edge with the row's first valid colour (values stay null).
+    const W = c.width, d = img.data;
+    for (let y = 0; y < c.height; y++) {
+      const row = y * W;
+      let x = 0;
+      while (x < W && d[(row + x) * 4 + 3] === 0) x++;
+      if (x === 0 || x === W) continue;
+      const src = (row + x) * 4;
+      for (let k = 0; k < x; k++) d.copyWithin((row + k) * 4, src, src + 4);
     }
     g.putImageData(img, 0, 0);
     return c;

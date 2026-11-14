@@ -39,7 +39,7 @@ export default function start(ctx) {
   function probe({ lat, lon }, { announce = speak, force = false, prefix = '' } = {}) {
     last = { lat, lon };
     // Hover and arrow keys are throttled (150 ms) so notes and announcements do not pile up.
-    if (!ready(force)) return;
+    if (!ready(force, () => probe({ lat, lon }, { announce, force, prefix }))) return;
     const t = time.now();
     const v = dataset.valueAt(lat, lon, t);
     if (v == null) {

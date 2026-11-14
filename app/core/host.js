@@ -46,9 +46,13 @@ async function main() {
   if (!noData) listDatasets().then((list) => {
     if (!list.some((d) => d.id === current)) list.push({ id: current, title: current });
     const dp = createPanel($('#dataset-picker'));
-    dp.select('Dataset', list.map((d) => [d.id, `${d.title} (${d.id})`]), (id) => {
-      params.set('dataset', id); location.search = params.toString();
-    }, { value: current, hint: 'Changing the dataset reloads this mode.' });
+    // Choosing only previews (arrow keys fire change on a closed select); Load or Enter reloads the mode.
+    const load = () => { if (sel.value === current) return; params.set('dataset', sel.value); location.search = params.toString(); };
+    const sel = dp.select('Dataset', list.map((d) => [d.id, `${d.title} (${d.id})`]), () => { btn.disabled = sel.value === current; },
+      { value: current, hint: 'Pick a dataset, then press Load (or Enter). Loading reloads this mode.' });
+    sel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); load(); } });
+    const btn = dp.button('Load dataset', load);
+    btn.disabled = true;
   }).catch(() => {});
 
   status('Loading data...');

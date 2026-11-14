@@ -162,7 +162,8 @@ export function renderNote(mapping, point, opts) {
 const fmtLat = (lat) => `${Math.abs(Math.round(lat))}°${lat >= 0 ? 'N' : 'S'}`;
 const fmtLon = (lon) => `${Math.abs(Math.round(lon))}°${lon >= 0 ? 'E' : 'W'}`;
 
-// "value 45 → pitch D3, latitude 30°N → depth dark" for the mapped parameters.
+// "value 45 gives pitch D3, loudness medium; latitude 30°N gives depth dark" for the mapped parameters
+// (grouped by source; no arrow symbol, which screen readers read as "right arrow").
 // fmt (optional): number formatter, e.g. v => "0.013".
 export function describeNote(mapping, point, labels, units = '', delta = 0, fmt = (v) => Math.round(v * 10) / 10) {
   const srcText = {
@@ -171,9 +172,15 @@ export function describeNote(mapping, point, labels, units = '', delta = 0, fmt 
     value: `value ${point.value == null ? 'no data' : fmt(point.value)}${units ? ` ${units}` : ''}`,
     change: `change ${delta >= 0 ? '+' : ''}${fmt(delta)}`,
   };
-  const parts = Object.keys(PARAMS).filter((p) => mapping[p]?.src && mapping[p].src !== 'off')
-    .map((p) => `${srcText[mapping[p].src]} → ${PARAMS[p].label.split(' (')[0].toLowerCase()} ${labels[p]}${mapping[p].flip ? ' (flipped)' : ''}`);
-  return parts.length ? parts.join(', ') : 'nothing mapped';
+  const groups = new Map();
+  for (const p of Object.keys(PARAMS)) {
+    const src = mapping[p]?.src;
+    if (!src || src === 'off') continue;
+    if (!groups.has(src)) groups.set(src, []);
+    groups.get(src).push(`${PARAMS[p].label.split(' (')[0].toLowerCase()} ${labels[p]}${mapping[p].flip ? ' (flipped)' : ''}`);
+  }
+  const parts = [...groups].map(([src, outs]) => `${srcText[src]} gives ${outs.join(', ')}`);
+  return parts.length ? parts.join('; ') : 'nothing mapped';
 }
 
 // ~300 listening points on an even lat/lon grid (land and ocean).

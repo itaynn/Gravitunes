@@ -74,7 +74,7 @@ assert.equal(renderNote(PRESETS.aroundworld.mapping, { lat: 0, lon: -179, value:
 // announcement
 const n45 = renderNote(ds, { lat: 30, lon: 0, value: 45 }, opts);
 const said = describeNote(ds, { lat: 30, lon: 0, value: 45 }, n45.labels, 'ppbv');
-assert.match(said, /^value 45 ppbv → pitch [A-G]#?\d, latitude 30°N → depth \w+$/);
+assert.match(said, /^value 45 ppbv gives pitch [A-G]#?\d(, [a-z ]+ \w+)*; latitude 30°N gives depth \w+$/);
 assert.equal(describeNote(emptyMapping(), { lat: 0, lon: 0, value: 1 }, {}), 'nothing mapped');
 
 // comfort caps (app/core/sound.js): fundamentals <= C5, nothing above 5 kHz, faded near the cap

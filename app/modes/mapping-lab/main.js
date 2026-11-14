@@ -6,6 +6,7 @@ import { SOURCES, PARAMS, PRESETS, cloneMapping, presetOf, encodeMapping, decode
 import { selectTriggers, percentileOf } from '../../core/triggers.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
 import { noteName } from '../../core/scales.js';
+import { formatLatLon } from '../../core/geo.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
 import { volumeSlider, soundHint, fold, throttle } from '../../core/ui.js';
@@ -144,14 +145,14 @@ export default function start(ctx) {
     // ---- hover / arrow keys: play one point with the current mapping and say how it was mapped
     const ready = throttle(150);
     function probe({ lat, lon }, force = false) {
-      if (!ready(force)) return;
+      if (!ready(force, () => probe({ lat, lon }, force))) return;
       const t = time.now();
       const value = dataset.valueAt(lat, lon, t), before = t > 0 ? dataset.valueAt(lat, lon, t - 1) : null;
       const point = { lat, lon, value, prev: before };
       const { play, labels, src } = renderNote(s.mapping, point, noteOpts(0.5));
       if (value != null) sound.play({ ...play, amp: Math.min(0.45, play.amp + 0.05) });
-      describe(value == null ? `No data here. ${describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false)))}`
-        : describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false))));
+      const said = describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false)));
+      describe(`Near ${formatLatLon(lat, lon)}: ${value == null ? `no data. ${said}` : said}`);
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
