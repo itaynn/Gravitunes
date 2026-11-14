@@ -1,6 +1,6 @@
 # Vortex melodies
 
-**Status:** idea. Needs [Flow analysis](flow-analysis.md).
+**Status:** built (`app/modes/vortex-melodies/`, data via `analysis/scripts/vortex-melodies/build.py`). Needs [Flow analysis](flow-analysis.md).
 
 ## What you hear
 Every detected vortex (storm, swirl) plays its own short repeating melody. The faster it spins, the faster its melody loops; stronger and larger vortices are louder. Counterclockwise vortices play their motif rising, clockwise ones play it mirrored and falling. A soft background bed swells where air converges and thins where it spreads out.

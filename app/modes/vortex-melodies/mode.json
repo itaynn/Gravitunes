@@ -1,0 +1,7 @@
+{
+  "name": "Vortex melodies",
+  "author": "moran",
+  "description": "Every tracked swirl in the rain plays its own short repeating melody: faster spin loops faster, stronger and larger swirls are louder, counterclockwise rises and clockwise falls. A soft bed swells where the rain pattern converges and thins where it spreads. Hover or use the arrow keys on a vortex to solo it and hear it described.",
+  "datasets": ["4285"],
+  "datasetDirs": { "4285": "data/4285/" }
+}

@@ -50,12 +50,15 @@ async function main() {
   status('Loading data...');
   let dataset;
   try {
-    dataset = await loadDataset(current);
+    // mode.json "datasetDirs": {"<id>": "data/<id>/"} lets a mode ship its own copy of a dataset.
+    const own = meta.datasetDirs?.[current];
+    dataset = await loadDataset(current, own ? { dir: new URL(own, base).pathname } : {});
   } catch (e) {
     status(`Could not load the dataset (${e.message}). Run: sh app/tools/fetch-sample.sh`);
     throw e;
   }
   $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.format(dataset.range[0], false)} to ${dataset.format(dataset.range[1], false)}${dataset.transform === 'log10' ? ', log scale' : ''})`;
+  $('#colorbar').onerror = () => { $('#colorbar').hidden = true; };
   $('#colorbar').src = dataset.colorbarUrl;
 
   const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0' });

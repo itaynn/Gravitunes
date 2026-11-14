@@ -25,19 +25,32 @@ export const DATASETS = {
     // Burned-in boxes (fractions of the frame): x, y, w, h. valueAt returns null inside.
     masks: [[0, 0, 0.172, 0.074], [0, 0.902, 0.245, 0.098]],
   },
+  // IMERG precipitation (relative 0..1 from the SVS PNG alpha). No data-tools export yet: modes that use it
+  // ship their own grid and name its folder in mode.json "datasetDirs" (see host.js).
+  4285: {
+    id: '4285',
+    title: 'Precipitation (IMERG, relative)',
+    units: 'relative',
+    range: [0, 1],
+    source: 'https://svs.gsfc.nasa.gov/4285',
+    step_hours: 0.5,
+    colorbar: { stops: [[0, [8, 12, 28]], [0.08, [20, 60, 120]], [0.3, [40, 160, 220]], [0.6, [140, 230, 160]], [1, [255, 255, 255]]] },
+    grid: { header: 'field_256x128.json', bin: 'field_256x128.bin' },
+  },
 };
 
 const fetchJson = async (url) => {
   try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; }
 };
 
-export async function getDefinition(id) {
+export async function getDefinition(id, overrides = {}) {
   id = String(id);
   const desc = await fetchJson(`/data-tools/datasets/${id}.json`);
   const builtin = DATASETS[id];
   if (!desc && !builtin) throw new Error(`Unknown dataset ${id}`);
   const def = { dir: `/data/nasa-svs/${id}/web/`, manifest: 'frames.json', ...(builtin || {}), ...(desc || {}), id };
   // The descriptor's frames/colorbar describe the raw SVS files; keep web-copy file names from built-ins.
+  if (overrides.dir) def.dir = overrides.dir;
   def.frames = undefined;
   def.colorbar = { ...(desc?.colorbar || {}), ...(builtin?.colorbar ? { file: builtin.colorbar.file } : {}) };
   if (!def.colorbar.file) def.colorbar.file = 'colorbar.png';
@@ -103,8 +116,9 @@ export function stopColor(stops, v, log = false) {
   return stops[stops.length - 1][1];
 }
 
-export async function loadDataset(id) {
-  const def = await getDefinition(id);
+// overrides.dir: folder (URL) holding the grid/frames instead of /data/nasa-svs/<id>/web/.
+export async function loadDataset(id, overrides = {}) {
+  const def = await getDefinition(id, overrides);
   const grid = await tryGrid(def);
   const manifest = await fetchJson(def.dir + def.manifest);
   const images = (manifest?.frames || []).slice().sort((a, b) => a.hour - b.hour);

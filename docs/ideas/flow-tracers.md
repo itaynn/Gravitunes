@@ -1,6 +1,6 @@
 # Flow tracers
 
-**Status:** idea. Needs [Flow analysis](flow-analysis.md).
+**Status:** built (`app/modes/flow-tracers/`, data via `analysis/scripts/flow-tracers/build.py`). Needs [Flow analysis](flow-analysis.md).
 
 ## What you hear
 On load, a few dozen tracer points are scattered evenly over the whole map. Play the animation and each tracer drifts with the flow, singing as it goes — you hear plumes and storms carry sound across the stereo field.

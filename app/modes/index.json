@@ -1,6 +1,7 @@
 {
   "modes": [
     {
+<<<<<<< ours
       "id": "layered-maps",
       "name": "Layered maps",
       "author": "moran",
@@ -12,6 +13,18 @@
       ],
       "standalone": {
         "every": 6
+      }
+    },
+    {
+      "id": "flow-tracers",
+      "name": "Flow tracers",
+      "author": "moran",
+      "description": "About 30 evenly scattered tracers drift with the apparent motion of the rain (optical flow) and sing as they travel: more rain under a tracer plays a higher, louder note, faster motion sounds brighter, east/west pans left/right, and the voice changes with the world-orchestra region it passes. Hover or use the arrow keys to hear the local motion described, e.g. moving north-east, 30 km/h.",
+      "datasets": [
+        "4285"
+      ],
+      "datasetDirs": {
+        "4285": "data/4285/"
       }
     },
     {
@@ -74,11 +87,24 @@
       "href": "../../../sound-engine/playground.html"
     },
     {
+<<<<<<< ours
       "id": "timbre-atlas",
       "name": "Timbre atlas",
       "author": "moran",
       "description": "Just the world map and its instruments: move the mouse, touch, or use the arrow keys, and each region plays a short phrase in its own voice (guzheng bends, gamelan pelog, sitar slides, oud maqam, balalaika tremolo, didgeridoo drone...). Voices blend near borders.",
       "datasets": "any"
+    },
+    {
+      "id": "vortex-melodies",
+      "name": "Vortex melodies",
+      "author": "moran",
+      "description": "Every tracked swirl in the rain plays its own short repeating melody: faster spin loops faster, stronger and larger swirls are louder, counterclockwise rises and clockwise falls. A soft bed swells where the rain pattern converges and thins where it spreads. Hover or use the arrow keys on a vortex to solo it and hear it described.",
+      "datasets": [
+        "4285"
+      ],
+      "datasetDirs": {
+        "4285": "data/4285/"
+      }
     },
     {
       "id": "world-orchestra",
