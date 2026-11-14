@@ -10,6 +10,15 @@ import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
 import { soundHint } from '../../core/ui.js';
 
+// Move already-created panel controls into a collapsed <details> group.
+function fold(summary, controls) {
+  const rows = controls.map((c) => c.closest('.control') || c);
+  const d = document.createElement('details');
+  const sm = document.createElement('summary'); sm.textContent = summary;
+  rows[0].before(d); d.append(sm, ...rows);
+  return d;
+}
+
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, cleanup = null;
@@ -33,7 +42,7 @@ export default function start(ctx) {
     const valuesAt = (t) => points.map((p) => dataset.valueAt(p.lat, p.lon, t));
     s.threshold = dataset.percentile?.(0.7) ?? percentileOf(valuesAt(time.now()), 0.7) ?? lo + 0.7 * (hi - lo);
     s.threshold = Number(fmtNum(s.threshold));
-    if (url.has('thr') && Number.isFinite(+url.get('thr'))) s.threshold = +url.get('thr');
+    if (url.has('thr') && Number.isFinite(+url.get('thr'))) s.threshold = Math.max(lo, Math.min(hi, +url.get('thr')));
 
     function saveUrl() {
       const q = new URLSearchParams(location.search);
@@ -42,14 +51,12 @@ export default function start(ctx) {
       history.replaceState(null, '', `${location.pathname}?${q}`);
     }
 
-    // ---- controls
-    const playBtn = panel.button(time.playing ? 'Pause' : 'Play', () => {
-      if (time.playing) { time.pause(); describe(`Paused at ${time.label()}`); }
-      else { applySpeed(); time.play(); describe('Playing'); }
-    }, { hint: 'Points whose value rises past the threshold play one note, shaped by the mapping below.' });
-    const offState = time.onPlayState?.((p) => { playBtn.textContent = p ? 'Pause' : 'Play'; });
+    // ---- controls (the host's Time Play button runs the timeline; this mode only sets its speed)
     const applySpeed = () => time.setSpeed(Math.min(30, s.speed / (dataset.stepHours || 1)));
-    panel.slider('Speed', { min: 1, max: 48, step: 1, value: s.speed, format: (v) => `${v} hours per second` },
+    applySpeed();
+    const offState = time.onPlayState?.((p) => { if (p) applySpeed(); });
+    panel.slider('Speed', { min: 1, max: 48, step: 1, value: s.speed, format: (v) => `${v} hours per second`,
+      hint: 'Press Play under Time. Points whose value rises past the threshold play one note, shaped by the mapping.' },
       (v) => { s.speed = v; applySpeed(); });
 
     const presetSel = panel.select('Preset', [['custom', 'Custom'], ...Object.entries(PRESETS).map(([k, p]) => [k, p.label])],
@@ -65,10 +72,10 @@ export default function start(ctx) {
       const sel = panel.select(info.label, srcOptions, (v) => {
         s.mapping[p].src = v; mappingChanged(`${info.label}: ${SOURCES[v]}`);
       }, { value: s.mapping[p].src });
-      const flip = panel.checkbox(`Flip ${info.label.split(' (')[0].toLowerCase()} (high to low)`, !!s.mapping[p].flip, (v) => {
+      const flip = panel.checkbox(`Flip ${info.label.split(' (')[0].toLowerCase()}`, !!s.mapping[p].flip, (v) => {
         s.mapping[p].flip = v;
         mappingChanged(`${info.label} ${v ? 'flipped: high source gives ' + info.lo : 'normal: high source gives ' + info.hi}`);
-      });
+      }, { hint: 'High source gives a low setting.' });
       mapControls[p] = { sel, flip };
     }
     function syncMappingControls() {
@@ -93,17 +100,21 @@ export default function start(ctx) {
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A point plays when its value rises past this. Default: the dataset\'s 70th percentile.',
       format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
-    panel.slider('Density (max notes per frame)', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
+    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
+      (v) => { s.volume = v; sound.setVolume?.(v); });
+    sound.setVolume?.(s.volume);
+    const dens = panel.slider('Density (max notes per frame)', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
-    panel.slider('Point cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
-      hint: 'Frames a point waits before it may play again.', format: (v) => `${v} frames` }, (v) => { s.cooldown = v; });
+    const stepH = dataset.stepHours || 1;
+    const cool = panel.slider('Point cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
+      hint: 'Hours before a point can play again.', format: (v) => `${Math.round(v * stepH)} hours` }, (v) => { s.cooldown = v; });
     const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
     const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: (v) => noteName(v),
       hint: 'Pitch range, C2 to C5.' }, (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
+    // Keep Preset, Scale, Threshold, Volume up front; the rest is one click away.
+    fold('Customize mapping', Object.values(mapControls).flatMap((c) => [c.sel, c.flip]));
+    fold('More sound settings', [dens, cool, low, high]);
     panel.text('Voices are hand-synthesized impressions (organ, bell-like gamelan, flute), not recordings.');
 
     // ---- notes
@@ -166,10 +177,11 @@ export default function start(ctx) {
         const [x, y] = v.toPixel(p.lat, p.lon);
         const t0 = flashes.get(i), age = t0 != null ? (now - t0) / 900 : 2;
         if (age >= 0 && age < 1) {
-          g.fillStyle = `rgba(255,220,80,${1 - age})`;
-          g.beginPath(); g.arc(x, y, 3 + 12 * age, 0, 7); g.fill();
+          g.globalAlpha = 1 - age; g.fillStyle = '#ff8c00'; g.strokeStyle = '#000'; g.lineWidth = 1;
+          g.beginPath(); g.arc(x, y, 3 + 12 * age, 0, 7); g.fill(); g.stroke(); g.globalAlpha = 1;
         } else if (t0 != null && age >= 1) flashes.delete(i);
-        g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(x, y, 1.5, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.85)'; g.strokeStyle = 'rgba(0,0,0,.8)'; g.lineWidth = 1;
+        g.beginPath(); g.arc(x, y, 2, 0, 7); g.fill(); g.stroke();
       });
       g.restore();
     });

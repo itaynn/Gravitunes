@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { gestureNotes, degreeCents, timbreSignature, voiceAt } from './atlas.js';
+import { gestureNotes, degreeCents, timbreSignature, voiceAt, liftToFloor } from './atlas.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { noteHz } from '../../core/scales.js';
 import { MAX_FUND_HZ } from '../../core/sound.js';
@@ -49,6 +49,15 @@ for (const id of Object.keys(instruments)) for (let semis = -19; semis <= 0; sem
     assert.ok(sh.harmonics.every((a, k) => a === 0 || n.freq * (k + 1) <= 4000));
   }
 }
+// floor: after lifting, every gesture's lowest note is >= C2 at the lowest base pitch (F2), still <= C5
+for (const id of Object.keys(instruments)) for (const phrase of [true, false]) {
+  const notes = liftToFloor(gestureNotes(instruments[id], noteHz(-19), { phrase }), noteHz(-24), MAX_FUND_HZ);
+  assert.ok(Math.min(...notes.map((n) => n.freq)) >= noteHz(-24) - 1e-6 ||
+    Math.max(...notes.map((n) => n.freq)) * 2 > MAX_FUND_HZ, `${id} too low`);
+  assert.ok(notes.every((n) => Math.max(n.freq, n.glide?.to || 0) <= MAX_FUND_HZ + 1e-6));
+}
+const lowInst = Object.values(instruments).find((v) => v.octave === -1);
+if (lowInst) assert.ok(liftToFloor(gestureNotes(lowInst, noteHz(-19)), noteHz(-24), MAX_FUND_HZ)[0].freq >= noteHz(-24) - 1e-6);
 // phrases are phrases; tremolo repeats; scales are idiomatic
 assert.ok(gestureNotes(instruments.guzheng, noteHz(-12)).length >= 4);
 assert.ok(gestureNotes(instruments.balalaika, noteHz(-12)).length >= 12);

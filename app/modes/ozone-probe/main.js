@@ -22,7 +22,8 @@ export default function start(ctx) {
   }, (v) => { radius = v; });
   scaleControl(panel, { value: scale, describe, onChange: (v) => { scale = v; } });
   panel.checkbox('Speak values', speak, (v) => { speak = v; });
-  panel.button('Describe this spot', () => last && probe(last, { announce: true }));
+  panel.button('Describe this spot', () => (last ? probe(last, { announce: true, force: true })
+    : describe('Move over the map or use the arrow keys first.')));
 
   function neighborhood(lat, lon, t) {
     if (!radius) return [];
@@ -34,33 +35,42 @@ export default function start(ctx) {
     return vals;
   }
 
-  function probe({ lat, lon }, { announce = speak } = {}) {
+  let lastAt = 0;
+  function probe({ lat, lon }, { announce = speak, force = false, prefix = '' } = {}) {
     last = { lat, lon };
+    // Hover and arrow keys are throttled (150 ms) so notes and announcements do not pile up.
+    const now = performance.now();
+    if (!force && now - lastAt < 150) return;
+    lastAt = now;
     const t = time.now();
     const v = dataset.valueAt(lat, lon, t);
     if (v == null) {
-      if (announce) describe(`No data near ${fmt(lat, lon)}`);
+      if (announce) describe(`${prefix}No data near ${fmt(lat, lon)}`);
       return;
     }
     const around = neighborhood(lat, lon, t);
     const n = norm(v);
     const spread = around.length ? Math.max(...around, n) - Math.min(...around, n) : 0;
-    const harmonics = 1 + Math.round(Math.min(1, spread * 3) * 6);
+    const rough01 = Math.min(1, spread * 3);
+    const harmonics = 1 + Math.round(rough01 * 6);
     sound.play({
       freq: quantize(n, [0, 1], scale, noteHz(-24), noteHz(12)).freq, harmonics, pan: lon / 180,
       amplitude: 0.25, duration: 0.35, voice: 'probe',
+      // Patchy spots also get a breathy edge, so smooth and rough areas are easy to tell apart.
+      ...(rough01 > 0.1 && { noise: { amount: rough01 * 0.3, attack: 0.01, decay: 0.25, cutoff: 2500 } }),
     });
     if (announce) {
       const rough = harmonics > 4 ? ', rough' : harmonics > 2 ? ', varied' : '';
-      describe(`${fmtV(v)} near ${fmt(lat, lon)}${rough}`);
+      describe(`${prefix}${fmtV(v)} near ${fmt(lat, lon)}${rough}`);
     }
   }
 
   const offHover = input.onHover((p) => probe(p));
-  const offClick = input.onClick((p) => probe(p, { announce: true }));
+  const offClick = input.onClick((p) => probe(p, { announce: true, force: true }));
   const offFrame = time.onFrame(() => {
-    if (last) probe(last, { announce: false });
-    if (!time.playing) describe(time.label());
+    if (time.playing) { if (last) probe(last, { announce: false, force: true }); return; }
+    if (last) probe(last, { announce: true, force: true, prefix: `${time.label()}: ` });
+    else describe(time.label());
   });
 
   soundHint(panel, sound, 'move over the map. Without sound, values are still announced.');

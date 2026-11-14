@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LAYERS, pitchSemis, layerFreq, audible, frameAtDate, notesFor, describeReadings } from './layers.js';
+import { LAYERS, layerFreq, audible, frameAtDate, notesFor, describeReadings } from './layers.js';
 import { parseGrid, makeNorm, formatValue } from '../../core/grid.js';
 
 // Registers: all within C2..C5, distinct, ordered CO < ozone < NOx.
@@ -19,9 +19,10 @@ const [co, oz, nox] = ['5153', '5152', '5154'].map((id) => LAYERS.find((l) => l.
 assert.ok(layerFreq(co, 0.5) < layerFreq(oz, 0.5) && layerFreq(oz, 0.5) < layerFreq(nox, 0.5));
 const mid = (layerFreq(oz, 0) * layerFreq(oz, 1)) ** 0.5;
 assert.ok(mid > 130 && mid < 262, 'ozone centred C3-C4');
-assert.equal(pitchSemis(0, -12, 0), -12);
-assert.equal(pitchSemis(1, -12, 0), 0);
-assert.equal(pitchSemis(null, -5, 12), -5);
+// registers never overlap, whatever the scale
+for (const sc of ['pentatonic-major', 'pentatonic-minor', 'hirajoshi'])
+  assert.ok(layerFreq(co, 1, sc) < layerFreq(oz, 0, sc) && layerFreq(oz, 1, sc) < layerFreq(nox, 0, sc), sc);
+assert.ok(Math.abs(layerFreq(oz, 0) - 130.81) < 0.1 && Math.abs(layerFreq(oz, null) - 130.81) < 0.1);
 
 // Mute / solo.
 assert.deepEqual([...audible(LAYERS, {})].sort(), ['5152', '5153', '5154']);

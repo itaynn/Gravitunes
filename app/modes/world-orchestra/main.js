@@ -7,13 +7,21 @@ import { quantize, noteHz, noteName } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 
 import { loadEarth, valueHelpers } from '../../core/data.js';
-import { formatLatLon as fmt } from '../../core/geo.js';
+import { formatLatLon as fmt, regionTint } from '../../core/geo.js';
 import { soundHint } from '../../core/ui.js';
+
+// Move already-created panel controls into a collapsed <details> group.
+function fold(summary, controls) {
+  const rows = controls.map((c) => c.closest('.control') || c);
+  const d = document.createElement('details');
+  const sm = document.createElement('summary'); sm.textContent = summary;
+  rows[0].before(d); d.append(sm, ...rows);
+  return d;
+}
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true;
-  const cleanups = [];
   let setup = null;
   (async () => {
     const [cj, mj, ij] = await Promise.all([
@@ -21,7 +29,11 @@ export default function start(ctx) {
     ]);
     if (!alive) return;
     setup = run(cj, mj.centers, ij.instruments);
-  })().catch((e) => { console.error(e); describe(`World orchestra could not load its city data: ${e.message}`); });
+  })().catch((e) => {
+    console.error(e);
+    const msg = `World orchestra could not load its city data: ${e.message}`;
+    panel.text(msg); describe(msg);
+  });
 
   function run(cj, centers, instruments) {
     const [lo, hi] = dataset.range;
@@ -66,20 +78,22 @@ export default function start(ctx) {
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A city plays when its value rises past this. Default: the dataset\'s 70th percentile.',
       format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
-    panel.slider('Max notes per hour', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
+    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
+      (v) => { s.volume = v; sound.setVolume?.(v); });
+    sound.setVolume?.(s.volume);
+    const maxN = panel.slider('Max notes per hour', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
-    panel.slider('City cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
-      hint: 'Frames a city waits before it may play again.', format: (v) => `${v} frames` }, (v) => { s.cooldown = v; });
-    const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
+    const stepH = dataset.stepHours || 1;
+    const cool = panel.slider('City cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
+      hint: 'Hours before a city can play again.', format: (v) => `${Math.round(v * stepH)} hours` }, (v) => { s.cooldown = v; });
+    const low =panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
     const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: (v) => noteName(v),
       hint: 'Pitch range for notes, C2 to C5. Default G2 to G4.' },
       (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
     let legendList = null;
     const legendBox = panel.checkbox('Show center legend', s.legend, (v) => { s.legend = v; renderLegend(); viewer.redraw(); });
+    fold('More sound settings', [maxN, cool, low, high, legendBox]);
     function renderLegend() {
       legendList?.remove(); legendList = null;
       if (!s.legend) return;
@@ -99,17 +113,17 @@ export default function start(ctx) {
     panel.text('Voices are hand-synthesized impressions "inspired by" each instrument, not recordings.');
 
     // ---- notes
-    function playCity(i, value, k, n, frameDur) {
-      const { voice } = cityVoice[i];
-      const lowHz = noteHz(s.lowSemis), highHz = noteHz(s.highSemis);
-      let freq = quantize(norm(value), [0, 1], s.scale, lowHz, highHz).freq * 2 ** (voice.octave || 0);
+    // value -> scale note in the chosen range, shifted by the voice's octave, clamped to C2..C5, shaped for pitch.
+    function voiceNote(voice, value) {
+      let freq = quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq * 2 ** (voice.octave || 0);
       freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
-      const shaped = shapeForPitch(voice, freq);
-      sound.play({
-        freq, amp: (0.15 + 0.45 * norm(value)) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
-        dur: Math.min(shaped.dur ?? 0.4, Math.max(0.15, frameDur * 1.5)), t: (k * frameDur * 0.8) / Math.max(1, n),
-        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise, vibrato: shaped.vibrato, wah: shaped.wah,
-      });
+      const { harmonics, partials, envelope, noise, vibrato, wah, dur } = shapeForPitch(voice, freq);
+      return { note: { freq, harmonics, partials, envelope, noise, vibrato, wah }, dur: dur ?? 0.4 };
+    }
+    function playCity(i, value, k, n, frameDur) {
+      const { note, dur } = voiceNote(cityVoice[i].voice, value);
+      sound.play({ ...note, amp: (0.15 + 0.45 * norm(value)) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
+        dur: Math.min(dur, Math.max(0.15, frameDur * 1.5)), t: (k * frameDur * 0.8) / Math.max(1, n) });
     }
 
     const offFrame = time.onFrame((t) => {
@@ -161,28 +175,15 @@ export default function start(ctx) {
       const blend = secondary && secondary.instrument !== primary.instrument ? ` blending with ${instLabel(secondary.instrument)}` : '';
       const v = dataset.valueAt(lat, lon, time.now());
       if (v == null) { describe(`${place}: ${inst}-inspired${blend}, no data`); return; }
-      let freq = quantize(norm(v), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq * 2 ** (voice.octave || 0);
-      freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
-      const shaped = shapeForPitch(voice, freq);
-      sound.play({ freq, amp: 0.35, pan: lon / 180, dur: shaped.dur ?? 0.4,
-        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise, vibrato: shaped.vibrato, wah: shaped.wah });
+      const { note, dur } = voiceNote(voice, v);
+      sound.play({ ...note, amp: 0.35, pan: lon / 180, dur });
       describe(`${place}: ${inst}-inspired${blend}, ${fmtV(v)}`);
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
 
     // ---- visuals: faint region tint (Voronoi of centers), city dots, flashes, optional labels
-    const tint = document.createElement('canvas');
-    tint.width = 360; tint.height = 180;
-    {
-      const g = tint.getContext('2d');
-      for (let y = 0; y < 180; y += 2) for (let x = 0; x < 360; x += 2) {
-        const lat = 89 - y, lon = x - 180;
-        let bi = 0, bd = Infinity;
-        centers.forEach((c, i) => { const d = distKm(lat, lon, c.lat, c.lon); if (d < bd) { bd = d; bi = i; } });
-        g.fillStyle = colorOf.get(centers[bi].id); g.fillRect(x, y, 2, 2);
-      }
-    }
+    const tint = regionTint(centers, colorOf);
     const removeOverlay = viewer.addOverlay((g, v) => {
       const W = v.canvas.width, H = v.canvas.height, now = performance.now();
       g.save();
@@ -227,5 +228,5 @@ export default function start(ctx) {
     };
   }
 
-  return () => { alive = false; setup?.(); cleanups.forEach((f) => f()); };
+  return () => { alive = false; setup?.(); };
 }

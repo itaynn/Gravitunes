@@ -108,9 +108,9 @@ export function familyVoice(x, instruments) {
   return { voice, label };
 }
 
-export const depthHz = (x) => 200 * 2 ** (clamp01(x) * 5.3);       // ~200 Hz (dark) .. ~8 kHz (bright)
+export const depthHz = (x) => 200 * 2 ** (clamp01(x) * 4.32);      // ~200 Hz (dark) .. ~4 kHz (bright; engine caps partials near there)
 export const attackSec = (x) => 0.25 * (0.003 / 0.25) ** clamp01(x); // 250 ms (soft) .. 3 ms (plucky)
-export const overtoneCount = (x) => 1 + Math.round(clamp01(x) * 11); // 1 .. 12 partials
+export const overtoneCount = (x) => 1 + Math.round(clamp01(x) * 7);  // 1 .. 8 partials
 export const freqName = (f) => noteName(Math.round(12 * Math.log2(f / C4)));
 
 // Note for one point: ready-to-play sound.play() options plus spoken labels per parameter.

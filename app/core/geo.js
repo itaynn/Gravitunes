@@ -35,3 +35,17 @@ export function voiceAt(lat, lon, centers, instruments, blendKm = 800) {
   const a = instruments[n1.center.instrument], b = n2 && instruments[n2.center.instrument];
   return { primary: n1.center, secondary: w < 1 ? n2.center : null, weight: w, voice: blendVoices(a, b, w) };
 }
+
+// Browser only: a 360x180 canvas tinting each region in its center's color (colorOf: id -> css color).
+// With blendKm, alpha fades toward borders over the blend zone, so the tint shows where voices mix.
+export function regionTint(centers, colorOf, blendKm = 0) {
+  const tint = document.createElement('canvas');
+  tint.width = 360; tint.height = 180;
+  const g = tint.getContext('2d');
+  for (let y = 0; y < 180; y += 2) for (let x = 0; x < 360; x += 2) {
+    const [n1, n2] = nearestCenters(89 - y, x - 180, centers);
+    g.globalAlpha = n2 && blendKm > 0 ? 0.25 + 0.75 * (2 * blendWeight(n1.km, n2.km, blendKm) - 1) : 1;
+    g.fillStyle = colorOf.get(n1.center.id); g.fillRect(x, y, 2, 2);
+  }
+  return tint;
+}

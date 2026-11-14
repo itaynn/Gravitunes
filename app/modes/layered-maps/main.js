@@ -19,7 +19,11 @@ export default function start(ctx) {
   }
   let scale = 'pentatonic-major';
   scaleControl(panel, { value: scale, describe, onChange: (v) => { scale = v; } });
-  panel.button('Describe this spot', () => last && probe(last, { announce: true }));
+  panel.button('Describe this spot', () => {
+    if (!last) describe('Move over the map or use the arrow keys first.');
+    else if (!layers) describe('Still loading gas maps.');
+    else probe(last, { announce: true, force: true });
+  });
 
   (async () => {
     const ds = await Promise.all(LAYERS.map((l) =>
@@ -29,7 +33,7 @@ export default function start(ctx) {
     const missing = LAYERS.filter((_, i) => !ds[i]).map((l) => l.name);
     describe(missing.length ? `Could not load ${missing.join(' and ')}.`
       : 'Ready: carbon monoxide plays low, ozone in the middle, nitrogen oxides higher.');
-    if (last) probe(last, { announce: false });
+    if (last) probe(last, { announce: false, force: true });
   })().catch((e) => { console.error(e); describe(`Could not load the gas maps: ${e.message}`); });
 
   function readingsAt(lat, lon) {
@@ -41,19 +45,30 @@ export default function start(ctx) {
     });
   }
 
-  function probe({ lat, lon }, { announce = true } = {}) {
+  // Hover is throttled (150 ms) so a fast sweep does not pile up chords.
+  let lastAt = 0;
+  const lastFreq = {};   // layer id -> last played frequency, for playback
+  function probe({ lat, lon }, { announce = true, force = false, onlyChanged = false, prefix = '' } = {}) {
     last = { lat, lon };
     if (!layers) return;
+    const now = performance.now();
+    if (!force && !onlyChanged && now - lastAt < 150) return;
+    lastAt = now;
     const r = readingsAt(lat, lon);
-    for (const n of notesFor(r, state, lon / 180, scale)) sound.play(n);
-    if (announce) describe(`${cap(describeReadings(r, (x) => x.ds.format(x.value)))}, near ${where(lat, lon)}`);
+    for (const n of notesFor(r, state, lon / 180, scale)) {
+      if (onlyChanged && lastFreq[n.id] === n.freq) continue;
+      lastFreq[n.id] = n.freq;
+      sound.play(n);
+    }
+    if (announce) describe(`${prefix}${cap(describeReadings(r, (x) => x.ds.format(x.value)))}, near ${where(lat, lon)}`);
   }
 
   const offHover = input.onHover((p) => probe(p));
-  const offClick = input.onClick((p) => probe(p));
+  const offClick = input.onClick((p) => probe(p, { force: true }));
   const offFrame = time.onFrame(() => {
-    if (last) probe(last, { announce: false });
-    if (!time.playing) describe(time.label());
+    if (time.playing) { if (last) probe(last, { announce: false, onlyChanged: true }); return; }
+    if (last && layers) probe(last, { force: true, prefix: `${time.label()}: ` });
+    else describe(time.label());
   });
   return () => { alive = false; offHover(); offClick(); offFrame(); };
 }

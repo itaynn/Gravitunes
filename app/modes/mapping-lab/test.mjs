@@ -59,7 +59,7 @@ assert.ok(note(cl, 60).play.amp > note(cl, 5).play.amp);
 assert.ok(renderNote(cl, { lat: 0, lon: 170, value: 30 }, opts).play.pan > 0.8);
 
 // depth, attack, timbre, brightness
-assert.ok(depthHz(0) < 250 && depthHz(1) > 7000); assert.ok(attackSec(0) > attackSec(1));
+assert.ok(depthHz(0) < 250 && depthHz(1) > 3900 && depthHz(1) < 4100); assert.ok(attackSec(0) > attackSec(1));
 const ds = PRESETS.deepsouth.mapping;
 const south = renderNote(ds, { lat: -70, lon: 0, value: 30 }, opts), north = renderNote(ds, { lat: 70, lon: 0, value: 30 }, opts);
 assert.ok(south.play.lowpass < north.play.lowpass); assert.equal(south.labels.depth, 'dark'); assert.equal(north.labels.depth, 'bright');
