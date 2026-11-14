@@ -1,0 +1,128 @@
+{
+  "id": "anvil",
+  "title": "Anvil hit",
+  "kind": "sound",
+  "harmonics": [
+    1.0
+  ],
+  "envelope": {
+    "attack": 0.01,
+    "decay": 0.34,
+    "sustain": 0.0,
+    "release": 0.17
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "anvil/anvil.trim.wav",
+    "f0": 6988.834
+  },
+  "source": {
+    "f0": 436.552,
+    "confidence": 0.461,
+    "pitched": false,
+    "file": "data/earth/instruments/anvil/Anvil_Hit1_v1_Sum.wav",
+    "trim": [
+      0.0,
+      0.71
+    ],
+    "license": "CC0 1.0",
+    "attribution": "\"Anvil hit\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE"
+  },
+  "partials": [
+    {
+      "ratio": 0.4156,
+      "amp": 0.0234,
+      "decay": 0.471
+    },
+    {
+      "ratio": 0.5461,
+      "amp": 0.1012,
+      "decay": 0.287
+    },
+    {
+      "ratio": 0.5672,
+      "amp": 0.5703,
+      "decay": 0.409
+    },
+    {
+      "ratio": 0.803,
+      "amp": 0.1797,
+      "decay": 0.592
+    },
+    {
+      "ratio": 0.8061,
+      "amp": 0.3575,
+      "decay": 0.244
+    },
+    {
+      "ratio": 0.811,
+      "amp": 0.032,
+      "decay": 0.315
+    },
+    {
+      "ratio": 0.8303,
+      "amp": 0.0512,
+      "decay": 0.898
+    },
+    {
+      "ratio": 0.8718,
+      "amp": 0.4829,
+      "decay": 0.724
+    },
+    {
+      "ratio": 1.1979,
+      "amp": 0.0282,
+      "decay": 0.661
+    },
+    {
+      "ratio": 1.2504,
+      "amp": 0.1748,
+      "decay": 0.306
+    },
+    {
+      "ratio": 1.272,
+      "amp": 0.1466,
+      "decay": 0.51
+    },
+    {
+      "ratio": 1.2859,
+      "amp": 0.0241,
+      "decay": 0.412
+    },
+    {
+      "ratio": 1.3802,
+      "amp": 0.0788,
+      "decay": 0.381
+    },
+    {
+      "ratio": 1.4146,
+      "amp": 0.022,
+      "decay": 0.349
+    },
+    {
+      "ratio": 1.4499,
+      "amp": 0.0292,
+      "decay": 0.483
+    },
+    {
+      "ratio": 1.4683,
+      "amp": 0.1982,
+      "decay": 0.473
+    },
+    {
+      "ratio": 1.4792,
+      "amp": 0.0448,
+      "decay": 0.373
+    },
+    {
+      "ratio": 1.5272,
+      "amp": 0.0701,
+      "decay": 0.549
+    },
+    {
+      "ratio": 1.5534,
+      "amp": 0.0325,
+      "decay": 0.346
+    }
+  ]
+}

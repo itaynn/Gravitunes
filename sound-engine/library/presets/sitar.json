@@ -1,0 +1,124 @@
+{
+  "id": "sitar",
+  "title": "Sitar clipping",
+  "kind": "instrument",
+  "harmonics": [
+    1.0
+  ],
+  "envelope": {
+    "attack": 0.96,
+    "decay": 0.45,
+    "sustain": 0.288,
+    "release": 0.3
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "sitar/sitar.trim.wav",
+    "f0": 588.354
+  },
+  "source": {
+    "f0": 73.493,
+    "confidence": 0.178,
+    "pitched": false,
+    "file": "data/earth/instruments/sitar/Sitar_clipping.ogg",
+    "trim": [
+      0.1,
+      1.64
+    ],
+    "license": "CC BY-SA 3.0",
+    "attribution": "\"Sitar clipping\" by Sanath311, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sitar_clipping.ogg"
+  },
+  "partials": [
+    {
+      "ratio": 0.3749,
+      "amp": 0.2447,
+      "decay": 0.8
+    },
+    {
+      "ratio": 0.4639,
+      "amp": 0.2599,
+      "decay": 0.205
+    },
+    {
+      "ratio": 0.4998,
+      "amp": 0.451,
+      "decay": 2.447
+    },
+    {
+      "ratio": 0.5627,
+      "amp": 0.1385,
+      "decay": 2.978
+    },
+    {
+      "ratio": 0.6664,
+      "amp": 0.333,
+      "decay": 0.671
+    },
+    {
+      "ratio": 0.7116,
+      "amp": 0.1064,
+      "decay": 0.455
+    },
+    {
+      "ratio": 0.7476,
+      "amp": 0.2388,
+      "decay": 0.34
+    },
+    {
+      "ratio": 0.8603,
+      "amp": 0.0903
+    },
+    {
+      "ratio": 0.899,
+      "amp": 0.085
+    },
+    {
+      "ratio": 0.9327,
+      "amp": 0.096,
+      "decay": 1.091
+    },
+    {
+      "ratio": 1.1265,
+      "amp": 0.1599,
+      "decay": 0.579
+    },
+    {
+      "ratio": 1.2928,
+      "amp": 0.0665
+    },
+    {
+      "ratio": 1.327,
+      "amp": 0.0966,
+      "decay": 0.732
+    },
+    {
+      "ratio": 1.5008,
+      "amp": 0.3251,
+      "decay": 4.897
+    },
+    {
+      "ratio": 1.8728,
+      "amp": 0.4016
+    },
+    {
+      "ratio": 1.9993,
+      "amp": 0.2311,
+      "decay": 0.729
+    },
+    {
+      "ratio": 2.2477,
+      "amp": 0.1175,
+      "decay": 3.833
+    },
+    {
+      "ratio": 3.5047,
+      "amp": 0.1195,
+      "decay": 1.307
+    },
+    {
+      "ratio": 6.0111,
+      "amp": 0.0676,
+      "decay": 0.353
+    }
+  ]
+}

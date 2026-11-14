@@ -1,0 +1,66 @@
+{
+  "id": "oud",
+  "title": "Oud open strings",
+  "kind": "instrument",
+  "harmonics": [
+    0.2778,
+    0.4748,
+    0.5527,
+    0.9677,
+    1.0,
+    0.2762,
+    0.0896,
+    0.0754,
+    0.5107,
+    0.4508,
+    0.3609,
+    0.1754,
+    0.0,
+    0.0,
+    0.1537,
+    0.085,
+    0.0,
+    0.0354,
+    0.0403,
+    0.0,
+    0.0,
+    0.039,
+    0.0,
+    0.0453
+  ],
+  "envelope": {
+    "attack": 0.06,
+    "decay": 0.47,
+    "sustain": 0.236,
+    "release": 0.3
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "oud/oud.trim.wav",
+    "f0": 73.753
+  },
+  "source": {
+    "f0": 73.753,
+    "confidence": 0.98,
+    "pitched": true,
+    "file": "data/earth/instruments/oud/Oud_open_Strings.ogg",
+    "trim": [
+      0.28,
+      1.33
+    ],
+    "license": "CC BY-SA 3.0",
+    "attribution": "\"Oud open strings\" by User:Bottomline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg"
+  },
+  "partials": [
+    {
+      "ratio": 0.6751,
+      "amp": 0.1186,
+      "decay": 16.596
+    },
+    {
+      "ratio": 2.6451,
+      "amp": 0.0904,
+      "decay": 0.81
+    }
+  ]
+}

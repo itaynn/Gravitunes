@@ -1,0 +1,170 @@
+[
+  {
+    "id": "anvil",
+    "name": "Anvil",
+    "title": "Anvil hit",
+    "kind": "sound",
+    "pitched": false,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "balafon",
+    "name": "Balafon",
+    "title": "Le son du balafon traditionnel",
+    "kind": "instrument",
+    "pitched": false,
+    "license": "CC BY 4.0"
+  },
+  {
+    "id": "bell_tree",
+    "name": "Bell tree",
+    "title": "Bell tree stroke",
+    "kind": "sound",
+    "pitched": false,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "bouzouki",
+    "name": "Bouzouki",
+    "title": "Bouzouki tuning sound, d string",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC BY-SA 4.0"
+  },
+  {
+    "id": "celtic_harp",
+    "name": "Celtic harp",
+    "title": "Harp C3 mf",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "didgeridoo",
+    "name": "Didgeridoo",
+    "title": "Didgeridoo sound",
+    "kind": "instrument",
+    "pitched": false,
+    "license": "CC BY-SA 4.0"
+  },
+  {
+    "id": "duduk",
+    "name": "Duduk",
+    "title": "Sound of Armenian duduk",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC BY-SA 4.0"
+  },
+  {
+    "id": "flute",
+    "name": "Flute",
+    "title": "Flute C4 sustained, no vibrato",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "glockenspiel",
+    "name": "Glockenspiel",
+    "title": "Glockenspiel G4",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "gong",
+    "name": "Gong",
+    "title": "Gong hit mf",
+    "kind": "sound",
+    "pitched": false,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "guzheng",
+    "name": "Guzheng",
+    "title": "Guzheng Morning",
+    "kind": "instrument",
+    "pitched": false,
+    "license": "CC BY 3.0"
+  },
+  {
+    "id": "koto",
+    "name": "Koto",
+    "title": "Koto performance",
+    "kind": "instrument",
+    "pitched": false,
+    "license": "CC BY 3.0"
+  },
+  {
+    "id": "marimba",
+    "name": "Marimba",
+    "title": "Marimba C4",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "mbira",
+    "name": "Mbira",
+    "title": "Kalimba de coco (single notes) 01",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC BY-SA 4.0"
+  },
+  {
+    "id": "nepalese_bells",
+    "name": "Nepalese bells",
+    "title": "Nepalese bells",
+    "kind": "sound",
+    "pitched": false,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "organ",
+    "name": "Organ",
+    "title": "Pipe organ, manual 3 open (Rode)",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "oud",
+    "name": "Oud",
+    "title": "Oud open strings",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "sitar",
+    "name": "Sitar",
+    "title": "Sitar clipping",
+    "kind": "instrument",
+    "pitched": false,
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "triangle",
+    "name": "Triangle",
+    "title": "Triangle hit",
+    "kind": "sound",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "vibraphone",
+    "name": "Vibraphone",
+    "title": "Vibraphone ring",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  },
+  {
+    "id": "xylophone",
+    "name": "Xylophone",
+    "title": "Xylophone C5",
+    "kind": "instrument",
+    "pitched": true,
+    "license": "CC0 1.0"
+  }
+]

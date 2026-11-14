@@ -1,0 +1,128 @@
+{
+  "id": "nepalese_bells",
+  "title": "Nepalese bells",
+  "kind": "sound",
+  "harmonics": [
+    1.0
+  ],
+  "envelope": {
+    "attack": 0.14,
+    "decay": 0.13,
+    "sustain": 0.0,
+    "release": 0.065
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "nepalese_bells/nepalese_bells.trim.wav",
+    "f0": 4876.457
+  },
+  "source": {
+    "f0": 287.893,
+    "confidence": 0.504,
+    "pitched": false,
+    "file": "data/earth/instruments/nepalese_bells/fx1_short_r01_main.wav",
+    "trim": [
+      0.0,
+      0.98
+    ],
+    "license": "CC0 1.0",
+    "attribution": "\"Nepalese bells\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE"
+  },
+  "partials": [
+    {
+      "ratio": 0.5291,
+      "amp": 0.6324,
+      "decay": 0.946
+    },
+    {
+      "ratio": 0.533,
+      "amp": 0.37,
+      "decay": 1.144
+    },
+    {
+      "ratio": 0.7798,
+      "amp": 0.2023,
+      "decay": 0.697
+    },
+    {
+      "ratio": 0.7871,
+      "amp": 0.0451,
+      "decay": 0.562
+    },
+    {
+      "ratio": 0.8094,
+      "amp": 0.0387,
+      "decay": 0.559
+    },
+    {
+      "ratio": 0.8243,
+      "amp": 0.4786,
+      "decay": 0.586
+    },
+    {
+      "ratio": 0.8358,
+      "amp": 0.0643,
+      "decay": 0.543
+    },
+    {
+      "ratio": 0.8424,
+      "amp": 0.0371,
+      "decay": 0.45
+    },
+    {
+      "ratio": 0.9883,
+      "amp": 0.0321,
+      "decay": 0.621
+    },
+    {
+      "ratio": 1.1712,
+      "amp": 0.0552,
+      "decay": 0.526
+    },
+    {
+      "ratio": 1.1757,
+      "amp": 0.1508,
+      "decay": 0.536
+    },
+    {
+      "ratio": 1.1821,
+      "amp": 0.1782,
+      "decay": 0.497
+    },
+    {
+      "ratio": 1.5427,
+      "amp": 0.0339,
+      "decay": 0.374
+    },
+    {
+      "ratio": 1.5475,
+      "amp": 0.0337,
+      "decay": 0.358
+    },
+    {
+      "ratio": 1.5964,
+      "amp": 0.3707,
+      "decay": 0.609
+    },
+    {
+      "ratio": 1.7788,
+      "amp": 0.0515,
+      "decay": 0.374
+    },
+    {
+      "ratio": 1.7985,
+      "amp": 0.0335,
+      "decay": 0.28
+    },
+    {
+      "ratio": 2.3035,
+      "amp": 0.0328,
+      "decay": 0.429
+    },
+    {
+      "ratio": 2.3132,
+      "amp": 0.0329,
+      "decay": 0.413
+    }
+  ]
+}

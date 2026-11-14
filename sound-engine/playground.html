@@ -20,7 +20,8 @@
 </header>
 <main id="main">
   <fieldset><legend>Tone</legend>
-    <div class="row"><div class="field"><label for="preset">Start from a sound</label><select id="preset"></select></div></div>
+    <div class="row"><div class="field"><label for="preset">Start from a sound</label><select id="preset"></select></div>
+      <div class="field"><label for="library">Or a real instrument</label><select id="library"><option value="">(none)</option></select></div></div>
     <div class="row two">
       <figure><figcaption>Wave shape</figcaption><canvas id="wave" role="img" aria-label="Picture of the wave shape of the current tone"></canvas></figure>
       <figure><figcaption>Overtones (low to high pitch)</figcaption><canvas id="spec" role="img" aria-label="Picture of how loud each overtone of the current tone is"></canvas></figure>
@@ -91,6 +92,8 @@
         <div class="field"><label for="lt-len">Note length (1 = until the next note)</label><input type="number" id="lt-len" min="0.1" max="4" step="0.1" value="0.9"></div>
         <div class="field"><label for="lt-oct">Octave shift (-2 to 2; 0 starts at C3, one octave below middle C)</label><input type="number" id="lt-oct" min="-2" max="2" step="1" value="0"></div>
         <div class="field"><label for="lt-per">Octaves to play (1 to 3)</label><input type="number" id="lt-per" min="1" max="3" step="1" value="1"></div>
+        <div class="field"><label for="cap-note">Highest note, in hertz (higher notes drop an octave)</label><input type="number" id="cap-note" min="100" max="5000" step="10" value="1050"></div>
+        <div class="field"><label for="cap-freq">Highest overtone, in hertz (softens shrill sounds)</label><input type="number" id="cap-freq" min="500" max="20000" step="100" value="5000"></div>
       </div></details>
     <details id="shortcuts"><summary>Keyboard shortcuts</summary>
       <table>
@@ -113,10 +116,6 @@
     <div id="keyboard" role="group" aria-labelledby="kblegend"></div>
   </fieldset>
 
-  <details id="dev"><summary>For developers</summary>
-    <p>The current tone as numbers, for <code>engine.voice(name, settings)</code> in code. Scores and the live bridge are in the <a href="player.html">player page</a>.</p>
-    <div class="exp"><label for="outjson">Tone settings</label><textarea id="outjson" rows="8" readonly></textarea><button type="button" data-copy="outjson">Copy</button></div>
-  </details>
 </main>
 <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <script type="module" src="ui/playground.js"></script>

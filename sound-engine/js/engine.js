@@ -1,6 +1,6 @@
 // engine.js — Web Audio engine. OWNER: engine fork.
 // The engine works in Hz; tuning/scale (pure modules) turn steps and data values into Hz.
-import { resolveVoice, validateVoiceDef, PRESETS } from "./voices.js";
+import { resolveVoice, validateVoiceDef, PRESETS, resolveRolloff, rolloffGain, capFade, limitNoteFreq, DEFAULT_MAX_FREQ, DEFAULT_MAX_NOTE_FREQ } from "./voices.js";
 import { createTuning, resolveTuning } from "./tuning.js";
 import { createScale } from "./scale.js";
 import { normalizeEvent, normalizeScore, resolvePitch, directionTracker } from "./score.js";
@@ -12,11 +12,24 @@ const TICK_MS = 50;
 
 /**
  * Create a sound engine.
- * @param {{output?:"mono"|"stereo", balance?:number, width?:number, polyphony?:number, masterGain?:number, tuning?:any, scale?:any, context?:BaseAudioContext, a4?:number, destination?:AudioNode}} [opts]
+ * @param {{output?:"mono"|"stereo", balance?:number, width?:number, polyphony?:number, masterGain?:number, tuning?:any, scale?:any, context?:BaseAudioContext, a4?:number, destination?:AudioNode,
+ *   rolloff?:false|{freq?:number,slope?:number}, maxFreq?:number, maxNoteFreq?:number, noteLimit?:"fold"|"clamp"|"off", sampleBase?:string, libraryBase?:string}} [opts]
+ *   rolloff: pitch-tracking high-frequency rolloff (default on: -6 dB/octave above 2500 Hz); false turns it off.
+ *   maxFreq: no harmonic or partial above this (Hz, default 5000); components fade out smoothly from 0.8x the cap, also during glides. Infinity disables.
+ *   maxNoteFreq: highest fundamental (Hz, default 1050, about C6). noteLimit "fold" (default) drops higher notes by octaves, "clamp" pins them, "off" disables.
+ *   sampleBase: URL a sample voice's relative `sample.url` resolves against (default: the repo's data/earth/instruments/).
+ *   libraryBase: URL of the library preset JSON files (default: sound-engine/library/presets/).
  */
 export function createEngine(opts = {}) {
   const { polyphony = 32, masterGain = 0.8, a4 = 440, tuning: tuningSpec = "12tet" } = opts;
   let scaleSpec = opts.scale ?? null;
+  let rolloff = resolveRolloff(opts.rolloff);
+  let maxFreq = checkCap(opts.maxFreq ?? DEFAULT_MAX_FREQ, "createEngine: maxFreq");
+  let maxNoteFreq = checkCap(opts.maxNoteFreq ?? DEFAULT_MAX_NOTE_FREQ, "createEngine: maxNoteFreq");
+  let noteLimit = checkNoteLimit(opts.noteLimit ?? "fold", "createEngine");
+  const sampleBase = opts.sampleBase ?? new URL("../../data/earth/instruments/", import.meta.url).href;
+  const libraryBase = opts.libraryBase ?? new URL("../library/presets/", import.meta.url).href;
+  const samples = new Map();               // absolute url -> { buffer, norm } once loaded, or a Promise while loading
   if (!(Number.isInteger(polyphony) && polyphony > 0) && polyphony !== Infinity)
     throw new Error(`createEngine: polyphony must be a positive integer, got ${polyphony}`);
   let output = checkOutput(opts.output ?? "stereo", "createEngine");
@@ -90,6 +103,14 @@ export function createEngine(opts = {}) {
   /** rampParam that knows "now", so ramps starting now hold the true current value. */
   const rampTo = (p, v, t0, t1, e = false) => rampParam(p, v, t0, t1, e, ctx.currentTime);
 
+  /** The loaded sample record for a voice's sample def, or null (not loaded yet: fall back to synthesis). */
+  function loadedSample(m) {
+    const rec = samples.get(new URL(m.url, sampleBase).href);
+    return rec && !(rec instanceof Promise) ? rec : null;
+  }
+  /** A note's fundamental after the maxNoteFreq limit. */
+  const limitNote = (f) => limitNoteFreq(f, maxNoteFreq, noteLimit);
+
   // ---------------------------------------------------------------- notes
   function steal(when) {
     const live = [...active].filter((h) => h._endTime > when);
@@ -122,8 +143,11 @@ export function createEngine(opts = {}) {
     let amp = ev.amp ?? voiceDef.amp;
     let pan = ev.pan ?? voiceDef.pan;
     const pc = pitchCtx(scope);
-    const freq = resolvePitch(ev, pc);
+    const freq = limitNote(resolvePitch(ev, pc));
     let env = voiceDef.envelope;
+    const smp = voiceDef.sample ? loadedSample(voiceDef.sample) : null;
+    /** Loudness normalization: recordings by their measured level, synth voices by their partial amplitudes. */
+    const norm = (v) => (smp ? smp.norm * (v.sample?.gain ?? 1) : levelNorm(v));
 
     if (ev.id !== undefined && byId.has(ev.id)) byId.get(ev.id).stop(start);
     steal(start);
@@ -131,11 +155,17 @@ export function createEngine(opts = {}) {
     // graph: harmonic osc -> gain ─┐
     //        partial oscs -> gains ┴─> level -> env -> panner -> master
     const level = c.createGain();
-    level.gain.value = amp * levelNorm(voiceDef);
+    level.gain.value = amp * norm(voiceDef);
+    // Per-note low-pass (BiquadFilter, Butterworth Q). Without `lowpass` it sits at Nyquist (no effect),
+    // so handle.set({ lowpass }) can still ramp it later.
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass"; lp.Q.value = Math.SQRT1_2;
+    const lpFreq = (v) => clamp(v ?? c.sampleRate / 2, 20, c.sampleRate / 2);
+    lp.frequency.value = lpFreq(ev.lowpass ?? voiceDef.lowpass);
     const envGain = c.createGain();
     envGain.gain.value = 0;
     const panner = c.createStereoPanner ? c.createStereoPanner() : null;
-    level.connect(envGain);
+    level.connect(lp).connect(envGain);
     if (panner) { panner.pan.value = effectivePan(pan, freq); envGain.connect(panner).connect(master); }
     else envGain.connect(master);
 
@@ -156,7 +186,7 @@ export function createEngine(opts = {}) {
       o.frequency.value = curFreq * ratio; o.detune.value = voiceDef.detune;
       const g = c.createGain(); g.gain.value = gainValue;
       o.connect(g).connect(level);
-      const src = { osc: o, gain: g, ratio };
+      const src = { osc: o, gain: g, ratio, param: o.frequency };
       live.add(src);
       o.onended = () => {
         o.disconnect(); g.disconnect(); live.delete(src);
@@ -168,20 +198,42 @@ export function createEngine(opts = {}) {
     }
     const sineSetup = (o) => { o.type = "sine"; };
     const hasHarm = (v) => v.harmonics.some((x) => x !== 0);
-    const audible = (p, f) => f * p.ratio < c.sampleRate / 2; // above Nyquist: skip, avoids aliasing
-    /** Gain of a partial at time t; a partial with `decay` fades from the note start. */
-    const partialLevel = (p, t) => (p.amp ?? 1) * (p.decay ? Math.exp(-Math.max(0, t - start) * 3 / p.decay) : 1);
+    /**
+     * Gain factor for a component at f Hz: the pitch-tracking rolloff times a smooth fade to 0 at
+     * min(maxFreq, Nyquist), so components never alias and nothing sounds above the cap.
+     */
+    const compGain = (f) => capFade(f, Math.min(maxFreq, c.sampleRate / 2)) * rolloffGain(f, rolloff);
+    const audible = (p, f) => compGain(f * p.ratio) > 0;
+    /** Gain of a partial at time t and pitch f; a partial with `decay` fades from the note start. */
+    const partialLevel = (p, t, f = curFreq) => (p.amp ?? 1) * compGain(f * p.ratio) * (p.decay ? Math.exp(-Math.max(0, t - start) * 3 / p.decay) : 1);
 
-    /** Gain of harmonic k (0-based) at pitch f: its amplitude, or 0 at/above Nyquist (like a PeriodicWave). */
-    const harmLevel = (h, k, f) => (f * (k + 1) < c.sampleRate / 2 ? h[k] ?? 0 : 0);
-    harms = voiceDef.harmonics.map((a, k) => (harmLevel(voiceDef.harmonics, k, freq) ? makeSource(k + 1, sineSetup, start, a) : null));
-    parts = voiceDef.partials.map((p) => {
-      if (!audible(p, freq)) return null;
-      const s = makeSource(p.ratio, sineSetup, start, p.amp ?? 1);
-      if (p.decay) { s.gain.gain.setValueAtTime(p.amp ?? 1, start); s.gain.gain.setTargetAtTime(0, start, p.decay / 3); }
-      return s;
-    });
-    if (!live.size) throw new Error("engine.play: the voice has no sound (all harmonics are 0 and no partials)");
+    /** Gain of harmonic k (0-based) at pitch f: its amplitude times compGain (0 at/above the cap). */
+    const harmLevel = (h, k, f) => (h[k] ?? 0) * compGain(f * (k + 1));
+    if (smp) {
+      // Sample voice: one buffer source whose playbackRate follows the pitch (ratio = 1 / recorded f0).
+      const m = voiceDef.sample, b = c.createBufferSource();
+      b.buffer = smp.buffer;
+      if (m.loop) { b.loop = true; if (m.loopStart !== undefined) b.loopStart = m.loopStart; if (m.loopEnd !== undefined) b.loopEnd = m.loopEnd; }
+      b.playbackRate.value = freq / m.f0;
+      if (b.detune) b.detune.value = voiceDef.detune;
+      const g = c.createGain(); g.gain.value = 1;
+      b.connect(g).connect(level);
+      const src = { osc: b, gain: g, ratio: 1 / m.f0, param: b.playbackRate };
+      live.add(src);
+      b.onended = () => { b.disconnect(); g.disconnect(); live.delete(src); if (!live.size && !endedNote) finish(); };
+      b.start(start);
+      harms = [src];
+    } else {
+      harms = voiceDef.harmonics.map((a, k) => (harmLevel(voiceDef.harmonics, k, freq) ? makeSource(k + 1, sineSetup, start, harmLevel(voiceDef.harmonics, k, freq)) : null));
+      parts = voiceDef.partials.map((p) => {
+        if (!audible(p, freq)) return null;
+        const a0 = partialLevel(p, start, freq);
+        const s = makeSource(p.ratio, sineSetup, start, a0);
+        if (p.decay) { s.gain.gain.setValueAtTime(a0, start); s.gain.gain.setTargetAtTime(0, start, p.decay / 3); }
+        return s;
+      });
+    }
+    if (!live.size) throw new Error("engine.play: the voice has no sound (all harmonics are 0 and no partials, or all are above maxFreq)");
 
     const atk = Math.max(0.002, env.attack);
     let sus = clamp(env.sustain, 0, 1);
@@ -192,11 +244,27 @@ export function createEngine(opts = {}) {
       const g = ev.glide;
       const toDir = typeof g.to === "number" ? undefined : g.to.direction ?? (g.to.value !== undefined && ev.value !== undefined
         ? (g.to.value >= ev.value ? "up" : "down") : ev.direction);
-      const target = typeof g.to === "number" ? g.to : resolvePitch({ ...g.to, direction: toDir }, pc);
+      const target = limitNote(typeof g.to === "number" ? g.to : resolvePitch({ ...g.to, direction: toDir }, pc));
       const gStart = start + (g.at ?? 0), gEnd = gStart + Math.max(0.001, g.time ?? (ev.dur ?? 1));
-      for (const { osc, ratio } of live) {
-        osc.frequency.setValueAtTime(freq * ratio, gStart);
-        osc.frequency.exponentialRampToValueAtTime(target * ratio, gEnd);
+      if (!smp) {
+        // Harmonics silent at the start pitch but audible later in the glide (downward glides) get a silent sine now.
+        voiceDef.harmonics.forEach((a, k) => { if (!harms[k] && a && harmLevel(voiceDef.harmonics, k, target)) harms[k] = makeSource(k + 1, sineSetup, start, 0); });
+      }
+      for (const { param, ratio } of live) {
+        param.setValueAtTime(freq * ratio, gStart);
+        param.exponentialRampToValueAtTime(target * ratio, gEnd);
+      }
+      if (!smp) {
+        // Component gains follow the glide, so harmonics/partials that cross maxFreq or Nyquist fade out (or in).
+        const N = 24, fAt = (u) => freq * Math.pow(target / freq, u);
+        const follow = (gainParam, levelAt) => {
+          const vals = Array.from({ length: N + 1 }, (_, i) => levelAt(fAt(i / N)));
+          if (vals.every((v) => Math.abs(v - vals[0]) < 1e-6)) return;
+          gainParam.setValueAtTime(vals[0], gStart);
+          for (let i = 1; i <= N; i++) gainParam.linearRampToValueAtTime(vals[i], gStart + (gEnd - gStart) * i / N);
+        };
+        harms.forEach((src, k) => { if (src) follow(src.gain.gain, (f) => harmLevel(voiceDef.harmonics, k, f)); });
+        parts.forEach((src, i) => { const p = voiceDef.partials[i]; if (src && !p.decay) follow(src.gain.gain, (f) => partialLevel(p, gStart, f)); });
       }
       curFreq = target;
     }
@@ -209,6 +277,7 @@ export function createEngine(opts = {}) {
      * normalization, so the note stays as loud as before.
      */
     function applyTimbre(nv, t0, t1) {
+      if (smp) throw new Error("handle.set: timbre changes do not apply to sample voices (start a new note instead)");
       if (!hasHarm(nv) && !nv.partials.some((p) => audible(p, curFreq) && (p.amp ?? 1) !== 0))
         throw new Error("handle.set: that timbre has no sound (all harmonics are 0 and no partials)");
       const fade = t1 - t0;
@@ -232,7 +301,7 @@ export function createEngine(opts = {}) {
         const src = parts[i], p = nv.partials[i];
         if (!p || !audible(p, curFreq)) { if (src) fadeOut(src, t0); next.push(null); continue; }
         const s = src ?? makeSource(p.ratio, sineSetup, t0, 0);
-        if (src && src.ratio !== p.ratio) { s.ratio = p.ratio; rampTo(s.osc.frequency, curFreq * p.ratio, t0, t1, true); }
+        if (src && src.ratio !== p.ratio) { s.ratio = p.ratio; rampTo(s.param, curFreq * p.ratio, t0, t1, true); }
         rampTo(s.gain.gain, partialLevel(p, t1), t0, t1);
         if (p.decay) s.gain.gain.setTargetAtTime(0, t1, p.decay / 3);
         next.push(s);
@@ -240,6 +309,7 @@ export function createEngine(opts = {}) {
       parts = next;
       if (nv.detune !== voiceDef.detune) for (const { osc } of live) rampTo(osc.detune, nv.detune, t0, t1);
       rampTo(level.gain, amp * levelNorm(nv), t0, t1);
+      if (nv.lowpass !== voiceDef.lowpass && handle._lowpass === undefined) rampTo(lp.frequency, lpFreq(nv.lowpass), t0, t1, true);
       // A new sustain level reaches a held note (after its attack, with no release scheduled).
       const nsus = clamp(nv.envelope.sustain, 0, 1);
       if (nsus !== sus && handle._releaseAt === undefined && t0 >= start + atk) {
@@ -291,7 +361,8 @@ export function createEngine(opts = {}) {
       _endTime: Infinity,
       _releasing: false,      // a release is scheduled (it may not have begun yet)
       _releaseAt: undefined,  // absolute time the release begins
-      _value: ev.value,       // last data value, to tell up from down for set({value})
+      _value: ev.value,
+      _lowpass: ev.lowpass,   // an event/set-level cutoff wins over the voice's       // last data value, to tell up from down for set({value})
       _registry: voiceReg,    // where the voice name resolves (engine registry or a score's scope)
       _overrides: overrides,  // event-level timbre fields, kept across live voice updates
       /** True once the release has actually begun (a release scheduled for later doesn't count). */
@@ -327,7 +398,13 @@ export function createEngine(opts = {}) {
           try { applyTimbre(nv, t0, t0 + clamp(ramp, 0.01, 0.05)); }
           catch (e) { [handle.voice, handle._registry, handle._overrides] = prevVoice; throw e; }
         }
-        if (a !== undefined) { amp = a; rampTo(level.gain, a * levelNorm(voiceDef), t0, t1); }
+        if (a !== undefined) { amp = a; rampTo(level.gain, a * norm(voiceDef), t0, t1); }
+        if (params.lowpass !== undefined) {
+          const v = params.lowpass;
+          if (v !== null && !(typeof v === "number" && v >= 20 && v <= 20000)) throw new Error(`handle.set: lowpass must be a cutoff in Hz (20..20000) or null (off), got ${v}`);
+          handle._lowpass = v ?? undefined;
+          rampTo(lp.frequency, lpFreq(v ?? undefined), t0, t1, true);
+        }
         let repan = params.pan !== undefined;
         if (repan) pan = clamp(params.pan, -1, 1);
         if (["freq", "note", "step", "value"].some((k) => params[k] !== undefined)) {
@@ -335,10 +412,13 @@ export function createEngine(opts = {}) {
           if (p.value !== undefined && p.direction === undefined && p.freq === undefined && p.note === undefined && p.step === undefined)
             p = { ...p, direction: handle._value === undefined || p.value >= handle._value ? "up" : "down" };
           if (p.value !== undefined) handle._value = p.value;
-          const f = resolvePitch(p, pc);
+          const f = limitNote(resolvePitch(p, pc));
           handle.freq = f; curFreq = f; repan = true;
-          for (const { osc, ratio } of live) rampTo(osc.frequency, f * ratio, t0, t1, true);
-          harms.forEach((src, k) => { if (src) rampTo(src.gain.gain, harmLevel(voiceDef.harmonics, k, f), t0, t1); });
+          for (const { param, ratio } of live) rampTo(param, f * ratio, t0, t1, true);
+          if (!smp) {
+            harms.forEach((src, k) => { if (src) rampTo(src.gain.gain, harmLevel(voiceDef.harmonics, k, f), t0, t1); });
+            parts.forEach((src, i) => { const q = voiceDef.partials[i]; if (src && q && !q.decay) rampTo(src.gain.gain, partialLevel(q, t1, f), t0, t1); });
+          }
         }
         if (repan && panner) rampTo(panner.pan, effectivePan(pan, handle.freq), t0, t1);
         return handle;
@@ -386,7 +466,7 @@ export function createEngine(opts = {}) {
 
     function finish() {
       endedNote = true;
-      level.disconnect(); envGain.disconnect(); panner?.disconnect();
+      level.disconnect(); lp.disconnect(); envGain.disconnect(); panner?.disconnect();
       active.delete(handle);
       if (byId.get(handle.id) === handle) byId.delete(handle.id);
       resolveEnded();
@@ -566,6 +646,68 @@ export function createEngine(opts = {}) {
     },
 
     connectBridge(url, o) { return connectBridgeImpl(engine, url, o); },
+
+    /** Current rolloff ({freq, slope}) or null when off. */
+    get rolloff() { return rolloff ? { ...rolloff } : null; },
+    /** High-frequency rolloff for notes started from now on: false (off), true (default) or { freq, slope }. */
+    setRolloff(opt) { rolloff = resolveRolloff(opt); return engine.rolloff; },
+    get maxFreq() { return maxFreq; },
+    get maxNoteFreq() { return maxNoteFreq; },
+    get noteLimit() { return noteLimit; },
+    /**
+     * Frequency caps for notes started (or set/glided) from now on. maxFreq: no harmonic or partial above it (Hz).
+     * maxNoteFreq + noteLimit ("fold" | "clamp" | "off"): the highest fundamental. Infinity disables a cap.
+     * @param {{maxFreq?:number, maxNoteFreq?:number, noteLimit?:string}} o
+     */
+    setLimits(o = {}) {
+      if (o.maxFreq !== undefined) maxFreq = checkCap(o.maxFreq, "engine.setLimits: maxFreq");
+      if (o.maxNoteFreq !== undefined) maxNoteFreq = checkCap(o.maxNoteFreq, "engine.setLimits: maxNoteFreq");
+      if (o.noteLimit !== undefined) noteLimit = checkNoteLimit(o.noteLimit, "engine.setLimits");
+      return { maxFreq, maxNoteFreq, noteLimit };
+    },
+
+    /**
+     * Fetch and decode an audio file for sample voices (relative URLs resolve against sampleBase).
+     * A sample voice whose file is not loaded yet plays its harmonics/partials instead.
+     * @param {string} url @returns {Promise<AudioBuffer>}
+     */
+    async loadSample(url) {
+      const abs = new URL(url, sampleBase).href;
+      const have = samples.get(abs);
+      if (have) return (await have).buffer;
+      const c = ensureContext();
+      const p = (async () => {
+        const res = await fetch(abs);
+        if (!res.ok) throw new Error(`loadSample: could not fetch ${abs} (HTTP ${res.status}). Run sound-engine/library/fetch.py and the instrument analysis first.`);
+        const buffer = await c.decodeAudioData(await res.arrayBuffer());
+        const rec = { buffer, norm: sampleNorm(buffer) };
+        samples.set(abs, rec);
+        return rec;
+      })();
+      samples.set(abs, p);
+      try { return (await p).buffer; } catch (e) { samples.delete(abs); throw e; }
+    },
+
+    /**
+     * Load a library preset (sound-engine/library/presets/<id>.json) and register it as a voice.
+     * opts.name: voice name (default: the id). opts.sample: also load the recording and play it (default true);
+     * if the recording is missing, the analysed harmonics/partials are used.
+     * @returns {Promise<{name:string, def:Object, sample:boolean, source:Object}>}
+     */
+    async loadLibrary(id, { name = id, sample = true } = {}) {
+      const url = new URL(`${encodeURIComponent(id)}.json`, libraryBase).href;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`loadLibrary: no library preset "${id}" (${url}, HTTP ${res.status})`);
+      const preset = await res.json();
+      const { source = {}, sample: sdef, id: _id, title: _t, kind: _k, ...voice } = preset;
+      let usedSample = false;
+      if (sample && sdef) {
+        try { await engine.loadSample(sdef.url); voice.sample = sdef; usedSample = true; }
+        catch (e) { console.warn(`loadLibrary("${id}"): ${e.message}; using the synthesized tone`); }
+      }
+      engine.voice(name, voice);
+      return { name, def: voice, sample: usedSample, source };
+    },
   };
   return engine;
 }
@@ -578,6 +720,25 @@ function checkOutput(m, where) {
 function checkUnit(x, where, lo, hi, hint) {
   if (typeof x !== "number" || !Number.isFinite(x) || x < lo || x > hi) throw new Error(`${where}: must be a number from ${hint}, got ${JSON.stringify(x)}`);
   return x;
+}
+function checkCap(x, where) {
+  if (typeof x !== "number" || !(x > 0)) throw new Error(`${where}: must be a frequency in Hz > 0 (Infinity disables it), got ${JSON.stringify(x)}`);
+  return x;
+}
+function checkNoteLimit(m, where) {
+  if (!["fold", "clamp", "off"].includes(m)) throw new Error(`${where}: noteLimit must be "fold", "clamp" or "off", got ${JSON.stringify(m)}`);
+  return m;
+}
+/** Gain for a sample voice: brings its RMS near a synth voice's level, never letting its peak exceed 0.5. */
+function sampleNorm(buf) {
+  let sum = 0, peak = 0, n = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < d.length; i++) { sum += d[i] * d[i]; peak = Math.max(peak, Math.abs(d[i])); n++; }
+  }
+  const rms = Math.sqrt(sum / Math.max(1, n));
+  if (!(rms > 0) || !(peak > 0)) return 1;
+  return Math.min(0.35 / rms, 0.5 / peak) / 1.4;
 }
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 function looksLikeUrl(s) { return typeof s === "string" && !s.includes("\n") && (/^(https?:|\.{0,2}\/)/.test(s) || /\.(scl|kbm)$/i.test(s)); }

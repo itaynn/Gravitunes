@@ -1,0 +1,128 @@
+{
+  "id": "guzheng",
+  "title": "Guzheng Morning",
+  "kind": "instrument",
+  "harmonics": [
+    1.0
+  ],
+  "envelope": {
+    "attack": 0.01,
+    "decay": 0.12,
+    "sustain": 0.0,
+    "release": 0.06
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "guzheng/guzheng.trim.wav",
+    "f0": 474.657
+  },
+  "source": {
+    "f0": 236.559,
+    "confidence": 0.478,
+    "pitched": false,
+    "file": "data/earth/instruments/guzheng/Guzheng_Morning_(Antti_Luode).mp3",
+    "trim": [
+      1.94,
+      2.34
+    ],
+    "license": "CC BY 3.0",
+    "attribution": "\"Guzheng Morning\" by Antti Luode, CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Guzheng_Morning_(Antti_Luode).mp3"
+  },
+  "partials": [
+    {
+      "ratio": 0.3968,
+      "amp": 0.0608,
+      "decay": 0.218
+    },
+    {
+      "ratio": 0.4578,
+      "amp": 0.055,
+      "decay": 0.163
+    },
+    {
+      "ratio": 0.5517,
+      "amp": 0.0565,
+      "decay": 0.169
+    },
+    {
+      "ratio": 0.8288,
+      "amp": 0.1548,
+      "decay": 0.388
+    },
+    {
+      "ratio": 0.9267,
+      "amp": 0.8061,
+      "decay": 0.386
+    },
+    {
+      "ratio": 1.0619,
+      "amp": 0.2591,
+      "decay": 0.43
+    },
+    {
+      "ratio": 1.2148,
+      "amp": 0.0733,
+      "decay": 0.319
+    },
+    {
+      "ratio": 1.2633,
+      "amp": 0.0676,
+      "decay": 0.324
+    },
+    {
+      "ratio": 1.5206,
+      "amp": 0.9746,
+      "decay": 0.23
+    },
+    {
+      "ratio": 1.8839,
+      "amp": 0.1015,
+      "decay": 0.286
+    },
+    {
+      "ratio": 1.9318,
+      "amp": 0.0661,
+      "decay": 0.937
+    },
+    {
+      "ratio": 1.9821,
+      "amp": 0.0835,
+      "decay": 0.332
+    },
+    {
+      "ratio": 2.3831,
+      "amp": 0.2762,
+      "decay": 0.293
+    },
+    {
+      "ratio": 2.4616,
+      "amp": 0.1673,
+      "decay": 0.221
+    },
+    {
+      "ratio": 2.5388,
+      "amp": 0.0717,
+      "decay": 0.38
+    },
+    {
+      "ratio": 3.5851,
+      "amp": 0.0615,
+      "decay": 0.291
+    },
+    {
+      "ratio": 5.0278,
+      "amp": 0.0628,
+      "decay": 0.317
+    },
+    {
+      "ratio": 7.6471,
+      "amp": 0.0654,
+      "decay": 0.103
+    },
+    {
+      "ratio": 9.3399,
+      "amp": 0.0588,
+      "decay": 0.138
+    }
+  ]
+}

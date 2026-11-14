@@ -295,6 +295,44 @@ await run("output modes", async () => {
   check("bad output mode: helpful error", /mono.*stereo/.test(msg), msg);
 });
 
+await run("rolloff: bright voice at C6 vs C3", async () => {
+  // Brightness = RMS of the first difference / RMS (rises with high-frequency content).
+  const bright = (b) => { const d = b.getChannelData(0); let s = 0, s1 = 0;
+    for (let i = 1; i < d.length; i++) { s += d[i] * d[i]; s1 += (d[i] - d[i - 1]) ** 2; } return Math.sqrt(s1 / s); };
+  const r = (note, rolloff) => renderScore({ version: 1, events: [{ t: 0, note, dur: 0.5, voice: "bright" }] }, { tail: 0.1, rolloff });
+  const lowOn = bright(await r("C3")), lowOff = bright(await r("C3", false));
+  const hiOn = bright(await r("C6")), hiOff = bright(await r("C6", false));
+  check("rolloff leaves a bright C3 unchanged", Math.abs(lowOn / lowOff - 1) < 0.03, `${lowOff.toFixed(3)} → ${lowOn.toFixed(3)}`);
+  check("rolloff softens a bright C6", hiOn < hiOff * 0.85, `${hiOff.toFixed(3)} → ${hiOn.toFixed(3)}`);
+});
+
+await run("frequency caps", async () => {
+  // A 5th harmonic gliding 1500 → 4750 Hz (fundamental 300 → 950) fades out near maxFreq 4000.
+  const v = { g: { harmonics: [1, 0, 0, 0, 1], envelope: { attack: 0.01, sustain: 1 } } };
+  const sc = { version: 1, events: [{ t: 0, freq: 300, voice: "g", dur: 1.5, glide: { to: 950, time: 1 } }] };
+  const b = await renderScore(sc, { tail: 0.1, voices: v, maxFreq: 4000, rolloff: false });
+  const early = tone(b, 1500, 0.02, 0.12), late = tone(b, 4750, 1.1, 1.45), fund = tone(b, 950, 1.1, 1.45);
+  check("maxFreq: harmonic that glides over the cap goes silent", late < fund * 0.01 && early > 0.01, `5th ${early.toFixed(4)} → ${late.toFixed(5)} (fund ${fund.toFixed(3)})`);
+  const b2 = await renderScore(sc, { tail: 0.1, voices: v, maxFreq: Infinity, rolloff: false });
+  check("maxFreq: Infinity keeps it", tone(b2, 4750, 1.1, 1.45) > fund * 0.3);
+  check("glide with caps has no clicks", jump(b, 0.05, 1.45) < 0.2, `max jump ${jump(b, 0.05, 1.45).toFixed(3)}`);
+  const c7 = await renderScore({ version: 1, events: [{ t: 0, note: "C7", dur: 1 }] }, { tail: 0.1 });
+  const f = pitch(c7, 0.2, 0.8);
+  check("maxNoteFreq: C7 folds down to C6", Math.abs(f - 1046.5) < 8, `${f.toFixed(1)} Hz`);
+  const cl = await renderScore({ version: 1, events: [{ t: 0, note: "C7", dur: 1 }] }, { tail: 0.1, noteLimit: "clamp", maxNoteFreq: 800 });
+  check("maxNoteFreq clamp", Math.abs(pitch(cl, 0.2, 0.8) - 800) < 8);
+});
+
+await run("lowpass", async () => {
+  const f = 220, v = { h9: { harmonics: [1, 0, 0, 0, 0, 0, 0, 0, 1], envelope: { sustain: 1 } } };
+  const b = await liveRender((e) => { e.voice("h9", v.h9); return e.play({ freq: f, voice: "h9", lowpass: 400 }); },
+    { 0.5: (e, h) => h.set({ lowpass: 8000 }, 0.05) }, { rolloff: false });
+  const a = tone(b, 9 * f, 0.2, 0.45), z = tone(b, 9 * f, 0.6, 0.95), fund = tone(b, f, 0.2, 0.45);
+  check("lowpass 400 Hz suppresses the 9th harmonic; set({lowpass}) opens it", a < z * 0.1 && fund > 0.02, `${a.toFixed(4)} → ${z.toFixed(4)}`);
+  const sc = await renderScore({ version: 1, voices: v, scale: "major", events: [{ t: 0, value: 1, range: [0, 1], voice: "h9", dur: 0.5 }] }, { tail: 0.1, maxFreq: 3000, rolloff: false });
+  check("maxFreq applies to value-pitched notes too", tone(sc, 9 * 1046.5, 0.1, 0.45) < 0.001, `${tone(sc, 9 * 1046.5, 0.1, 0.45).toFixed(5)}`);
+});
+
 await run("WAV encoding", async () => {
   const b = await renderScore({ version: 1, events: [{ t: 0, note: "C4", dur: 0.2 }] }, { tail: 0.1 });
   const w = new DataView(encodeWav(b));

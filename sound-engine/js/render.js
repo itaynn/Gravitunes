@@ -5,20 +5,21 @@ import { normalizeScore } from "./score.js";
 /**
  * Render a score to an AudioBuffer.
  * @param {Object|string} score  score object or JSON text
- * @param {{sampleRate?:number, channels?:number, tail?:number, voices?:Object<string,Object>, a4?:number}} [opts]
+ * @param {{sampleRate?:number, channels?:number, tail?:number, voices?:Object<string,Object>, a4?:number, rolloff?:any, maxFreq?:number, maxNoteFreq?:number, noteLimit?:string}} [opts]
+ *   rolloff, maxFreq, maxNoteFreq, noteLimit: as in createEngine.
  *   tail: seconds added after the last note ends so releases ring out (default 3).
  *   voices: extra named voices (e.g. designed in the playground) available to the score.
  * @returns {Promise<AudioBuffer>}
  */
 export async function renderScore(score, opts = {}) {
-  const { sampleRate = 44100, channels = 2, tail = 3, voices = {}, a4 } = opts;
+  const { sampleRate = 44100, channels = 2, tail = 3, voices = {}, a4, rolloff, maxFreq, maxNoteFreq, noteLimit } = opts;
   const OAC = globalThis.OfflineAudioContext ?? globalThis.webkitOfflineAudioContext;
   if (!OAC) throw new Error("renderScore needs OfflineAudioContext (run it in a browser).");
   if (typeof score === "string") score = JSON.parse(score);
   const { duration } = normalizeScore(score);
   const length = Math.max(1, Math.ceil((duration + tail) * sampleRate));
   const ctx = new OAC({ numberOfChannels: channels, length, sampleRate });
-  const engine = createEngine({ context: ctx, polyphony: Infinity, a4 });
+  const engine = createEngine({ context: ctx, polyphony: Infinity, a4, rolloff, maxFreq, maxNoteFreq, noteLimit });
   for (const [name, def] of Object.entries(voices)) engine.voice(name, def);
   const p = engine.playScore(score, { at: 0 });
   await p.ready;

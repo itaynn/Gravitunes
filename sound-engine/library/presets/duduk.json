@@ -1,0 +1,101 @@
+{
+  "id": "duduk",
+  "title": "Sound of Armenian duduk",
+  "kind": "instrument",
+  "harmonics": [
+    0.7557,
+    0.1256,
+    0.0145,
+    0.0065,
+    0.0,
+    0.0,
+    0.01,
+    0.0037,
+    0.0063,
+    0.0028,
+    0.0,
+    0.0039
+  ],
+  "envelope": {
+    "attack": 0.25,
+    "decay": 0.24,
+    "sustain": 0.394,
+    "release": 0.3
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "duduk/duduk.trim.wav",
+    "f0": 374.817,
+    "loop": true,
+    "loopStart": 1.6127,
+    "loopEnd": 2.01236
+  },
+  "source": {
+    "f0": 374.817,
+    "confidence": 0.787,
+    "pitched": true,
+    "file": "data/earth/instruments/duduk/Sound_of_Armenian_Duduk.ogg",
+    "trim": [
+      6.77,
+      10.8
+    ],
+    "license": "CC BY-SA 4.0",
+    "attribution": "\"Sound of Armenian duduk\" by איליה מעזיה, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sound_of_Armenian_Duduk.ogg"
+  },
+  "partials": [
+    {
+      "ratio": 0.6694,
+      "amp": 0.1826,
+      "decay": 9.418
+    },
+    {
+      "ratio": 0.7969,
+      "amp": 0.2619,
+      "decay": 1.458
+    },
+    {
+      "ratio": 0.8924,
+      "amp": 1.0,
+      "decay": 1.439
+    },
+    {
+      "ratio": 1.3391,
+      "amp": 0.007,
+      "decay": 8.487
+    },
+    {
+      "ratio": 1.5907,
+      "amp": 0.0136,
+      "decay": 2.967
+    },
+    {
+      "ratio": 1.7797,
+      "amp": 0.1341,
+      "decay": 1.697
+    },
+    {
+      "ratio": 2.3797,
+      "amp": 0.0251,
+      "decay": 2.098
+    },
+    {
+      "ratio": 2.6749,
+      "amp": 0.049,
+      "decay": 3.576
+    },
+    {
+      "ratio": 3.1787,
+      "amp": 0.0076,
+      "decay": 3.494
+    },
+    {
+      "ratio": 3.5587,
+      "amp": 0.0111,
+      "decay": 1.959
+    },
+    {
+      "ratio": 12.4423,
+      "amp": 0.0029
+    }
+  ]
+}

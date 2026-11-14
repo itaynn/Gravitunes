@@ -1,0 +1,62 @@
+{
+  "id": "flute",
+  "title": "Flute C4 sustained, no vibrato",
+  "kind": "instrument",
+  "harmonics": [
+    1.0,
+    0.0442,
+    0.2114,
+    0.0374,
+    0.0071,
+    0.003,
+    0.0023,
+    0.0013
+  ],
+  "envelope": {
+    "attack": 2.0,
+    "decay": 0.5,
+    "sustain": 0.787,
+    "release": 0.3
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "flute/flute.trim.wav",
+    "f0": 523.284,
+    "loop": true,
+    "loopStart": 1.61261,
+    "loopEnd": 2.01204
+  },
+  "source": {
+    "f0": 523.284,
+    "confidence": 1.0,
+    "pitched": true,
+    "file": "data/earth/instruments/flute/LDFlute_susNV_C4_v1_1.wav",
+    "trim": [
+      0.04,
+      4.07
+    ],
+    "license": "CC0 1.0",
+    "attribution": "\"Flute C4 sustained, no vibrato\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE"
+  },
+  "partials": [
+    {
+      "ratio": 3.1203,
+      "amp": 0.003,
+      "decay": 6.775
+    },
+    {
+      "ratio": 4.1415,
+      "amp": 0.0011,
+      "decay": 21.088
+    },
+    {
+      "ratio": 4.1729,
+      "amp": 0.0012,
+      "decay": 0.605
+    },
+    {
+      "ratio": 4.2093,
+      "amp": 0.0014
+    }
+  ]
+}

@@ -85,6 +85,33 @@ Output: `createEngine({ output: "stereo" | "mono", balance: 0, width: 0 })`; `en
 
 `engine.connectBridge(url, { onstatus, onmessage, onerror })`: `onerror(text, msg)` is called (and `console.error` logged) for every message that could not be played, including later failures such as a score whose tuning fails to load. A bad item in an array does not stop the rest.
 
+### Gentler highs: caps, rolloff, low-pass
+
+High pitches and overtones are tiring to listen to, so by default the engine keeps them down:
+- `maxNoteFreq` (default 1050 Hz, about C6): a higher note drops by octaves (`noteLimit: "fold"`), or `"clamp"` pins it, `"off"` allows anything.
+- `maxFreq` (default 5000 Hz): no harmonic or partial above it; components fade out smoothly between 4000 and 5000 Hz, also while a note glides. The same fade at the Nyquist limit prevents aliasing in fast upward glides.
+- `rolloff` (default 6 dB per octave above 2500 Hz): bright voices are softened as they go up.
+- `lowpass`: a real per-note low-pass filter (Hz) on a voice, an event or `handle.set({ lowpass: 800 }, 0.2)`.
+```js
+const engine = createEngine({ maxFreq: 5000, maxNoteFreq: 1050, noteLimit: "fold", rolloff: { freq: 2500, slope: 6 } });
+engine.setLimits({ maxFreq: Infinity });   // turn the overtone cap off
+engine.play({ note: "C3", voice: "bright", lowpass: 900 });
+```
+
+### Real instruments (sound library)
+
+`sound-engine/library/manifest.json` lists open-licensed recordings (CC0, CC BY, CC BY-SA). Download and analyse them, then load one as a voice:
+```bash
+python3 sound-engine/library/fetch.py            # -> data/earth/instruments/<id>/ and LICENSES.md (about 31 MB)
+uv venv .venv && uv pip install --python .venv/bin/python numpy scipy soundfile
+.venv/bin/python analysis/scripts/instrument-analysis/analyze.py   # -> <id>.trim.wav and library/presets/<id>.json
+```
+```js
+await engine.loadLibrary("marimba");          // a sample voice if the recording is there, else its analysed overtones
+engine.play({ note: "C3", voice: "marimba", dur: 1 });
+```
+The playground lists them under "Or a real instrument". Credit the recordings as in `data/earth/instruments/LICENSES.md`; CC BY-SA ones are share-alike.
+
 ## Python API
 
 ```python
@@ -159,7 +186,7 @@ A note with an `id` and no `dur` keeps sounding (no default length). Later `set`
 
 Step convention: step 0 is middle C (261.6256 Hz) in every tuning, so in 12-TET step 9 is A4 (440 Hz) and step 7 is G4. Steps are counted in the tuning's own notes, so in 19-EDO step 19 is one octave up. A `.kbm` keyboard map or `refStep` / `refFreq` can move the reference. Example `.scl` and `.kbm` files are in `presets/`.
 
-Gamelan: `"slendro"` (5 steps) and `"pelog"` (7 steps) are Javanese gamelan tunings. They do not repeat at an exact octave: the period is stretched (1210 and 1220 cents), so step 5 of slendro is a little above twice step 0. There is no standard gamelan tuning (every set is tuned on its own); the built-in values are rounded, representative numbers in the range of published averages over many gamelans, not one instrument. `presets/slendro.scl` and `presets/pelog.scl` hold the same values so you can edit them. The `saron` (metallophone) and `gong` voices fit them; both use a slightly detuned doubled partial for the slow beating ("ombak") of gamelan instruments.
+Gamelan: `"slendro"` (5 steps) and `"pelog"` (7 steps) are Javanese gamelan tunings. They do not repeat at an exact octave: the period is stretched (1210 and 1220 cents), so step 5 of slendro is a little above twice step 0. There is no standard gamelan tuning (every set is tuned on its own); the built-in values are rounded, representative numbers in the range of published averages over many gamelans, not one instrument, and not checked against a single citable measurement: treat them as representative. `presets/slendro.scl` and `presets/pelog.scl` hold the same values so you can edit them. The `saron` (metallophone) and `gong` voices fit them; both use a slightly detuned doubled partial for the slow beating ("ombak") of gamelan instruments.
 ```js
 await engine.setTuning({ scl: sclText, kbm: kbmText });
 engine.play({ step: 5, dur: 1 });
@@ -201,6 +228,21 @@ s.set(t=2, id="storm-7", value=30, amp=0.5, ramp=1.0)           # follows the da
 s.stop(t=6, id="storm-7")
 ```
 The same works live: `live.play(id=..., ...)`, `live.set(id, ...)`, `live.stop(id)`.
+
+### Testing the live bridge by hand
+
+The sandbox used to build this could not open ports, so the bridge was not run end to end. To check it:
+1. `pip install -e "sound-engine/python[live]"`, then `python -m gravitunes_sound serve` (static files on :8000, relay on ws://localhost:8765).
+2. Open http://localhost:8000/player.html, press Start audio, then Connect in the Live bridge panel (status should say connected).
+3. In another terminal: `python sound-engine/examples/live_from_python.py`. You should hear notes; errors show in the Live bridge panel.
+4. Headless check instead of step 2: run this while step 3 plays; every message from the example should print as JSON.
+   ```bash
+   python3 -c "import asyncio, websockets
+async def main():
+    async with websockets.connect('ws://localhost:8765') as ws:
+        async for m in ws: print(m)
+asyncio.run(main())"
+   ```
 
 ## Testing
 

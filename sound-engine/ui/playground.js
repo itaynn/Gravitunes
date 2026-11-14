@@ -10,7 +10,7 @@ const engine = createEngine({ output: "mono" }); // the page starts in mono; the
 const VOICE = "custom";
 
 // ---------- tone state ----------
-const state = { harmonics: Array(N_HARM).fill(0), partials: [], adsr: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3 }, amp: 0.5, pan: 0, detune: 0 };
+const state = { harmonics: Array(N_HARM).fill(0), partials: [], adsr: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3 }, amp: 0.5, pan: 0, detune: 0, sample: null };
 state.harmonics[0] = 1;
 const round = (x) => Math.round(x * 1000) / 1000;
 
@@ -26,6 +26,7 @@ function voiceDef() {
   def.envelope = { ...state.adsr };
   def.amp = state.amp; def.pan = state.pan;
   if (state.detune) def.detune = state.detune;
+  if (state.sample) def.sample = state.sample; // a recording from the library; the sliders are its fallback
   return def;
 }
 
@@ -34,7 +35,6 @@ function applyVoice() {
   const def = voiceDef();
   try { engine.voice(VOICE, def); voiceErr = ""; }
   catch (e) { if (errMsg(e) !== voiceErr) announce(`That tone can't be played: ${errMsg(e)}`); voiceErr = errMsg(e); }
-  $("outjson").value = JSON.stringify(def, null, 2);
   scheduleLive();
   drawEnvelope();
 }
@@ -142,13 +142,51 @@ function loadPreset(name, quiet) {
   state.partials = (p.partials ?? []).map((q) => ({ ratio: q.ratio, amp: q.amp ?? 1, decay: q.decay ?? 0 }));
   state.adsr = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...p.envelope };
   state.amp = p.amp ?? 0.5; state.pan = p.pan ?? 0; state.detune = p.detune ?? 0;
+  state.sample = null; libSel.value = "";
   presetSel.value = name;
   syncAll(); renderPartials(); applyVoice();
   if (!quiet) announce(`Sound ${cap(name)} loaded.`);
 }
 presetSel.addEventListener("change", () => loadPreset(presetSel.value));
 // Any manual edit makes it "your own" sound.
-document.querySelectorAll("#harmonics, #harmonics2, #partials").forEach((el) => el.addEventListener("input", () => { presetSel.value = ""; }));
+document.querySelectorAll("#harmonics, #harmonics2, #partials").forEach((el) => el.addEventListener("input", () => {
+  presetSel.value = "";
+  if (state.sample) { state.sample = null; libSel.value = ""; applyVoice(); }
+}));
+
+// ---------- pitch limits (engine maxNoteFreq / maxFreq) ----------
+for (const [id, key] of [["cap-note", "maxNoteFreq"], ["cap-freq", "maxFreq"]]) {
+  $(id).value = engine[key];
+  $(id).addEventListener("change", () => {
+    const v = parseFloat($(id).value);
+    if (!(v > 0)) { $(id).value = engine[key]; return; }
+    engine.setLimits({ [key]: v });
+    announce(`${key === "maxNoteFreq" ? "Highest note" : "Highest overtone"} set to ${v} hertz.`);
+  });
+}
+
+// ---------- real instruments (sound-engine/library) ----------
+// A plain list of instrument names. Choosing one plays its recording when data/earth/instruments has it
+// (run sound-engine/library/fetch.py and the analysis), otherwise a tone built from its analysed overtones.
+const libSel = $("library");
+fetch(new URL("../library/presets/index.json", import.meta.url)).then((r) => (r.ok ? r.json() : [])).then((list) => {
+  for (const it of list) { const o = document.createElement("option"); o.value = it.id; o.textContent = it.name ?? it.id; libSel.append(o); }
+  libSel.closest(".field").hidden = !list.length;
+}).catch(() => { libSel.closest(".field").hidden = true; });
+libSel.addEventListener("change", async () => {
+  const id = libSel.value; if (!id) return;
+  try {
+    await startAudio();
+    const { def, sample } = await engine.loadLibrary(id, { name: "library-" + id });
+    state.harmonics = Array.from({ length: N_HARM }, (_, i) => def.harmonics?.[i] ?? 0);
+    state.partials = (def.partials ?? []).map((q) => ({ ratio: q.ratio, amp: q.amp ?? 1, decay: q.decay ?? 0 }));
+    state.adsr = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...def.envelope };
+    state.amp = def.amp ?? 0.5; state.detune = 0;
+    state.sample = sample ? def.sample : null;
+    presetSel.value = ""; syncAll(); renderPartials(); applyVoice();
+    announce(`${libSel.selectedOptions[0].textContent} loaded${sample ? "" : " (recording not downloaded, using a similar tone)"}.`);
+  } catch (e) { announce(`Could not load that instrument: ${errMsg(e)}`); }
+});
 
 // ---------- volume shape (envelope) graph ----------
 const SHAPES = {
@@ -313,10 +351,13 @@ fileInto("scl", (t) => { sclText = t; }, "Tuning file"); fileInto("kbm", (t) => 
 // ---------- notes that sound (pads, current note, Play) ----------
 const held = new Map(); // source -> { step, h, stopped }
 let pads = [];
+// Pads start one period below step 0 (C3 in 12-TET) and span two periods: low-mid notes are easier on the ear.
+let padBase = 0;
+const padAt = (step) => pads[step - padBase];
 async function noteOn(step, src) {
   if (held.has(src)) return;
   const rec = { stopped: false, step }; held.set(src, rec);
-  pads[step]?.setAttribute("data-on", "");
+  padAt(step)?.setAttribute("data-on", "");
   try {
     await startAudio();
     if (rec.stopped) return;
@@ -326,7 +367,7 @@ async function noteOn(step, src) {
     announce(`${noteName(step)}, ${engine.tuning.freq(step).toFixed(1)} hertz`);
   } catch (e) { held.delete(src); unmark(step); announce(`Could not play: ${errMsg(e)}`); }
 }
-const unmark = (step) => { if (![...held.values()].some((r) => r.step === step)) pads[step]?.removeAttribute("data-on"); };
+const unmark = (step) => { if (![...held.values()].some((r) => r.step === step)) padAt(step)?.removeAttribute("data-on"); };
 function noteOff(src) {
   const rec = held.get(src); if (!rec) return;
   rec.stopped = true; if (rec.h) { rec.h.stop(); markRelease(rec.h); } held.delete(src);
@@ -339,14 +380,15 @@ const KEYS = "zxcvbnm,./asdfghjkl;'qwertyuiop[]".split("");
 const kb = $("keyboard");
 function buildKeyboard() {
   const t = engine.tuning, n = 2 * t.size + 1;
-  kb.innerHTML = ""; pads = [];
-  for (let step = 0; step < n; step++) {
+  kb.innerHTML = ""; pads = []; padBase = -t.size;
+  for (let i = 0; i < n; i++) {
+    const step = padBase + i;
     const hz = t.freq(step);
     const b = document.createElement("button"); b.type = "button"; b.dataset.step = step;
     const lab = t.labels?.[((step % t.size) + t.size) % t.size];
     const ok = Number.isFinite(hz);
     b.disabled = !ok;
-    b.innerHTML = (KEYS[step] ? `<span class="k" aria-hidden="true">${KEYS[step].toUpperCase()}</span>` : "") +
+    b.innerHTML = (KEYS[i] ? `<span class="k" aria-hidden="true">${KEYS[i].toUpperCase()}</span>` : "") +
       `<span>${lab ? lab + " · " : ""}${step}</span><small>${ok ? hz.toFixed(1) + " Hz" : "no note"}</small>`;
     b._hz = hz; b._lab = lab;
     b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); noteOn(step, "p" + e.pointerId); });
@@ -372,7 +414,7 @@ function markScale() {
 kb.addEventListener("keydown", (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   const i = KEYS.indexOf(e.key.toLowerCase());
-  if (i >= 0 && i < pads.length && !pads[i].disabled) { e.preventDefault(); noteOn(i, "c" + e.key.toLowerCase()); }
+  if (i >= 0 && i < pads.length && !pads[i].disabled) { e.preventDefault(); noteOn(padBase + i, "c" + e.key.toLowerCase()); }
 });
 kb.addEventListener("keyup", (e) => noteOff("c" + e.key.toLowerCase()));
 const releaseComputerKeys = () => [...held.keys()].filter((k) => k[0] === "c").forEach(noteOff);
@@ -398,7 +440,7 @@ $("lt-n").addEventListener("input", () => { showCurrent(); retuneHeld(); });
 $("lt-oct").addEventListener("input", () => { showCurrent(); retuneHeld(); });
 function retuneHeld() {
   const step = currentStep(); if (!Number.isFinite(engine.tuning.freq(step))) return;
-  for (const src of ["play", "space", "cur"]) { const r = held.get(src); if (r?.h) { r.h.set({ step }, 0.03); unmark(r.step); r.step = step; pads[step]?.setAttribute("data-on", ""); } }
+  for (const src of ["play", "space", "cur"]) { const r = held.get(src); if (r?.h) { r.h.set({ step }, 0.03); unmark(r.step); r.step = step; padAt(step)?.setAttribute("data-on", ""); } }
 }
 function moveCurrent(by) {
   $("lt-n").value = curIndex() + by;
@@ -574,6 +616,8 @@ if (location.hash === "#selftest") {
   (async () => {
     try {
       await startAudio();
+      ok(+$("lt-oct").value === 0 && padAt(0) === pads[engine.tuning.size] && pads[0].dataset.step === String(-engine.tuning.size), "pads/current note do not start an octave below middle C");
+      $("lt-oct").value = "0"; $("lt-oct").dispatchEvent(new Event("input"));
       // runs, chord with yaman
       scaleSel.value = "yaman"; scaleSel.dispatchEvent(new Event("change"));
       ok(engine.scale?.name === "yaman", "yaman not selected");

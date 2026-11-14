@@ -1,0 +1,117 @@
+{
+  "id": "balafon",
+  "title": "Le son du balafon traditionnel",
+  "kind": "instrument",
+  "harmonics": [
+    1.0
+  ],
+  "envelope": {
+    "attack": 0.15,
+    "decay": 0.13,
+    "sustain": 0.165,
+    "release": 0.3
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "balafon/balafon.trim.wav",
+    "f0": 1178.952
+  },
+  "source": {
+    "f0": 1179.874,
+    "confidence": 0.5,
+    "pitched": false,
+    "file": "data/earth/instruments/balafon/Le_son_du_balafon_traditionnel.ogg",
+    "trim": [
+      0.17,
+      0.63
+    ],
+    "license": "CC BY 4.0",
+    "attribution": "\"Le son du balafon traditionnel\" by KONE IF, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Le_son_du_balafon_traditionnel.ogg"
+  },
+  "partials": [
+    {
+      "ratio": 0.214,
+      "amp": 0.0549
+    },
+    {
+      "ratio": 0.2805,
+      "amp": 0.3688,
+      "decay": 0.667
+    },
+    {
+      "ratio": 0.3695,
+      "amp": 0.0481,
+      "decay": 0.505
+    },
+    {
+      "ratio": 0.3927,
+      "amp": 0.0482
+    },
+    {
+      "ratio": 0.5932,
+      "amp": 0.0694
+    },
+    {
+      "ratio": 0.6284,
+      "amp": 0.0523,
+      "decay": 0.324
+    },
+    {
+      "ratio": 0.7444,
+      "amp": 0.3658
+    },
+    {
+      "ratio": 0.7695,
+      "amp": 0.1489
+    },
+    {
+      "ratio": 0.8439,
+      "amp": 0.0775
+    },
+    {
+      "ratio": 0.8944,
+      "amp": 0.1069
+    },
+    {
+      "ratio": 0.9227,
+      "amp": 0.0878
+    },
+    {
+      "ratio": 0.9533,
+      "amp": 0.1675,
+      "decay": 1.049
+    },
+    {
+      "ratio": 1.0516,
+      "amp": 0.0828,
+      "decay": 0.767
+    },
+    {
+      "ratio": 1.0857,
+      "amp": 0.0432
+    },
+    {
+      "ratio": 5.2041,
+      "amp": 0.0523
+    },
+    {
+      "ratio": 5.3279,
+      "amp": 0.0653,
+      "decay": 1.15
+    },
+    {
+      "ratio": 5.6207,
+      "amp": 0.0545
+    },
+    {
+      "ratio": 5.8265,
+      "amp": 0.0484,
+      "decay": 0.678
+    },
+    {
+      "ratio": 5.8911,
+      "amp": 0.0455,
+      "decay": 2.561
+    }
+  ]
+}

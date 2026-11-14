@@ -60,6 +60,72 @@ export const PRESETS = {
   },
 };
 
+/**
+ * Pitch-tracking high-frequency rolloff, so bright voices don't turn shrill when played high.
+ * Every component above `freq` Hz is attenuated by `slope` dB per octave (a gentle first-order
+ * low-pass that follows the note). Default on: 6 dB/oct above 2500 Hz.
+ */
+export const DEFAULT_ROLLOFF = Object.freeze({ freq: 2500, slope: 6 });
+
+/**
+ * Normalize a rolloff option: false/null → null (off), true/undefined → defaults, object → merged.
+ * @param {boolean|{freq?:number,slope?:number}|null} [opt]
+ * @returns {{freq:number,slope:number}|null}
+ */
+export function resolveRolloff(opt) {
+  if (opt === false || opt === null) return null;
+  if (opt === undefined || opt === true) return { ...DEFAULT_ROLLOFF };
+  if (typeof opt !== "object") throw new Error(`rolloff: expected false or { freq, slope }, got ${JSON.stringify(opt)}`);
+  const r = { ...DEFAULT_ROLLOFF, ...opt };
+  if (!(r.freq > 0) || !(r.slope >= 0)) throw new Error(`rolloff: freq must be > 0 Hz and slope >= 0 dB/octave, got ${JSON.stringify(opt)}`);
+  return r;
+}
+
+/** Gain (0..1) applied to a component at `f` Hz by rolloff `r` (from resolveRolloff). */
+export function rolloffGain(f, r) {
+  if (!r || !(f > r.freq) || r.slope === 0) return 1;
+  return Math.pow(10, (-r.slope * Math.log2(f / r.freq)) / 20);
+}
+
+/**
+ * Apply rolloff to a voice's harmonics and partials for a note at `freq` Hz.
+ * @returns {{harmonics:number[], partials:Object[]}} new arrays (input untouched)
+ */
+export function applyRolloff(voice, freq, r) {
+  if (!r) return { harmonics: voice.harmonics.slice(), partials: voice.partials.map((p) => ({ ...p })) };
+  return {
+    harmonics: voice.harmonics.map((a, i) => a * rolloffGain(freq * (i + 1), r)),
+    partials: voice.partials.map((p) => ({ ...p, amp: (p.amp ?? 1) * rolloffGain(freq * p.ratio, r) })),
+  };
+}
+
+/** Defaults for the global frequency caps (Hz). High pitches and overtones are unpleasant to many listeners. */
+export const DEFAULT_MAX_FREQ = 5000;
+export const DEFAULT_MAX_NOTE_FREQ = 1050; // about C6
+
+/**
+ * Gain (0..1) for a component at `f` Hz under a hard cap `cap` (Hz): 1 below 0.8·cap, falling smoothly
+ * (raised cosine) to 0 at the cap and above. Used for both maxFreq and the Nyquist limit.
+ */
+export function capFade(f, cap) {
+  if (!(cap > 0) || !Number.isFinite(cap)) return 1;
+  const lo = 0.8 * cap;
+  if (f <= lo) return 1;
+  if (f >= cap) return 0;
+  return 0.5 + 0.5 * Math.cos(Math.PI * (f - lo) / (cap - lo));
+}
+
+/**
+ * Keep a note's fundamental at or below `max` Hz. mode "fold" (default) drops it by whole octaves,
+ * so it keeps its pitch class; "clamp" pins it to `max`; "off" leaves it alone.
+ */
+export function limitNoteFreq(f, max, mode = "fold") {
+  if (mode === "off" || !(max > 0) || !Number.isFinite(max) || !(f > max)) return f;
+  if (mode === "clamp") return max;
+  while (f > max) f /= 2;
+  return f;
+}
+
 function checkNum(v, name, lo, hi) {
   if (v === undefined) return;
   if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi)
@@ -91,6 +157,17 @@ export function validateVoiceDef(def, label = "voice") {
     checkNum(e.attack, "envelope.attack", 0, 60); checkNum(e.decay, "envelope.decay", 0, 60);
     checkNum(e.sustain, "envelope.sustain", 0, 1); checkNum(e.release, "envelope.release", 0, 60);
   }
+  if (def.sample !== undefined) {
+    const m = def.sample;
+    if (!m || typeof m !== "object" || typeof m.url !== "string" || !m.url)
+      throw new Error(`${label}: sample must be an object like { url: "organ/organ.trim.wav", f0: 261.6 }`);
+    checkNum(m.f0, "sample.f0", 1, 20000);
+    if (m.f0 === undefined) throw new Error(`${label}: sample.f0 (the recorded pitch in Hz) is required`);
+    if (m.loop !== undefined && typeof m.loop !== "boolean") throw new Error(`${label}: sample.loop must be true or false`);
+    checkNum(m.loopStart, "sample.loopStart", 0, 3600); checkNum(m.loopEnd, "sample.loopEnd", 0, 3600);
+    checkNum(m.gain, "sample.gain", 0, 10);
+  }
+  checkNum(def.lowpass, "lowpass", 20, 20000);
   checkNum(def.amp, "amp", 0, 1); checkNum(def.pan, "pan", -1, 1); checkNum(def.detune, "detune", -1200, 1200);
 }
 
@@ -99,7 +176,8 @@ export function validateVoiceDef(def, label = "voice") {
  * @param {string} [name="sine"]
  * @param {Object} [overrides] event or def fields: harmonics, partials, envelope, amp, pan, detune
  * @param {Object<string,Object>} [registry] user voices (engine.voice / score.voices); may use `extends`
- * @returns {{name:string,harmonics:number[],partials:Object[],envelope:{attack:number,decay:number,sustain:number,release:number},amp:number,pan:number,detune:number}}
+ * @returns {{name:string,harmonics:number[],partials:Object[],envelope:{attack:number,decay:number,sustain:number,release:number},amp:number,pan:number,detune:number,sample:Object|null}}
+ *   `sample` ({url, f0, loop?, loopStart?, loopEnd?, gain?}) makes it a sample voice; harmonics/partials are then the fallback while the file loads.
  */
 export function resolveVoice(name = "sine", overrides = {}, registry = {}) {
   // Build the inheritance chain, base first. A user voice named like a preset (and without
@@ -119,7 +197,7 @@ export function resolveVoice(name = "sine", overrides = {}, registry = {}) {
     else if (user && PRESETS[cur]) fromPresetOnly = true; // continue to the same-named preset
     else cur = null;
   }
-  const out = { name, harmonics: [1], partials: [], envelope: { ...DEFAULT_ENVELOPE }, amp: 0.5, pan: 0, detune: 0 };
+  const out = { name, harmonics: [1], partials: [], envelope: { ...DEFAULT_ENVELOPE }, amp: 0.5, pan: 0, detune: 0, sample: null, lowpass: undefined };
   for (const d of [...chain, overrides]) {
     if (!d) continue;
     if (d.harmonics !== undefined) out.harmonics = d.harmonics.slice();
@@ -128,6 +206,8 @@ export function resolveVoice(name = "sine", overrides = {}, registry = {}) {
     if (d.amp !== undefined) out.amp = d.amp;
     if (d.pan !== undefined) out.pan = d.pan;
     if (d.detune !== undefined) out.detune = d.detune;
+    if (d.lowpass !== undefined) out.lowpass = d.lowpass;
+    if (d.sample !== undefined) out.sample = d.sample ? { ...d.sample } : null;
   }
   return out;
 }

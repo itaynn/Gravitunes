@@ -1,0 +1,90 @@
+{
+  "id": "marimba",
+  "title": "Marimba C4",
+  "kind": "instrument",
+  "harmonics": [
+    1.0,
+    0.0028,
+    0.0012,
+    0.0817,
+    0.0,
+    0.0,
+    0.0,
+    0.0019
+  ],
+  "envelope": {
+    "attack": 0.03,
+    "decay": 0.73,
+    "sustain": 0.0,
+    "release": 0.365
+  },
+  "amp": 0.5,
+  "sample": {
+    "url": "marimba/marimba.trim.wav",
+    "f0": 524.639
+  },
+  "source": {
+    "f0": 524.639,
+    "confidence": 1.0,
+    "pitched": true,
+    "file": "data/earth/instruments/marimba/Marimba_hit_Outrigger_C4_loud_01.wav",
+    "trim": [
+      0.0,
+      1.36
+    ],
+    "license": "CC0 1.0",
+    "attribution": "\"Marimba C4\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE"
+  },
+  "partials": [
+    {
+      "ratio": 0.2049,
+      "amp": 0.0032,
+      "decay": 0.691
+    },
+    {
+      "ratio": 0.4587,
+      "amp": 0.0014,
+      "decay": 0.459
+    },
+    {
+      "ratio": 0.8184,
+      "amp": 0.0033,
+      "decay": 0.518
+    },
+    {
+      "ratio": 0.906,
+      "amp": 0.0056,
+      "decay": 0.609
+    },
+    {
+      "ratio": 1.179,
+      "amp": 0.0014,
+      "decay": 0.623
+    },
+    {
+      "ratio": 2.3317,
+      "amp": 0.0011,
+      "decay": 0.293
+    },
+    {
+      "ratio": 3.7482,
+      "amp": 0.0013,
+      "decay": 0.279
+    },
+    {
+      "ratio": 3.8473,
+      "amp": 0.0015,
+      "decay": 0.307
+    },
+    {
+      "ratio": 4.1467,
+      "amp": 0.0018,
+      "decay": 0.288
+    },
+    {
+      "ratio": 4.2255,
+      "amp": 0.0013,
+      "decay": 0.257
+    }
+  ]
+}

@@ -94,6 +94,7 @@ function checkEvent(ev, path) {
   for (const k of ["amp", "amplitude"]) if (ev[k] !== undefined) checkRange(errs, `${path}.${k}`, ev[k], 0, 1, "amp is linear 0..1; use dbToAmp() for dB");
   for (const k of ["dur", "duration"]) if (ev[k] !== undefined) checkMin(errs, `${path}.${k}`, ev[k], 0);
   if (ev.pan !== undefined) checkRange(errs, `${path}.pan`, ev.pan, -1, 1);
+  if (ev.lowpass !== undefined) checkRange(errs, `${path}.lowpass`, ev.lowpass, 20, 20000, "a low-pass cutoff in Hz");
   checkVoiceFields(errs, path, ev);
   if (ev.ramp !== undefined) checkMin(errs, `${path}.ramp`, ev.ramp, 0);
   if (ev.glide !== undefined) {
