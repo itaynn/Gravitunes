@@ -58,7 +58,7 @@ async function main() {
   $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.format(dataset.range[0], false)} to ${dataset.format(dataset.range[1], false)}${dataset.transform === 'log10' ? ', log scale' : ''})`;
   $('#colorbar').src = dataset.colorbarUrl;
 
-  const viewer = createViewer($('#map'));
+  const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0' });
   const input = createInput(viewer);
   const time = createTime(dataset, viewer);
   const panel = createPanel($('#mode-controls'));
@@ -77,6 +77,8 @@ async function main() {
   const timeText = $('#time-label');
   time.onFrame((t) => { slider.update(t); timeText.textContent = time.label(t); });
   timeText.textContent = time.label(0);
+  tl.checkbox('Coastlines and borders', viewer.basemap, (on) => viewer.setBasemap(on),
+    { hint: 'Natural Earth outlines drawn faintly over the map (visual only). ?basemap=0 starts with them off.' });
 
   const ctx = { dataset, viewer, time, input, panel, describe, sound, meta };
   const mod = await import(new URL('main.js', base));

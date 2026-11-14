@@ -225,7 +225,10 @@ def build_host_mode(m, data, every, link_map):
             files[f'/data-tools/datasets/{ds}.json'] = {'text': desc.read_text(), 'type': 'application/json'}
     files['/data-tools/datasets/index.json'] = {'text': json.dumps({'ids': ids}), 'type': 'application/json'}
     files[f'/modes/{mid}/mode.json'] = {'text': (MODES / mid / 'mode.json').read_text(), 'type': 'application/json'}
-    for p in sorted((data / 'earth').glob('*.json')):
+    # data/earth/*.json is tracked: prefer this checkout's copy (falls back to the data root).
+    earth = {p.name: p for p in sorted((data / 'earth').glob('*.json'))}
+    earth.update({p.name: p for p in sorted((ROOT / 'data' / 'earth').glob('*.json'))})
+    for p in earth.values():
         files[f'/data/earth/{p.name}'] = {'text': p.read_text(), 'type': 'application/json'}
 
     patches = {'/app/core/host.js': [

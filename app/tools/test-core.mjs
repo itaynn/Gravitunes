@@ -79,3 +79,22 @@ else {
   console.log(`real grids: Beijing CO ${formatValue(co)}, Beijing NOx ${formatValue(nox)}, S Pacific NOx ${formatValue(noxSea)}, NOx median ${formatValue(p50)}`);
 }
 console.log('grid tests ok');
+
+// Basemap: date-line splitting + shipped Natural Earth files.
+{
+  const { basemapPaths } = await import('../core/viewer.js');
+  const toPixel = (lat, lon) => [((lon + 180) / 360) * 720, ((90 - lat) / 180) * 360];
+  const paths = basemapPaths([[170, 0, 179, 1, -179, 2, -170, 3]], toPixel);
+  assert.equal(paths.length, 2);
+  assert.deepEqual(paths[0][0], [700, 180]);
+  const fs = await import('node:fs');
+  const dir = new URL('../../data/earth/', import.meta.url);
+  for (const n of ['coastlines', 'borders']) {
+    const f = new URL(`${n}.json`, dir);
+    if (!fs.existsSync(f)) continue;
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.ok(d.lines.length > 100 && d.lines.every((l) => l.length >= 4 && l.length % 2 === 0), n);
+    assert.ok(d.lines.flat().every((v) => Math.abs(v) <= 180));
+  }
+  console.log('basemap tests ok');
+}

@@ -25,3 +25,8 @@ Serve from the repo root (`python3 -m http.server 8000`) and open `http://localh
 4. If it needs offline analysis, put the script in `analysis/scripts/<your-mode>/`. Have it write small outputs to `modes/<your-mode>/data/`.
 
 Rules: modes don't import each other. Shared code goes into `core/`.
+
+## Basemap
+The viewer draws faint coastlines and country borders (`data/earth/coastlines.json`, `borders.json`) between the data image and mode overlays. Toggle: the "Coastlines and borders" checkbox, `?basemap=0`, or `viewer.setBasemap(false)`. Rebuild with `data-tools/natural_earth.py`.
+
+Credits: coastlines and borders from [Natural Earth](https://www.naturalearthdata.com/), public domain.
