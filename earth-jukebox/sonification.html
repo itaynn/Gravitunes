@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090d18">
+    <meta
+      name="description"
+      content="Sonify a NASA IMERG precipitation frame as a continuous chord progression."
+    >
+    <title>One line, one chord — Earth Jukebox</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./sonification.css">
+    <script src="./sonification.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="masthead">
+        <a class="brand" href="./" aria-label="Earth Jukebox home">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span>EARTH JUKEBOX <span class="brand-divider">/</span> FIELD NOTES 02</span>
+        </a>
+        <nav class="masthead-links" aria-label="Related experiments">
+          <a class="source-link" href="./">Motion study <span aria-hidden="true">↗</span></a>
+          <a
+            class="source-link"
+            href="https://svs.gsfc.nasa.gov/4285/"
+            target="_blank"
+            rel="noreferrer"
+          >NASA SVS 4285 <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <section class="sonification" aria-labelledby="sonification-title">
+        <div class="sonification-heading">
+          <div>
+            <p class="eyebrow">DATA SONIFICATION / 07 NOV 2026</p>
+            <h1 id="sonification-title">One line,<br><em>one chord.</em></h1>
+          </div>
+          <p class="sonification-copy">
+            Each of the image's 3,600 vertical columns becomes one chord.
+            All 88 piano notes span the image height, from A0 at the bottom to
+            C8 at the top. Precipitation color sets each note's volume. Smooth
+            synthesized tones flow continuously; choose the total pass length
+            from 1 second to 1 minute.
+          </p>
+        </div>
+
+        <div class="score-shell">
+          <canvas
+            id="score-canvas"
+            class="score-canvas"
+            width="1200"
+            height="600"
+            role="img"
+            aria-label="NASA precipitation frame divided into all 88 notes from A0 at the bottom to C8 at the top."
+          >
+            A 3600-column precipitation score spanning all 88 notes from A0 to C8.
+          </canvas>
+          <span class="score-playhead" id="score-playhead" aria-hidden="true"></span>
+        </div>
+        <img
+          id="sonification-source"
+          class="sonification-source"
+          src="../data/nasa-svs/4285-imergert-2026-11-07.png"
+          alt=""
+          aria-hidden="true"
+        >
+        <div class="score-meta" aria-hidden="true">
+          <span>WEST / FIRST COLUMN</span>
+          <span id="column-progress">0 / 3,600 COLUMNS</span>
+          <span>EAST / LAST COLUMN</span>
+        </div>
+
+        <div class="sonification-deck">
+          <div class="sonification-buttons">
+            <button class="button button-primary" id="chord-play-button" type="button" disabled>
+              <span class="button-icon" aria-hidden="true">▶</span>
+              <span id="chord-play-label">Loading frame</span>
+            </button>
+            <button class="button button-secondary" id="chord-stop-button" type="button" disabled>
+              Stop
+            </button>
+          </div>
+          <div class="sonification-settings" aria-label="Sonification settings">
+            <label class="slider-control" for="pass-duration">
+              <span class="slider-heading">
+                <span>Pass length</span>
+                <output id="pass-duration-output" for="pass-duration">1 min</output>
+              </span>
+              <input id="pass-duration" type="range" min="1" max="60" step="1" value="60">
+              <span class="slider-scale"><span>1 SEC</span><span>60 SEC</span></span>
+            </label>
+          </div>
+        </div>
+        <p class="sonification-status" id="sonification-status" role="status" aria-live="polite">
+          Loading the NASA frame…
+        </p>
+        <p class="source-caption">
+          Local input:
+          <a href="../data/nasa-svs/4285-imergert-2026-11-07.png">NASA IMERG frame · PNG · 3600 × 1800</a>
+          · <a
+            href="https://svs.gsfc.nasa.gov/vis/a000000/a004200/a004285/frames/3600x1800_2x1_30p/flatalpha/imergert_alpha.2026-11-07T00:00:00Z.png"
+            target="_blank"
+            rel="noreferrer"
+          >NASA SVS source <span aria-hidden="true">↗</span></a>
+        </p>
+      </section>
+
+      <footer class="footer">
+        <span>AN EXPERIMENT IN DATA, SOUND & MOTION</span>
+        <span>NASA SVS 4285 · IMERG</span>
+      </footer>
+    </main>
+  </body>
+</html>
