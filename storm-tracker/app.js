@@ -6,7 +6,9 @@
   const PIXEL_COUNT = ANALYSIS_WIDTH * ANALYSIS_HEIGHT;
   const SNAPSHOT_COUNT = 48;
   const SEQUENCE_DURATION_MS = 12_500;
+  const SETTINGS_STORAGE_KEY = "storm-watch.settings.v1";
   const SNAPSHOT_PATH = "./data/snapshots/imergert_alpha.2026-11-07T";
+  const PREPROCESSED_PATH = "./data/preprocessed-tracks.json";
 
   const canvas = document.querySelector("#storm-map");
   const context = canvas.getContext("2d");
@@ -63,9 +65,76 @@
   let rebuildTimer = 0;
   let rebuildVersion = 0;
   let isPlaying = false;
+  let settingsStorageWarning = "";
+  let preprocessedMode = false;
 
   function setStatus(message) {
-    status.textContent = message;
+    status.textContent = settingsStorageWarning ? `${message} · ${settingsStorageWarning}` : message;
+  }
+
+  function isValidStoredValue(control, value) {
+    if (control.type !== "range") {
+      return [...control.options].some((option) => option.value === value);
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) return false;
+    const min = Number(control.min);
+    const max = Number(control.max);
+    const step = Number(control.step) || 1;
+    const stepsFromMin = (value - min) / step;
+    return value >= min && value <= max && Math.abs(stepsFromMin - Math.round(stepsFromMin)) < 1e-8;
+  }
+
+  function loadSavedSettings() {
+    let serialized;
+    try {
+      serialized = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    } catch (error) {
+      console.error("Could not read storm tracker settings from browser storage.", error);
+      settingsStorageWarning = "Settings could not be loaded from browser storage";
+      return;
+    }
+    if (serialized === null) return;
+
+    let saved;
+    try {
+      saved = JSON.parse(serialized);
+    } catch (error) {
+      console.error("Saved storm tracker settings are not valid JSON.", error);
+      settingsStorageWarning = "Saved settings were invalid; defaults are in use";
+      return;
+    }
+    if (!saved || saved.version !== 1 || typeof saved.values !== "object" || saved.values === null) {
+      console.error("Saved storm tracker settings have an unsupported format.");
+      settingsStorageWarning = "Saved settings were invalid; defaults are in use";
+      return;
+    }
+
+    for (const control of settingControls) {
+      const value = saved.values[control.dataset.setting];
+      if (value === undefined) continue;
+      if (!isValidStoredValue(control, value)) {
+        console.error(`Ignoring invalid saved value for storm tracker setting "${control.dataset.setting}".`);
+        settingsStorageWarning = "Some saved settings were invalid; defaults are in use";
+        continue;
+      }
+      control.value = String(value);
+    }
+  }
+
+  function saveSettings() {
+    const values = {};
+    for (const control of settingControls) {
+      values[control.dataset.setting] = control.type === "range"
+        ? Number(control.value)
+        : control.value;
+    }
+    try {
+      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ version: 1, values }));
+      settingsStorageWarning = "";
+    } catch (error) {
+      console.error("Could not save storm tracker settings to browser storage.", error);
+      settingsStorageWarning = "Settings could not be saved in this browser";
+    }
   }
 
   function updateSettingLabels() {
@@ -133,6 +202,14 @@
     const max = Math.max(red, green, blue);
     const min = Math.min(red, green, blue);
     return Math.round(((max - min) / max) * 255);
+  }
+
+  function stormCoreFocusWeight(red, green, blue) {
+    const hue = stormCoreHue(red, green, blue);
+    const brightness = Math.max(red, green, blue);
+    if (hue === null || brightness < 48) return 0;
+    const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+    return stormCoreStrength(red, green, blue) * (255 - luminance) / 255;
   }
 
   function stormCoreHue(red, green, blue) {
@@ -210,6 +287,9 @@
       let sumRed = 0;
       let sumGreen = 0;
       let sumBlue = 0;
+      let weightedX = 0;
+      let weightedY = 0;
+      let totalFocusWeight = 0;
       const patchPixels = [];
       visitedSeeds[start] = 1;
       queue[tail++] = start;
@@ -223,6 +303,10 @@
         sumRed += pixels[offset];
         sumGreen += pixels[offset + 1];
         sumBlue += pixels[offset + 2];
+        const focusWeight = stormCoreFocusWeight(pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        weightedX += x * focusWeight;
+        weightedY += y * focusWeight;
+        totalFocusWeight += focusWeight;
         patchPixels.push(pixelIndex);
         for (let dy = -1; dy <= 1; dy += 1) {
           for (let dx = -1; dx <= 1; dx += 1) {
@@ -240,8 +324,9 @@
       seedPatches.push({
         pixels: patchPixels,
         area: tail,
-        x: sumX / tail,
-        y: sumY / tail,
+        x: totalFocusWeight ? weightedX / totalFocusWeight : sumX / tail,
+        y: totalFocusWeight ? weightedY / totalFocusWeight : sumY / tail,
+        strength: totalFocusWeight,
         color: [sumRed / tail, sumGreen / tail, sumBlue / tail],
         coreHue: stormCoreHue(pixels[start * 4], pixels[start * 4 + 1], pixels[start * 4 + 2]),
       });
@@ -274,11 +359,12 @@
     for (let index = 0; index < seedPatches.length; index += 1) {
       const root = findSeed(index);
       if (!seedGroups.has(root)) {
-        seedGroups.set(root, { pixels: [], area: 0, sumX: 0, sumY: 0, colorSum: [0, 0, 0] });
+        seedGroups.set(root, { pixels: [], corePoints: [], area: 0, sumX: 0, sumY: 0, colorSum: [0, 0, 0] });
       }
       const group = seedGroups.get(root);
       const seed = seedPatches[index];
       for (const pixel of seed.pixels) group.pixels.push(pixel);
+      group.corePoints.push({ x: seed.x, y: seed.y, strength: seed.strength, hue: seed.coreHue });
       group.area += seed.area;
       group.sumX += seed.x * seed.area;
       group.sumY += seed.y * seed.area;
@@ -351,6 +437,7 @@
         maxX: 0,
         maxY: 0,
         pixels: [],
+        corePoints: group.corePoints ?? [],
         frameIndex,
         id: null,
         lineageIds: [],
@@ -409,6 +496,12 @@
       const offset = strongestCorePixel * 4;
       addSeedGroup({
         pixels: [strongestCorePixel],
+        corePoints: [{
+          x: strongestCorePixel % ANALYSIS_WIDTH,
+          y: Math.floor(strongestCorePixel / ANALYSIS_WIDTH),
+          strength: stormCoreFocusWeight(pixels[offset], pixels[offset + 1], pixels[offset + 2]),
+          hue: stormCoreHue(pixels[offset], pixels[offset + 1], pixels[offset + 2]),
+        }],
         area: 1,
         sumX: strongestCorePixel % ANALYSIS_WIDTH,
         sumY: Math.floor(strongestCorePixel / ANALYSIS_WIDTH),
@@ -424,6 +517,18 @@
       component.x = component.sumX / component.area;
       component.y = component.sumY / component.area;
       component.meanColor = component.colorSum.map((sum) => sum / component.area);
+      const coreWeight = component.corePoints.reduce((sum, point) => sum + point.strength, 0);
+      component.maxCoreStrength = component.corePoints.reduce(
+        (strongest, point) => Math.max(strongest, point.strength),
+        0,
+      );
+      if (coreWeight > 0) {
+        component.coreX = component.corePoints.reduce((sum, point) => sum + point.x * point.strength, 0) / coreWeight;
+        component.coreY = component.corePoints.reduce((sum, point) => sum + point.y * point.strength, 0) / coreWeight;
+      } else {
+        component.coreX = component.x;
+        component.coreY = component.y;
+      }
       component.pixels = Int32Array.from(component.pixels);
       component.label = keptComponents.length + 1;
       for (const pixel of component.pixels) filteredLabels[pixel] = component.label;
@@ -442,34 +547,71 @@
     });
   }
 
+  function wrapX(x) {
+    return (x % ANALYSIS_WIDTH + ANALYSIS_WIDTH) % ANALYSIS_WIDTH;
+  }
+
+  function signedHorizontalDelta(fromX, toX) {
+    const difference = wrapX(toX - fromX);
+    return difference > ANALYSIS_WIDTH / 2 ? difference - ANALYSIS_WIDTH : difference;
+  }
+
+  function horizontalDistance(firstX, secondX) {
+    return Math.abs(signedHorizontalDelta(firstX, secondX));
+  }
+
   function predictedIntersection(source, currentLabels) {
     const deltaFrames = Math.max(1, source.missed + 1);
     const dx = Math.round(source.vx * deltaFrames);
     const dy = Math.round(source.vy * deltaFrames);
     const counts = new Map();
     for (const pixel of source.pixels) {
-      const x = pixel % ANALYSIS_WIDTH + dx;
+      const x = wrapX(pixel % ANALYSIS_WIDTH + dx);
       const y = Math.floor(pixel / ANALYSIS_WIDTH) + dy;
-      if (x < 0 || x >= ANALYSIS_WIDTH || y < 0 || y >= ANALYSIS_HEIGHT) continue;
+      if (y < 0 || y >= ANALYSIS_HEIGHT) continue;
       const currentLabel = currentLabels[y * ANALYSIS_WIDTH + x];
       if (currentLabel) counts.set(currentLabel, (counts.get(currentLabel) ?? 0) + 1);
     }
     return counts;
   }
 
+  function closestCorePoint(component, x, y, usedPoints = null) {
+    let closest = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    let closestScore = Number.POSITIVE_INFINITY;
+    const strongestPoint = component.maxCoreStrength;
+    for (const point of component.corePoints) {
+      if (usedPoints?.has(point)) continue;
+      const distance = Math.hypot(horizontalDistance(x, point.x), point.y - y);
+      const strengthBonus = strongestPoint
+        ? settings.maximumMotion * 0.15 * point.strength / strongestPoint
+        : 0;
+      const score = distance - strengthBonus;
+      if (score < closestScore) {
+        closest = point;
+        closestDistance = distance;
+        closestScore = score;
+      }
+    }
+    return closest ? { point: closest, distance: closestDistance } : null;
+  }
+
   function makeCandidate(source, target, overlapCount) {
     const elapsedFrames = Math.max(1, source.missed + 1);
-    const predictedX = source.x + source.vx * elapsedFrames;
-    const predictedY = source.y + source.vy * elapsedFrames;
-    const distance = Math.hypot(target.x - predictedX, target.y - predictedY);
+    const predictedX = (source.coreX ?? source.x) + source.vx * elapsedFrames;
+    const predictedY = (source.coreY ?? source.y) + source.vy * elapsedFrames;
+    const matchedCore = closestCorePoint(target, predictedX, predictedY);
+    const corePoint = matchedCore?.point ?? { x: target.x, y: target.y, strength: 0 };
+    const distance = matchedCore?.distance
+      ?? Math.hypot(horizontalDistance(predictedX, target.x), target.y - predictedY);
     const motionGate = settings.maximumMotion * Math.sqrt(elapsedFrames);
     const overlap = overlapCount / Math.max(1, Math.min(source.area, target.area));
     const areaSimilarity = Math.exp(-Math.abs(Math.log(target.area / source.area)));
-    const distanceSimilarity = Math.exp(-distance / motionGate);
+    const coreSimilarity = Math.exp(-distance / motionGate);
     const colorSimilarity = Math.exp(-rgbDistance(source.meanColor, target.meanColor) / (settings.colorTolerance * 2));
-    const confidence = overlap * 0.5 + distanceSimilarity * 0.27 + areaSimilarity * 0.13 + colorSimilarity * 0.1;
+    const confidence = overlap * 0.3 + coreSimilarity * 0.42 + areaSimilarity * 0.14 + colorSimilarity * 0.14;
     if (confidence < settings.matchConfidence || (overlap < settings.overlapThreshold && distance > motionGate)) return null;
-    return { source, target, overlap, distance, confidence, predictedX, predictedY };
+    return { source, target, overlap, distance, confidence, predictedX, predictedY, corePoint };
   }
 
   function createStormId(parentId = null, frameIndex = currentFrameIndex) {
@@ -480,15 +622,17 @@
   function updateAnchor(anchors, id, component, source) {
     const old = anchors.find((anchor) => anchor.id === id);
     const elapsedFrames = source ? Math.max(1, source.missed + 1) : 1;
-    const vx = source ? (component.x - source.x) / elapsedFrames : 0;
-    const vy = source ? (component.y - source.y) / elapsedFrames : 0;
+    const vx = source
+      ? signedHorizontalDelta(source.coreX ?? source.x, component.coreX) / elapsedFrames
+      : 0;
+    const vy = source ? (component.coreY - (source.coreY ?? source.y)) / elapsedFrames : 0;
     if (old) {
-      old.x = component.x;
-      old.y = component.y;
+      old.x = component.coreX;
+      old.y = component.coreY;
       old.vx = vx;
       old.vy = vy;
     } else {
-      anchors.push({ id, x: component.x, y: component.y, vx, vy });
+      anchors.push({ id, x: component.coreX, y: component.coreY, vx, vy });
     }
   }
 
@@ -505,12 +649,12 @@
         if (candidate) candidates.push(candidate);
       }
 
-      const predictedX = source.x + source.vx * (source.missed + 1);
-      const predictedY = source.y + source.vy * (source.missed + 1);
+      const predictedX = (source.coreX ?? source.x) + source.vx * (source.missed + 1);
+      const predictedY = (source.coreY ?? source.y) + source.vy * (source.missed + 1);
       const gate = settings.maximumMotion * Math.sqrt(source.missed + 1);
       for (const target of current) {
         if (intersections.has(target.label)) continue;
-        if (Math.hypot(target.x - predictedX, target.y - predictedY) > gate) continue;
+        if (Math.hypot(horizontalDistance(predictedX, target.coreX), target.coreY - predictedY) > gate) continue;
         const candidate = makeCandidate(source, target, 0);
         if (candidate) candidates.push(candidate);
       }
@@ -537,13 +681,22 @@
 
     const splitAnchors = new Map();
     for (const [source, sourceCandidates] of candidatesBySource) {
-      const children = [...new Set(sourceCandidates.map((candidate) => candidate.target))];
+      const children = [...new Set(sourceCandidates
+        .filter((candidate) => candidate.overlap >= settings.overlapThreshold)
+        .map((candidate) => candidate.target))];
       if (children.length < 2 || source.lineageAnchors.length < 2) continue;
       const possibilities = [];
       for (const target of children) {
         for (const anchor of source.lineageAnchors) {
-          const distance = Math.hypot(target.x - anchor.x, target.y - anchor.y);
-          if (distance <= settings.maximumMotion * 2) possibilities.push({ target, anchor, source, distance });
+          const elapsedFrames = source.missed + 1;
+          const predictedX = anchor.x + anchor.vx * elapsedFrames;
+          const predictedY = anchor.y + anchor.vy * elapsedFrames;
+          const matchedCore = closestCorePoint(target, predictedX, predictedY);
+          if (!matchedCore) continue;
+          const { point: corePoint, distance } = matchedCore;
+          if (distance <= settings.maximumMotion * 2) {
+            possibilities.push({ target, anchor, source, distance, predictedX, predictedY, elapsedFrames, corePoint });
+          }
         }
       }
       possibilities.sort((a, b) => a.distance - b.distance);
@@ -563,6 +716,7 @@
       const mergeSources = (candidatesByTarget.get(target) ?? [])
         .filter((candidate) =>
           candidate.source !== primary?.source
+          && !matchedSources.has(candidate.source)
           && candidate.overlap >= settings.mergeThreshold
           && (candidatesBySource.get(candidate.source) ?? []).every((other) =>
             other.target === target || other.confidence <= candidate.confidence
@@ -572,9 +726,12 @@
       const allSources = [...new Set([primary?.source, ...mergeSources].filter(Boolean))];
       const splitMatch = splitAnchors.get(target);
 
+      if (primary) {
+        target.coreX = primary.corePoint.x;
+        target.coreY = primary.corePoint.y;
+      }
       if (splitMatch && !mergeSources.length) {
-        const { anchor, source } = splitMatch;
-        const elapsedFrames = source.missed + 1;
+        const { anchor, source, elapsedFrames, corePoint } = splitMatch;
         target.id = anchor.id;
         target.lineageIds = [...source.lineageIds];
         target.lineageAnchors = source.lineageAnchors.map((item) => ({
@@ -582,33 +739,63 @@
           x: item.x + item.vx * elapsedFrames,
           y: item.y + item.vy * elapsedFrames,
         }));
+        target.coreX = corePoint.x;
+        target.coreY = corePoint.y;
         target.parentId = null;
-        target.vx = (target.x - source.x) / elapsedFrames;
-        target.vy = (target.y - source.y) / elapsedFrames;
-        updateAnchor(target.lineageAnchors, target.id, target, source);
+        target.vx = signedHorizontalDelta(anchor.x, target.coreX) / elapsedFrames;
+        target.vy = (target.coreY - anchor.y) / elapsedFrames;
+        const restoredAnchor = target.lineageAnchors.find((item) => item.id === anchor.id);
+        if (restoredAnchor) {
+          restoredAnchor.x = target.coreX;
+          restoredAnchor.y = target.coreY;
+          restoredAnchor.vx = target.vx;
+          restoredAnchor.vy = target.vy;
+        }
       } else if (allSources.length) {
         const primarySource = primary?.source ?? allSources[0];
+        const dt = primarySource.missed + 1;
+        if (!primary) {
+          const predictedX = (primarySource.coreX ?? primarySource.x) + primarySource.vx * dt;
+          const predictedY = (primarySource.coreY ?? primarySource.y) + primarySource.vy * dt;
+          const sourceCandidate = (candidatesByTarget.get(target) ?? [])
+            .find((candidate) => candidate.source === primarySource);
+          const matchedCore = sourceCandidate?.corePoint ?? closestCorePoint(target, predictedX, predictedY)?.point;
+          if (matchedCore) {
+            target.coreX = matchedCore.x;
+            target.coreY = matchedCore.y;
+          }
+        }
         target.id = primarySource.id;
         target.parentId = primarySource.parentId ?? null;
         target.lineageIds = [...new Set(allSources.flatMap((source) => source.lineageIds))];
         target.lineageAnchors = [];
+        const assignedCorePoints = new Set();
         for (const source of allSources) {
           for (const anchor of source.lineageAnchors) {
             if (!target.lineageAnchors.some((item) => item.id === anchor.id)) {
               const dt = source.missed + 1;
+              const predictedX = anchor.x + anchor.vx * dt;
+              const predictedY = anchor.y + anchor.vy * dt;
+              const matchedCore = closestCorePoint(target, predictedX, predictedY, assignedCorePoints);
+              const canFollowCore = matchedCore && matchedCore.distance <= settings.maximumMotion * 2;
+              if (canFollowCore) assignedCorePoints.add(matchedCore.point);
               target.lineageAnchors.push({
                 ...anchor,
-                x: anchor.x + anchor.vx * dt,
-                y: anchor.y + anchor.vy * dt,
+                x: canFollowCore ? matchedCore.point.x : predictedX,
+                y: canFollowCore ? matchedCore.point.y : predictedY,
+                vx: canFollowCore ? signedHorizontalDelta(anchor.x, matchedCore.point.x) / dt : anchor.vx,
+                vy: canFollowCore ? (matchedCore.point.y - anchor.y) / dt : anchor.vy,
               });
             }
           }
         }
-        const dt = primarySource.missed + 1;
-        target.vx = (target.x - primarySource.x) / dt;
-        target.vy = (target.y - primarySource.y) / dt;
-        updateAnchor(target.lineageAnchors, target.id, target, primarySource);
+        target.vx = signedHorizontalDelta(primarySource.coreX ?? primarySource.x, target.coreX) / dt;
+        target.vy = (target.coreY - (primarySource.coreY ?? primarySource.y)) / dt;
+        if (target.lineageIds.length === 1) {
+          updateAnchor(target.lineageAnchors, target.id, target, primarySource);
+        }
         for (const source of mergeSources) {
+          matchedSources.add(source);
           const meta = stormRegistry.get(source.id);
           if (meta) meta.mergedInto = target.id;
         }
@@ -622,18 +809,19 @@
         target.id = meta.id;
         target.parentId = null;
         target.lineageIds = [meta.id];
-        target.lineageAnchors = [{ id: meta.id, x: target.x, y: target.y, vx: 0, vy: 0 }];
+        target.lineageAnchors = [{ id: meta.id, x: target.coreX, y: target.coreY, vx: 0, vy: 0 }];
         target.vx = 0;
         target.vy = 0;
       }
 
       if (usedIds.has(target.id)) {
+        const previousId = target.id;
         const meta = createStormId(target.id, frameIndex);
         stormRegistry.set(meta.id, { ...meta, lastFrame: frameIndex, merges: 0, mergedInto: null });
-        target.parentId = target.id;
+        target.parentId = previousId;
         target.id = meta.id;
-        target.lineageIds = [meta.id];
-        target.lineageAnchors = [{ id: meta.id, x: target.x, y: target.y, vx: target.vx, vy: target.vy }];
+        target.lineageIds = [...new Set([...target.lineageIds, previousId, meta.id])];
+        target.lineageAnchors.push({ id: meta.id, x: target.coreX, y: target.coreY, vx: target.vx, vy: target.vy });
       }
       usedIds.add(target.id);
       target.frameIndex = frameIndex;
@@ -674,13 +862,14 @@
   async function rebuildAnalysis() {
     window.clearTimeout(rebuildTimer);
     stopSequence();
+    preprocessedMode = false;
     updateSettingLabels();
     const version = ++rebuildVersion;
     analyzedFrames = [];
     nextStormId = 1;
     stormRegistry.clear();
     selectedStormId = null;
-    setStatus("Rebuilding connected storm tracks across 48 snapshots…");
+    setStatus("Rebuilding storm clusters and tracks across 48 snapshots…");
     list.replaceChildren();
 
     try {
@@ -694,18 +883,20 @@
         sourceContext.drawImage(frameImage, 0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
         const imageData = sourceContext.getImageData(0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
         const extracted = extractComponents(imageData, frameIndex);
+        let frameMissingSources = [];
         if (frameIndex > 0) {
           missingSources = associateFrames(previous, extracted.components, extracted.labels, frameIndex, missingSources);
+          frameMissingSources = missingSources;
         } else {
           for (const component of extracted.components) {
             const meta = createStormId(null, frameIndex);
             stormRegistry.set(meta.id, { ...meta, lastFrame: 0, merges: 0, mergedInto: null });
             component.id = meta.id;
             component.lineageIds = [meta.id];
-            component.lineageAnchors = [{ id: meta.id, x: component.x, y: component.y, vx: 0, vy: 0 }];
+            component.lineageAnchors = [{ id: meta.id, x: component.coreX, y: component.coreY, vx: 0, vy: 0 }];
           }
         }
-        analyzedFrames.push(extracted);
+        analyzedFrames.push({ ...extracted, missingSources: frameMissingSources });
         previous = extracted.components;
         await new Promise((resolve) => window.setTimeout(resolve, 0));
       }
@@ -746,16 +937,20 @@
       button.className = "storm-option";
       button.type = "button";
       button.setAttribute("role", "listitem");
-      button.setAttribute("aria-pressed", String(selectedStormId === component.id || component.lineageIds.includes(selectedStormId)));
-      const color = stormColor(component.id);
+      const isSelectedFamily = selectedStormId === component.id || component.lineageIds.includes(selectedStormId);
+      button.setAttribute("aria-pressed", String(isSelectedFamily));
+      const color = stormColor(isSelectedFamily ? selectedStormId : component.id);
       button.style.setProperty("--storm-color", color.rgb);
       const title = document.createElement("span");
       title.className = "storm-option-title";
-      title.textContent = `Storm ${component.id}`;
+      title.textContent = `Storm ${isSelectedFamily ? selectedStormId : component.id}`;
       const detail = document.createElement("span");
       detail.className = "storm-option-detail";
       const merged = component.lineageIds.length > 1 ? ` · ${component.lineageIds.length} linked tracks` : "";
-      detail.textContent = `${component.area.toLocaleString()} analysis px${merged}`;
+      const currentPart = isSelectedFamily && component.id !== selectedStormId
+        ? ` · current part ${component.id}`
+        : "";
+      detail.textContent = `${component.area.toLocaleString()} analysis px${merged}${currentPart}`;
       const swatch = document.createElement("span");
       swatch.className = "storm-swatch";
       swatch.setAttribute("aria-hidden", "true");
@@ -778,16 +973,27 @@
     timelineLabel.value = `${formatTime(index)} · ${index + 1} / ${SNAPSHOT_COUNT}`;
     timelineLabel.textContent = timelineLabel.value;
     const components = analyzedFrames[index].components;
+    const activeLineageIds = new Set(components.flatMap((component) => component.lineageIds));
+    const remembered = analyzedFrames[index].missingSources.filter((source) =>
+      selectedStormId !== null
+      && (source.id === selectedStormId || source.lineageIds.includes(selectedStormId))
+      && !activeLineageIds.has(source.id),
+    );
+    const selectionPresent = selectedStormId !== null && activeLineageIds.has(selectedStormId);
     renderStormList(components);
     selectionHint.textContent = selectedStormId
-      ? `Following Storm ${selectedStormId} · every part of its merged family stays highlighted after a split.`
+      ? remembered.length
+        ? `Following Storm ${selectedStormId} · temporarily below the area cutoff; showing its predicted position for ${remembered[0].missed} snapshot${remembered[0].missed === 1 ? "" : "s"}.`
+        : selectionPresent
+          ? `Following Storm ${selectedStormId} · every part of its merged family stays highlighted after a split.`
+          : `Storm ${selectedStormId} is not detected in this snapshot; its tracking memory has expired.`
       : "Choose a storm to follow it; if storms merge and split, every part of the family stays highlighted.";
-    drawFrame(image, components);
+    drawFrame(image, components, analyzedFrames[index].missingSources);
   }
 
-  function drawFrame(frameImage, components) {
+  function drawFrame(frameImage, components, missingSources = []) {
     if (!frameImage.complete || !frameImage.naturalWidth) {
-      frameImage.onload = () => drawFrame(frameImage, components);
+      frameImage.onload = () => drawFrame(frameImage, components, missingSources);
       return;
     }
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -795,28 +1001,78 @@
     const selected = selectedStormId === null
       ? []
       : components.filter((component) => component.id === selectedStormId || component.lineageIds.includes(selectedStormId));
-    const overlay = overlayContext.createImageData(ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
-    for (const component of selected) {
-      const { hue } = stormColor(component.id);
-      const color = hueToRgb(hue);
-      const memberPixels = new Set(component.pixels);
-      for (const pixel of component.pixels) {
-        const offset = pixel * 4;
-        overlay.data[offset] = color.r;
-        overlay.data[offset + 1] = color.g;
-        overlay.data[offset + 2] = color.b;
-        overlay.data[offset + 3] = 92;
-        const x = pixel % ANALYSIS_WIDTH;
-        const y = Math.floor(pixel / ANALYSIS_WIDTH);
-        const edge = x === 0 || x === ANALYSIS_WIDTH - 1 || y === 0 || y === ANALYSIS_HEIGHT - 1
-          || !memberPixels.has(pixel - 1)
-          || !memberPixels.has(pixel + 1)
-          || !memberPixels.has(pixel - ANALYSIS_WIDTH)
-          || !memberPixels.has(pixel + ANALYSIS_WIDTH);
-        if (edge) overlay.data[offset + 3] = 240;
+    const activeLineageIds = new Set(selected.flatMap((component) => component.lineageIds));
+    const remembered = selectedStormId === null
+      ? []
+      : missingSources.filter((source) =>
+        (source.id === selectedStormId || source.lineageIds.includes(selectedStormId))
+        && !activeLineageIds.has(source.id),
+      );
+    if (preprocessedMode) {
+      overlayContext.clearRect(0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
+      function drawPolygons(component, fillAlpha, lineAlpha, dashed = false) {
+        const { hue } = stormColor(selectedStormId ?? component.id);
+        const color = hueToRgb(hue);
+        overlayContext.beginPath();
+        for (const polygon of component.polygons ?? []) {
+          for (const ring of [polygon.outer, ...(polygon.holes ?? [])]) {
+            if (!ring?.length) continue;
+            overlayContext.moveTo(ring[0][0], ring[0][1]);
+            for (let point = 1; point < ring.length; point += 1) {
+              overlayContext.lineTo(ring[point][0], ring[point][1]);
+            }
+            overlayContext.closePath();
+          }
+        }
+        overlayContext.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${fillAlpha})`;
+        overlayContext.fill("evenodd");
+        overlayContext.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${lineAlpha})`;
+        overlayContext.lineWidth = dashed ? 1 : 1.5;
+        overlayContext.setLineDash(dashed ? [5, 4] : []);
+        overlayContext.stroke();
+        overlayContext.setLineDash([]);
       }
+      for (const component of selected) drawPolygons(component, 0.35, 0.98);
+      for (const source of remembered) drawPolygons(source, 0.14, 0.62, true);
+    } else {
+      const overlay = overlayContext.createImageData(ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
+      function paintMask(component, alpha, edgeAlpha, dx = 0, dy = 0) {
+        const { hue } = stormColor(selectedStormId ?? component.id);
+        const color = hueToRgb(hue);
+        const translated = [];
+        const memberPixels = new Set();
+        for (const pixel of component.pixels) {
+          const x = wrapX(pixel % ANALYSIS_WIDTH + dx);
+          const y = Math.floor(pixel / ANALYSIS_WIDTH) + dy;
+          if (y < 0 || y >= ANALYSIS_HEIGHT) continue;
+          const translatedPixel = y * ANALYSIS_WIDTH + x;
+          translated.push(translatedPixel);
+          memberPixels.add(translatedPixel);
+        }
+        for (const pixel of translated) {
+          const offset = pixel * 4;
+          overlay.data[offset] = color.r;
+          overlay.data[offset + 1] = color.g;
+          overlay.data[offset + 2] = color.b;
+          overlay.data[offset + 3] = alpha;
+          const x = pixel % ANALYSIS_WIDTH;
+          const y = Math.floor(pixel / ANALYSIS_WIDTH);
+          const westPixel = y * ANALYSIS_WIDTH + wrapX(x - 1);
+          const eastPixel = y * ANALYSIS_WIDTH + wrapX(x + 1);
+          const edge = y === 0 || y === ANALYSIS_HEIGHT - 1
+            || !memberPixels.has(westPixel)
+            || !memberPixels.has(eastPixel)
+            || !memberPixels.has(pixel - ANALYSIS_WIDTH)
+            || !memberPixels.has(pixel + ANALYSIS_WIDTH);
+          if (edge) overlay.data[offset + 3] = edgeAlpha;
+        }
+      }
+      for (const component of selected) paintMask(component, 92, 240);
+      for (const source of remembered) {
+        paintMask(source, 36, 140, Math.round(source.vx * source.missed), Math.round(source.vy * source.missed));
+      }
+      overlayContext.putImageData(overlay, 0, 0);
     }
-    overlayContext.putImageData(overlay, 0, 0);
     context.save();
     context.globalAlpha = 0.72;
     context.filter = "blur(5px)";
@@ -825,6 +1081,42 @@
     context.globalAlpha = 1;
     context.drawImage(overlayCanvas, 0, 0, canvas.width, canvas.height);
     context.restore();
+    if (selectedStormId !== null) {
+      const { rgb } = stormColor(selectedStormId);
+      function drawCoreMarker(x, y) {
+        const canvasX = x * canvas.width / ANALYSIS_WIDTH;
+        const canvasY = y * canvas.height / ANALYSIS_HEIGHT;
+        context.save();
+        context.shadowBlur = 12;
+        context.shadowColor = rgb;
+        context.strokeStyle = "#fff";
+        context.lineWidth = 3;
+        context.beginPath();
+        context.arc(canvasX, canvasY, 8, 0, Math.PI * 2);
+        context.stroke();
+        context.strokeStyle = rgb;
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(canvasX, canvasY, 8, 0, Math.PI * 2);
+        context.stroke();
+        context.fillStyle = "#fff";
+        context.beginPath();
+        context.arc(canvasX, canvasY, 2, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      }
+      if (selected.length) {
+        for (const component of selected) {
+          const anchor = component.lineageAnchors.find((item) => item.id === selectedStormId);
+          drawCoreMarker(anchor?.x ?? component.coreX, anchor?.y ?? component.coreY);
+        }
+      } else {
+        for (const source of remembered) {
+          const anchor = source.lineageAnchors?.find((item) => item.id === selectedStormId);
+          drawCoreMarker(anchor?.x ?? source.coreX, anchor?.y ?? source.coreY);
+        }
+      }
+    }
   }
 
   function hueToRgb(hue) {
@@ -843,8 +1135,13 @@
     const x = Math.floor(((event.clientX - bounds.left) / bounds.width) * ANALYSIS_WIDTH);
     const y = Math.floor(((event.clientY - bounds.top) / bounds.height) * ANALYSIS_HEIGHT);
     if (x < 0 || x >= ANALYSIS_WIDTH || y < 0 || y >= ANALYSIS_HEIGHT) return;
-    const label = analyzedFrames[currentFrameIndex]?.labels[y * ANALYSIS_WIDTH + x];
-    const component = analyzedFrames[currentFrameIndex]?.components.find((item) => item.label === label);
+    const components = analyzedFrames[currentFrameIndex]?.components ?? [];
+    const component = preprocessedMode
+      ? [...components].reverse().find((item) => item.polygons?.some((polygon) =>
+        pointInRing(x, y, polygon.outer)
+        && !(polygon.holes ?? []).some((hole) => pointInRing(x, y, hole)),
+      ))
+      : components.find((item) => item.label === analyzedFrames[currentFrameIndex]?.labels[y * ANALYSIS_WIDTH + x]);
     if (!component) {
       selectedStormId = null;
       renderFrame(currentFrameIndex);
@@ -852,6 +1149,43 @@
     }
     selectedStormId = component.id;
     renderFrame(currentFrameIndex);
+  }
+
+  function pointInRing(x, y, ring) {
+    let inside = false;
+    for (let first = 0, second = ring.length - 1; first < ring.length; second = first, first += 1) {
+      const [x1, y1] = ring[first];
+      const [x2, y2] = ring[second];
+      if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) inside = !inside;
+    }
+    return inside;
+  }
+
+  async function loadPreprocessed() {
+    try {
+      const response = await fetch(PREPROCESSED_PATH);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (data.version !== 1 || data.frames?.length !== SNAPSHOT_COUNT || data.width !== ANALYSIS_WIDTH || data.height !== ANALYSIS_HEIGHT) {
+        throw new Error("Preprocessed polygon data has an unsupported format.");
+      }
+      analyzedFrames = data.frames.map((frame) => ({
+        components: frame.components,
+        labels: null,
+        missingSources: frame.missingSources ?? [],
+      }));
+      nextStormId = Math.max(0, ...data.tracks.map((track) => track.id)) + 1;
+      preprocessedMode = true;
+      timeline.disabled = false;
+      previousButton.disabled = false;
+      nextButton.disabled = false;
+      playButton.disabled = false;
+      renderFrame(currentFrameIndex);
+      setStatus(`Offline CV tracks ready · ${data.summary.trackCount} identities across ${SNAPSHOT_COUNT} snapshots.`);
+    } catch (error) {
+      console.warn("Could not load offline storm polygons; analyzing snapshots in the browser instead.", error);
+      rebuildAnalysis();
+    }
   }
 
   function stopSequence() {
@@ -889,6 +1223,7 @@
   }
 
   function scheduleRebuild() {
+    saveSettings();
     updateSettingLabels();
     rebuildTimer = window.setTimeout(rebuildAnalysis, 250);
   }
@@ -911,6 +1246,7 @@
     settingsPanel.querySelector(".settings-toggle").textContent = settingsPanel.open ? "−" : "+";
   });
 
+  loadSavedSettings();
   updateSettingLabels();
-  rebuildAnalysis();
+  loadPreprocessed();
 })();

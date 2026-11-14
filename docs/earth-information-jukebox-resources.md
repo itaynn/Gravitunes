@@ -24,3 +24,5 @@ Retrieved: 2026-11-14
 NASA states that it does not endorse non-U.S. Government entities and is not responsible for information on non-U.S. Government websites. Participants must follow the data-use terms of any non-U.S. Government website they use.
 
 The challenge page says that additional resources may be added before the hackathon. Check the [live Resources tab](https://www.spaceappschallenge.org/2026/challenges/the-earth-information-jukebox/?tab=resources) for updates and consult each source for its current availability and usage terms.
+
+For checked link status, SVS JSON endpoints, time-sensitive EIC visualizations, GIBS access, and locally downloaded sample images, see the [Earth Information Center catalog](./earth-information-center-catalog.md).

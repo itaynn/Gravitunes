@@ -9,8 +9,7 @@
       content="Explore and track connected precipitation storms through NASA IMERG snapshots."
     >
     <title>Storm Watch — Earth Jukebox</title>
-    <link rel="stylesheet" href="../earth-jukebox/styles.css">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=2">
     <script src="./app.js" defer></script>
   </head>
   <body>
@@ -153,7 +152,7 @@
                 <span class="setting-scale"><span>SHORT</span><span>LONG</span></span>
               </label>
             </div>
-            <p class="settings-note">Red and blue heatmap cores seed storm regions. Nearby cores are grouped by distance and color; precipitation pixels grow outward by spatial distance and similarity to each segment’s average color. Area is measured on the 900 × 450 analysis grid. Changes rebuild tracks across all snapshots. The 48-snapshot playback pass runs in 12.5 seconds.</p>
+            <p class="settings-note">Dark, saturated red and blue heatmap cores seed storm regions and anchor tracks; core proximity carries more weight than region-centroid motion, including through merges. Nearby cores are grouped by distance and color; precipitation pixels grow outward by spatial distance and similarity to each segment’s average color. Area is measured on the 900 × 450 analysis grid. Changes rebuild tracks across all snapshots. The 48-snapshot playback pass runs in 12.5 seconds.</p>
           </details>
         </div>
 
