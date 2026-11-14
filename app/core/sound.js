@@ -1,11 +1,14 @@
 // ctx.sound adapter. Uses the real engine (/sound-engine/js/index.js) when it exists,
-// otherwise a small built-in Web Audio synth with the same play() shape.
+// otherwise a small built-in Web Audio synth with the same play() shape. Value-only notes map to C2..C5 on
+// major pentatonic in both. Also: setOutput/setBalance/setWidth (stereo default), setScale/setTuning (engine only).
 // Browsers only allow audio after a user gesture: call start() from a click/keypress.
 //
 // play(opts): pitch from freq | value+range (pentatonic); amplitude/amp, duration/dur, pan, t (s from now),
 // voice (engine preset name), harmonics (number of harmonics, or an amplitude array),
 // partials [{ratio, amp, decay}], envelope {attack, decay, sustain, release},
-// noise {amount 0..1, attack, decay, cutoff Hz} (breath/pick noise, added by the adapter for both engines).
+// noise {amount 0..1, attack, decay, cutoff Hz} (breath/pick noise, added by the adapter for both engines),
+// lowpass (Hz, needs freq): per-note low-pass. The engine has no per-note filter yet, so the adapter
+// approximates it by attenuating harmonics/partials with a 2nd-order (12 dB/oct) response (applyLowpass).
 
 const PENTA = [0, 2, 4, 7, 9];  // major pentatonic, semitones
 
@@ -40,10 +43,39 @@ export function sanitizeTimbre({ harmonics, partials, envelope }) {
   return out;
 }
 
+// Approximate a 2nd-order low-pass at `cutoff` Hz on a note at `freq` Hz by scaling each partial's amplitude.
+export function lowpassGain(f, cutoff) { return 1 / Math.sqrt(1 + (f / Math.max(1, cutoff)) ** 4); }
+export function applyLowpass({ harmonics, partials, noise } = {}, freq, cutoff) {
+  const out = {};
+  if (harmonics != null) out.harmonics = harmonicArray(harmonics).map((a, k) => a * lowpassGain(freq * (k + 1), cutoff));
+  if (partials) out.partials = partials.map((p) => ({ ...p, amp: (p.amp ?? 1) * lowpassGain(freq * p.ratio, cutoff) }));
+  if (noise) out.noise = { ...noise, cutoff: Math.min(noise.cutoff ?? 2000, cutoff),
+    amount: (noise.amount ?? 0) * lowpassGain(noise.cutoff ?? 2000, cutoff) };
+  return out;
+}
+
+// Comfort caps for every mode: fundamentals stay at or below ~C5, and no harmonic/partial above ~5 kHz
+// (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above).
+export const MAX_FUND_HZ = 523.25, FADE_HZ = 4000, PARTIAL_CAP_HZ = 5000;
+export const capGain = (f) => (f >= PARTIAL_CAP_HZ ? 0 : f <= FADE_HZ ? 1 : (PARTIAL_CAP_HZ - f) / (PARTIAL_CAP_HZ - FADE_HZ));
+export function capTimbre({ freq, harmonics, partials } = {}) {
+  const f0 = Math.min(MAX_FUND_HZ, freq);
+  const hs = harmonicArray(harmonics ?? 1).map((a, k) => a * capGain(f0 * (k + 1)));
+  const ps = (partials || []).map((p) => ({ ...p, amp: (p.amp ?? 1) * capGain(f0 * p.ratio) })).filter((p) => p.amp > 0);
+  return { freq: f0, harmonics: hs.some((a) => a > 0) ? hs : [1], partials: ps };
+}
+
+const C2_HZ = 65.4064;
+
 function fallbackEngine() {
-  let ac = null, master = null;
+  let ac = null, master = null, bal = null;
+  let output = 'stereo', balance = 0, width = 0;
   return {
     name: 'built-in',
+    get output() { return output; }, get balance() { return balance; }, get width() { return width; },
+    setOutput(m) { output = m === 'mono' ? 'mono' : 'stereo'; if (bal) bal.pan.value = output === 'mono' ? 0 : balance; },
+    setBalance(x) { balance = clamp(+x || 0, -1, 1); if (bal) bal.pan.value = output === 'mono' ? 0 : balance; },
+    setWidth(x) { width = clamp(+x || 0, 0, 1); },
     get context() { return ac; },
     get master() { return master; },
     async start() {
@@ -52,16 +84,17 @@ function fallbackEngine() {
         master = ac.createGain(); master.gain.value = 0.8;
         const lim = ac.createDynamicsCompressor();
         lim.threshold.value = -6; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.1;
-        master.connect(lim).connect(ac.destination);
+        bal = ac.createStereoPanner(); bal.pan.value = output === 'mono' ? 0 : balance;
+        master.connect(bal).connect(lim).connect(ac.destination);
       }
       await ac.resume();
     },
     play({ freq, value, range = [0, 1], dur = 0.3, amp = 0.2, pan = 0, t: dt = 0, harmonics = 1, partials, envelope } = {}) {
       if (!ac) return { stop() {}, set() {} };
-      const f0 = freq ?? valueToFreq(value ?? 0, range);
+      const f0 = freq ?? valueToFreq(value ?? 0, range, C2_HZ, 3);   // C2..C5, like the engine
       const env = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...(envelope || {}) };
       const t = ac.currentTime + Math.max(0, dt), out = ac.createGain(), panner = ac.createStereoPanner();
-      panner.pan.value = clamp(pan, -1, 1);
+      panner.pan.value = output === 'mono' ? 0 : clamp(pan + width * clamp(Math.log2(f0 / 261.6256) / 2, -1, 1), -1, 1);
       const hs = harmonicArray(harmonics), ps = partials || [];
       const norm = 1 / Math.sqrt(hs.reduce((a, x) => a + x * x, 0) + ps.reduce((a, p) => a + (p.amp ?? 1) ** 2, 0) || 1);
       const peak = amp * norm, sus = Math.max(0.0001, peak * env.sustain);
@@ -109,7 +142,7 @@ export async function createSound() {
   let engine = null, name = 'built-in';
   try {
     const mod = await import('/sound-engine/js/index.js');
-    engine = mod.createEngine({ polyphony: 32 }); name = 'sound-engine';
+    engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major' }); name = 'sound-engine';
   } catch (e) {
     console.info('[sound] sound-engine not available, using built-in synth:', e.message);
     engine = fallbackEngine();
@@ -125,7 +158,13 @@ export async function createSound() {
     },
     play(opts = {}) {
       if (!started) return null;
-      const { amplitude, duration, noise, harmonics, partials, envelope, ...rest } = opts;
+      let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, ...rest } = opts;
+      if (lowpass > 0 && rest.freq > 0) {
+        ({ harmonics, partials, noise } = { harmonics: harmonics ?? 1, partials, noise,
+          ...applyLowpass({ harmonics: harmonics ?? 1, partials, noise }, rest.freq, lowpass) });
+      }
+      if (rest.freq > 0) ({ freq: rest.freq, harmonics, partials } = capTimbre({ freq: rest.freq, harmonics, partials }));
+      if (noise) noise = { ...noise, cutoff: Math.min(noise.cutoff ?? 2000, FADE_HZ) };
       const ev = { ...rest, ...sanitizeTimbre({ harmonics, partials, envelope }) };
       if (amplitude != null && ev.amp == null) ev.amp = amplitude;
       if (duration != null && ev.dur == null) ev.dur = duration;
@@ -139,6 +178,17 @@ export async function createSound() {
       return h;
     },
     stopAll() { try { engine.stopAll(); } catch {} },
+    // Output: 'stereo' (app default) | 'mono'; balance -1..1 shifts everything; width 0..1 spreads by pitch.
+    setOutput(m) { try { engine.setOutput?.(m === 'mono' ? 'mono' : 'stereo'); } catch (e) { console.warn('[sound]', e.message); } },
+    setBalance(x) { try { engine.setBalance?.(clamp(+x || 0, -1, 1)); } catch (e) { console.warn('[sound]', e.message); } },
+    setWidth(x) { try { engine.setWidth?.(clamp(+x || 0, 0, 1)); } catch (e) { console.warn('[sound]', e.message); } },
+    get output() { return engine.output ?? 'stereo'; },
+    get balance() { return engine.balance ?? 0; },
+    get width() { return engine.width ?? 0; },
+    // Tuning/scale for value-only notes (engine maps value -> C2..C5 on the scale). The built-in synth ignores
+    // these and uses major pentatonic. Modes that pass freq (quantized in app/core/scales.js) don't need them.
+    async setTuning(spec) { try { await engine.setTuning?.(spec); return !!engine.setTuning; } catch (e) { console.warn('[sound]', e.message); return false; } },
+    setScale(spec) { try { engine.setScale?.(spec); return !!engine.setScale; } catch (e) { console.warn('[sound]', e.message); return false; } },
     valueToFreq,
   };
 }
