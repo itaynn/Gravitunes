@@ -14,6 +14,7 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 | Flow analysis | optical flow → vorticity/divergence → vortices + tracking, on precipitation 4285 |
 | Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
 | Log grids + picker | front end reads NOx log grids; picker lists ozone, CO, NOx |
+| Timbre atlas | hover-the-map demo of each region's instrument; make voices distinct per culture (shared with world-orchestra) |
 
 ## Next
 1. Flow tracers demo, then vortex melodies demo (after flow analysis)
