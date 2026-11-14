@@ -7,12 +7,12 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 - Modes: ozone-probe, world-orchestra, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
 - Sound engine (scales, tunings, Scala, voices, live edits, mono/stereo)
 - Data tools: ozone (5152), CO (5153), NOx (5154) value grids
+- Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)
 - Front end reads log (NOx) grids; picker lists ozone, CO, NOx
 
 ## Running (agents)
 | Agent | Doing |
 |---|---|
-| Flow analysis | optical flow → vorticity/divergence → vortices + tracking, on precipitation 4285 |
 | Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
 | Timbre atlas | hover-the-map demo of each region's instrument; make voices distinct per culture (shared with world-orchestra) |
 
