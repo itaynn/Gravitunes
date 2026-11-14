@@ -30,6 +30,54 @@ The separate [`sonification.html`](./sonification.html) demo uses NASA's [7 Nove
 
 The mapping is an artistic interpretation of the image colors, not a scientific measurement. Use **Play sound** to start audio; browsers require this user interaction before sound can play.
 
+## Sound lab (mapping playground)
+
+Below the scan-line demo, `sonification.html#sound-lab` plays the moving SVS 4285 video. It lets you choose which weather input drives which sound parameter, all live.
+
+- **Inputs (what the map does):** X (west → east), Y (south → north), X speed, Y speed, Spin (counterclockwise vs. clockwise), Color (light → heavy, read from the NASA legend), and Rain/Snow.
+  - Speed and spin are estimated from how the colored patches move between frames (optical flow), then scaled to how active the map currently is. The middle of a bar means still.
+- **Outputs (what you hear):** Pitch, Amplitude, Overtones (dark → bright), Instrument, Chord, Notes, Note length, Pan, and Vibrato.
+  - Instruments: sustained ones are soft pad, choir, strings, organ, pure tone, flute, clarinet, cello, brass, synth lead, glass harmonica and wind. Struck ones are pluck, marimba, bell, glockenspiel, harp, vibraphone, kalimba, electric piano and music box.
+  - Notes: *Flowing* is continuous. A sustained instrument holds one tone whose pitch, loudness and tone glide as the map moves. A struck instrument rings whenever the voice reaches a new note, and rings again as each note dies away. The other options strike on a tempo grid, from every 2 bars to sixteenths.
+- **Rain and snow sounds:** rain and snow each have their own profile, with their own key, scale, instrument and ranges. Every voice plays both, crossfaded by how much snow is around it, smoothed over about a second, so moving from rain into snow fades one sound into the other. The *Rain ↔ snow blend* control sets how gradual that fade is. On the map, a voice's marker morphs from a green circle (rain) to a cyan diamond (snow), matching the NASA legend colors. By default rain is an organ in C pentatonic, and snow is a higher glockenspiel in C Lydian.
+- **Seeing what you hear:**
+  - Each voice is labeled with the notes and instrument it is playing, with percentages while rain and snow blend.
+  - Its halo grows with its loudness, and a trail shows the path that made the melody.
+  - When Pitch is driven by X or Y, the note grid shows the note each place plays, and lights up the band each voice is in. It's the same idea as the 88-band grid in the scan-line demo, but it follows your current range and scale.
+- **For each output row:**
+  - Pick one input, or *Manual* to set a fixed value yourself.
+  - Pick a shape: Normal, Inverted, Strength (ignores direction), or Calmness.
+  - Set the From/To range.
+- **Who plays:**
+  - *Storm Watch (snapshots)* shows still pictures rather than the video, stepping through them one by one. It plays the storms that our storm tracker (`storm-tracker/` on the `clustering` branch) follows through the 48 half-hourly IMERG snapshots of 7 Nov 2026.
+    - Each of the biggest storms is one voice, and it keeps that voice as long as the tracker keeps its ID. A much larger storm can take over the quietest voice.
+    - When a storm merges, its voice carries on as the merged storm. A merge or split plays a full chord on the next beat, and a ring marks it on the map.
+    - The map shows the snapshot with every tracked outline. The storms you hear are filled in their Storm Watch color, brighter while loud and flashing when they strike, and labeled with the storm ID and the notes they play.
+    - Click a storm (or use ← / → on the focused map) to hear it alone, and press Escape to hear them all again.
+    - Its inputs come from the tracker:
+      - X and Y come from the storm's core.
+      - Speed comes from how far the core moves between snapshots.
+      - Spin is how fast the outline's long axis turns.
+      - Color is the heaviest precipitation near the core, and Rain/Snow comes from the snapshot colors.
+      - The new **Size** input comes from the storm's area.
+    - A day takes 2 minutes at 1× map speed.
+  - *Follow storms* tracks the strongest precipitation patches.
+  - *Scan line* sweeps west to east and plays the patches it crosses.
+  - *My probes* lets you click the map to drop listening points; they can drift with the weather.
+  - *Whole map* turns the map into 24 latitude bands that all sound at once. Each band is as loud as its coverage, panned to where its precipitation sits, and colored rain → snow. Each band glows as loud as it sounds.
+- **Global controls:** voices, tempo, map speed, color threshold, pitch glide (steps → slides), rain ↔ snow blend (switch → gradual), reverb, volume, and solo one voice. Key, scale and snap to scale are set separately for rain and for snow.
+- **Strict tuning (on by default):** every note sits exactly on the scale.
+  - Pitch changes land on the eighth-note grid instead of sliding.
+  - There is no vibrato and no chorus detune.
+  - Bell-like instruments use partials on the note's harmonics.
+  - Turn it off under *Tuning* for the expressive version, with glide, vibrato and detune.
+  - Chords in scales that don't have 7 notes (pentatonic, whole tone, chromatic) use the scale note nearest each real chord interval, so a "5th" is a 5th.
+- **Saving and sharing:** presets and *Randomize* give you starting points. *Copy mapping* copies a readable summary plus JSON to share with the team. Settings are saved in your browser.
+
+Files: [`soundlab.js`](./soundlab.js) and [`soundlab.css`](./soundlab.css). Like the other demos, it needs to be served from localhost so the video pixels can be read.
+
+Storm Watch data: [`data/storm-watch/`](./data/storm-watch/) is a copy of `storm-tracker/data/preprocessed-tracks.json` and `storm-tracker/data/snapshots/` from the `clustering` branch. In the snapshot file names, `:` is replaced with `-`, because Windows can't store `:` in a file name (`imergert_alpha.2026-11-07T00-00-00Z.png`). If the tracker data is regenerated, copy it here again.
+
 ## Source and attribution
 
 Video: [Near Real-Time Global Precipitation from the Global Precipitation Measurement Constellation (SVS 4285)](https://svs.gsfc.nasa.gov/4285/), local file `../data/nasa-svs/4285-imergert-current.mp4`.
