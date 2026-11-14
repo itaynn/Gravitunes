@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / 'dist'
 MODES = ROOT / 'app' / 'modes'
 SKIP = {'storm-watch': '48 full-size PNG frames (~25 MB) plus 2.3 MB of tracks; too big for one file'}
+DEFAULT_EVERY = 3  # a mode can override with "standalone": {"every": N} in mode.json
 DROP_SOURCES = ('.mp4',)  # precipitation-ball: keep the 2.8 MB webm, drop the 30 MB mp4
 
 
@@ -263,7 +264,7 @@ Tap "Start sound" first; check that the phone is not on silent.</p>
 <ul>
 {items}
 </ul>
-<p>Grids are sampled every {every} hours to keep the files small.</p>
+<p>Grids are sampled every {every} hours (some demos more sparsely) to keep the files small.</p>
 </body></html>
 '''
 
@@ -271,7 +272,7 @@ Tap "Start sound" first; check that the phone is not on silent.</p>
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--mode', help='build one mode id')
-    ap.add_argument('--every', type=int, default=3, help='keep every Nth hourly frame (default 3)')
+    ap.add_argument('--every', type=int, help='keep every Nth hourly frame (default: mode.json standalone.every, else 3)')
     ap.add_argument('--data', help='data/ folder (default: repo data/, or the main checkout\'s in a worktree)')
     ap.add_argument('--out', default=str(DIST), help='output folder (default dist/)')
     a = ap.parse_args()
@@ -297,7 +298,7 @@ def main():
             print(f'skip  {mid}: {SKIP[mid]}')
             continue
         try:
-            page = build_page_mode(m, link_map) if m.get('href') else build_host_mode(m, data, a.every, link_map)
+            page = build_page_mode(m, link_map) if m.get('href') else build_host_mode(m, data, a.every or (m.get('standalone') or {}).get('every') or DEFAULT_EVERY, link_map)
         except Exception as e:  # keep going; report
             print(f'FAIL  {mid}: {e}')
             continue
@@ -314,7 +315,7 @@ def main():
     items = '\n'.join(f'<li><a href="{m["id"]}.html">{html.escape(m["name"])}</a> '
                       f'({(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB): {html.escape(m.get("description", ""))}</li>'
                       for m in existing)
-    (out / 'index.html').write_text(INDEX.format(items=items, every=a.every))
+    (out / 'index.html').write_text(INDEX.format(items=items, every=a.every or DEFAULT_EVERY))
     print(f'index {out / "index.html"}  ({len(existing)} demos)')
 
 

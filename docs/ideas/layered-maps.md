@@ -1,6 +1,6 @@
 # Layered maps
 
-**Status:** idea
+**Status:** built (`app/modes/layered-maps/`)
 
 ## What you hear
 Pick several maps (ozone, CO, NOx) and hear them together, each as its own instrument, to compare where and when they rise.
