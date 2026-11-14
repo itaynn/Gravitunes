@@ -230,3 +230,4 @@ data/nasa-svs/*
 !data/earth/
 data/earth/*
 !data/earth/*.json
+dist/

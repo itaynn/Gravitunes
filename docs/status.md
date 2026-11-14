@@ -8,13 +8,13 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 - Sound engine (scales, tunings, Scala, voices, live edits, mono/stereo)
 - Data tools: ozone (5152), CO (5153), NOx (5154) value grids
 - Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)
+- Standalone demos: `python3 app/tools/build-standalone.py` → dist/ (git-ignored)
 - Front end reads log (NOx) grids; picker lists ozone, CO, NOx
 
 ## Running (agents)
 | Agent | Doing |
 |---|---|
 | Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
-| Standalone demos | build-standalone.py → git-ignored dist/*.html (one file per demo, WhatsApp-sized) |
 | Flow tracers + vortex melodies | two demos on 4285 using flow analysis |
 
 ## Next
