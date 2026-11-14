@@ -293,7 +293,7 @@ export function createEngine(opts = {}) {
     const ready = (async () => {
       const t = s.tuning !== undefined ? await resolveTuning(s.tuning, { a4 }) : getTuning();
       const sc = s.scale !== undefined ? (s.scale === null ? null : createScale(s.scale, t)) : (s.tuning !== undefined ? null : getScale());
-      const scope = { normalized: true, score: true, registry: { ...registry, ...(s.voices ?? {}) },
+      const scope = { normalized: true, score: true, registry: Object.assign(Object.create(registry), s.voices ?? {}), // live: engine.voice() changes reach later notes
         tuning: t, scale: sc, valueRange: s.valueRange,
         base: at ?? c.currentTime + 0.1 };
       if (player.stopped) return;

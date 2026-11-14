@@ -10,6 +10,39 @@
       ]
     },
     {
+      "id": "precipitation-ball",
+      "name": "Precipitation ball",
+      "author": "itay",
+      "description": "Place a ball on the moving IMERG precipitation video; rain raises a terrain whose slope rolls the ball around, with Web Audio sound following its motion. Keyboard: focus the map, Enter places the ball, arrows move it. From itay's clustering branch.",
+      "datasets": [
+        "4285"
+      ],
+      "source": "itay, branch clustering",
+      "href": "index.html"
+    },
+    {
+      "id": "scanning-line",
+      "name": "Scanning line",
+      "author": "itay",
+      "description": "A line sweeps across one global IMERG precipitation frame and plays it as 88 piano bands, low notes at the bottom of the map and high at the top; the strongest rain in each band sets that note's volume. From itay's scanning-line-demo branch.",
+      "datasets": [
+        "4285"
+      ],
+      "source": "itay, branch scanning-line-demo",
+      "href": "index.html"
+    },
+    {
+      "id": "storm-watch",
+      "name": "Storm watch",
+      "author": "itay",
+      "description": "Follows individual storms through 48 half-hourly IMERG snapshots using offline computer-vision tracks (OpenCV optical flow and watershed). From itay's clustering branch.",
+      "datasets": [
+        "4285"
+      ],
+      "source": "itay, branch clustering",
+      "href": "index.html"
+    },
+    {
       "id": "synth-lab",
       "name": "Synth lab",
       "author": "moran",

@@ -1,11 +1,15 @@
-import { createEngine, PRESETS, BUILTIN_TUNINGS, BUILTIN_SCALES } from "../js/index.js";
-import { announce, errMsg, mountScorePlayer, mountBridgePanel } from "./common.js";
+import { createEngine, PRESETS, BUILTIN_TUNINGS, BUILTIN_SCALES, createScale } from "../js/index.js";
+import { announce, errMsg } from "./common.js";
 
 const $ = (id) => document.getElementById(id);
-const N_HARM = 24;
+const N_HARM = 24, N_SHOWN = 8;
 const engine = createEngine();
+// Every sound on this page uses the voice "custom", which applyVoice() re-registers on every change.
+// engine.play resolves the voice when a note starts, and playScore resolves it per note as it schedules
+// (about 0.25 s ahead), so pads, runs, chords, shortcuts and the Play button always use the current tone.
+const VOICE = "custom";
 
-// ---------- voice state ----------
+// ---------- tone state ----------
 const state = { harmonics: Array(N_HARM).fill(0), partials: [], adsr: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3 }, amp: 0.5, pan: 0, detune: 0 };
 state.harmonics[0] = 1;
 const round = (x) => Math.round(x * 1000) / 1000;
@@ -24,19 +28,16 @@ function voiceDef() {
   if (state.detune) def.detune = state.detune;
   return def;
 }
-const vname = () => $("vname").value.trim().replace(/[^\w-]/g, "_") || "myvoice";
 
+let voiceErr = "";
 function applyVoice() {
   const def = voiceDef();
-  try { engine.voice("custom", def); engine.voice(vname(), def); } catch (e) { announce(`Voice error: ${errMsg(e)}`); }
-  const json = JSON.stringify(def, null, 2);
-  $("outjson").value = json;
-  $("outjs").value = `engine.voice(${JSON.stringify(vname())}, ${json});`;
-  const py = [`harmonics=${JSON.stringify(def.harmonics)}`];
-  if (def.partials) py.push(`partials=${JSON.stringify(def.partials)}`);
-  for (const k of ["attack", "decay", "sustain", "release"]) py.push(`${k}=${def.envelope[k]}`);
-  $("outpy").value = `s.voice(${JSON.stringify(vname())},\n    ${py.join(",\n    ")})` +
-    `\n# amp=${def.amp} and pan=${def.pan} are per-note: s.note(..., amp=${def.amp}, pan=${def.pan})`;
+  try { engine.voice(VOICE, def); voiceErr = ""; }
+  catch (e) { if (errMsg(e) !== voiceErr) announce(`That tone can't be played: ${errMsg(e)}`); voiceErr = errMsg(e); }
+  $("outjson").value = JSON.stringify(def, null, 2);
+  // Notes already sounding follow volume and left/right right away.
+  for (const r of held.values()) r.h?.set?.({ amp: state.amp, pan: state.pan }, 0.03);
+  drawEnvelope();
 }
 
 // ---------- sliders ----------
@@ -51,24 +52,33 @@ function slider(parent, { id, label, min, max, step, get, set, fmt = (v) => Stri
 }
 const syncs = [];
 for (let i = 0; i < N_HARM; i++)
-  syncs.push(slider($("harmonics"), { id: `h${i}`, label: i ? `Harmonic ${i + 1}` : "Harmonic 1 (fundamental)", min: 0, max: 1, step: 0.01,
+  syncs.push(slider($(i < N_SHOWN ? "harmonics" : "harmonics2"), { id: `h${i}`, label: i ? `Harmonic ${i + 1}` : "Harmonic 1 (the note itself)", min: 0, max: 1, step: 0.01,
     get: () => state.harmonics[i], set: (v) => { state.harmonics[i] = v; }, fmt: (v) => v.toFixed(2) }));
+const fmtTime = (s) => (s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(2)} s`);
 const adsrBox = $("env");
-const E = (id, label, key, max, step) => syncs.push(slider(adsrBox, { id, label, min: 0, max, step, get: () => state.adsr[key], set: (v) => { state.adsr[key] = v; }, fmt: (v) => v.toFixed(2) + (key === "sustain" ? "" : " s") }));
-E("attack", "Attack", "attack", 3, 0.005); E("decay", "Decay", "decay", 4, 0.01);
-E("sustain", "Sustain level", "sustain", 1, 0.01); E("release", "Release", "release", 5, 0.01);
-syncs.push(slider(adsrBox, { id: "amp", label: "Amplitude", min: 0, max: 1, step: 0.01, get: () => state.amp, set: (v) => { state.amp = v; }, fmt: (v) => v.toFixed(2) }));
-syncs.push(slider(adsrBox, { id: "pan", label: "Pan (left -1 to right 1)", min: -1, max: 1, step: 0.01, get: () => state.pan, set: (v) => { state.pan = v; }, fmt: (v) => v.toFixed(2) }));
+const E = (key, label, max, step) => syncs.push(slider(adsrBox, { id: key, label, min: 0, max, step, get: () => state.adsr[key], set: (v) => { state.adsr[key] = v; },
+  fmt: key === "sustain" ? (v) => `${Math.round(v * 100)}%` : fmtTime }));
+E("attack", "Attack (start)", 3, 0.005); E("decay", "Decay (fall)", 4, 0.01);
+E("sustain", "Sustain (held level)", 1, 0.01); E("release", "Release (fade after letting go)", 5, 0.01);
+syncs.push(slider(adsrBox, { id: "pan", label: "Left / right", min: -1, max: 1, step: 0.01, get: () => state.pan, set: (v) => { state.pan = v; },
+  fmt: (v) => (Math.abs(v) < 0.005 ? "center" : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? "left" : "right"}`) }));
+// Volume sits next to the graph (static markup).
+{
+  const inp = $("amp"), out = $("ampout");
+  syncs.push(() => { inp.value = state.amp; out.textContent = `${Math.round(state.amp * 100)}%`; });
+  inp.addEventListener("input", () => { state.amp = +inp.value; out.textContent = `${Math.round(state.amp * 100)}%`; applyVoice(); });
+}
+const syncAll = () => syncs.forEach((f) => f());
 
-// ---------- partials ----------
+// ---------- extra (inharmonic) tones ----------
 function renderPartials(focus) {
   const tb = $("partials"); tb.innerHTML = "";
   state.partials.forEach((p, i) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><label class="sr-only" for="pr${i}">Partial ${i + 1} ratio</label><input type="number" id="pr${i}" min="0.01" step="0.01" value="${p.ratio}"></td>
-      <td><label class="sr-only" for="pa${i}">Partial ${i + 1} amplitude</label><input type="number" id="pa${i}" min="0" max="10" step="0.05" value="${p.amp}"></td>
-      <td><label class="sr-only" for="pd${i}">Partial ${i + 1} decay seconds</label><input type="number" id="pd${i}" min="0" step="0.1" value="${p.decay || ""}"></td>
-      <td><button type="button" aria-label="Remove partial ${i + 1}">Remove</button></td>`;
+    tr.innerHTML = `<td><label class="sr-only" for="pr${i}">Extra tone ${i + 1} pitch ratio</label><input type="number" id="pr${i}" min="0.01" step="0.01" value="${p.ratio}"></td>
+      <td><label class="sr-only" for="pa${i}">Extra tone ${i + 1} loudness</label><input type="number" id="pa${i}" min="0" max="10" step="0.05" value="${p.amp}"></td>
+      <td><label class="sr-only" for="pd${i}">Extra tone ${i + 1} fade time in seconds</label><input type="number" id="pd${i}" min="0" step="0.1" value="${p.decay || ""}"></td>
+      <td><button type="button" aria-label="Remove extra tone ${i + 1}">Remove</button></td>`;
     const bind = (sel, key) => tr.querySelector(sel).addEventListener("input", (e) => {
       const v = parseFloat(e.target.value);
       if (Number.isFinite(v)) p[key] = v; else if (key === "decay") p.decay = 0;
@@ -79,7 +89,7 @@ function renderPartials(focus) {
     tr.querySelector("button").addEventListener("click", () => {
       state.partials.splice(i, 1);
       renderPartials(state.partials.length ? `pr${Math.min(i, state.partials.length - 1)}` : "addpartial");
-      applyVoice(); announce(`Removed partial ${i + 1}. ${state.partials.length} remaining.`);
+      applyVoice(); announce(`Removed extra tone ${i + 1}. ${state.partials.length} left.`);
     });
     tb.append(tr);
   });
@@ -89,73 +99,214 @@ function renderPartials(focus) {
 }
 $("addpartial").addEventListener("click", () => {
   state.partials.push({ ratio: 2.76, amp: 0.4, decay: 0 });
-  renderPartials(`pr${state.partials.length - 1}`); applyVoice(); announce(`Added partial ${state.partials.length}.`);
+  renderPartials(`pr${state.partials.length - 1}`); applyVoice(); announce(`Added extra tone ${state.partials.length}.`);
 });
 
-// ---------- presets ----------
+// ---------- starting sounds ----------
+const cap = (n) => n[0].toUpperCase() + n.slice(1);
 const presetSel = $("preset");
-presetSel.innerHTML = `<option value="">(custom)</option>` + Object.keys(PRESETS).map((n) => `<option value="${n}">${n[0].toUpperCase() + n.slice(1)}</option>`).join("");
-function loadPreset(name) {
+presetSel.innerHTML = `<option value="">(your own)</option>` + Object.keys(PRESETS).map((n) => `<option value="${n}">${cap(n)}</option>`).join("");
+function loadPreset(name, quiet) {
   const p = PRESETS[name]; if (!p) return;
   state.harmonics = Array.from({ length: N_HARM }, (_, i) => p.harmonics[i] ?? 0);
   state.partials = (p.partials ?? []).map((q) => ({ ratio: q.ratio, amp: q.amp ?? 1, decay: q.decay ?? 0 }));
   state.adsr = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...p.envelope };
   state.amp = p.amp ?? 0.5; state.pan = p.pan ?? 0; state.detune = p.detune ?? 0;
-  syncs.forEach((f) => f()); renderPartials(); applyVoice();
-  announce(`Loaded preset ${name}.`);
+  presetSel.value = name;
+  syncAll(); renderPartials(); applyVoice();
+  if (!quiet) announce(`Sound ${cap(name)} loaded.`);
 }
 presetSel.addEventListener("change", () => loadPreset(presetSel.value));
-$("vname").addEventListener("input", applyVoice);
+// Any manual edit makes it "your own" sound.
+document.querySelectorAll("#harmonics, #harmonics2, #partials").forEach((el) => el.addEventListener("input", () => { presetSel.value = ""; }));
+
+// ---------- volume shape (envelope) graph ----------
+const SHAPES = {
+  pluck: { attack: 0.002, decay: 0.35, sustain: 0, release: 0.2 },
+  pad: { attack: 0.6, decay: 0.5, sustain: 0.8, release: 1.5 },
+  organ: { attack: 0.02, decay: 0.05, sustain: 0.9, release: 0.15 },
+  swell: { attack: 1.2, decay: 1.5, sustain: 0.3, release: 2.5 },
+};
+const SHAPE_NAMES = { pluck: "Pluck", pad: "Pad", organ: "Organ", swell: "Bell-like swell" };
+document.querySelectorAll("[data-shape]").forEach((b) => b.addEventListener("click", () => {
+  state.adsr = { ...SHAPES[b.dataset.shape] }; syncAll(); applyVoice();
+  announce(`${SHAPE_NAMES[b.dataset.shape]} shape. ${envSummary()}`);
+}));
+// Geometry (SVG user units). Time is drawn on a square-root scale per segment so short times stay visible.
+const G = { x0: 12, k: 80, hold: 80, top: 14, bot: 166 };
+const LIM = { attack: 3, decay: 4, release: 5 };
+const geo = () => {
+  const a = state.adsr, xa = G.x0 + G.k * Math.sqrt(a.attack), xd = xa + G.k * Math.sqrt(a.decay), xh = xd + G.hold;
+  return { xa, xd, xh, xr: xh + G.k * Math.sqrt(a.release) };
+};
+const yOf = (lvl) => G.bot - lvl * (G.bot - G.top);
+// Envelope level over each segment, matching the engine (linear attack, exponential decay/release).
+function shapePoints(scale) {
+  const a = state.adsr, g = geo(), pts = [[G.x0, yOf(0)]], N = 40;
+  pts.push([g.xa, yOf(scale)]);
+  const decayAt = (t) => a.sustain + (1 - a.sustain) * Math.exp(-3 * t / Math.max(0.001, a.decay));
+  for (let i = 1; i <= N; i++) { const t = a.decay * (i / N) ** 2; pts.push([g.xa + G.k * Math.sqrt(t), yOf(scale * decayAt(t))]); }
+  const lv = decayAt(a.decay);
+  pts.push([g.xh, yOf(scale * lv)]);
+  for (let i = 1; i <= N; i++) { const t = a.release * (i / N) ** 2; pts.push([g.xh + G.k * Math.sqrt(t), yOf(scale * lv * Math.exp(-5 * t / Math.max(0.001, a.release)))]); }
+  pts.push([g.xr, yOf(0)]);
+  return pts;
+}
+const svg = $("envgraph"), SVGNS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent = svg) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+el("line", { x1: G.x0, y1: G.bot, x2: 590, y2: G.bot, class: "axis" });
+const fill = el("path", { class: "env-fill" }), outline = el("path", { class: "env-line" });
+const lblHeld = el("text", { class: "env-txt", y: 184 }), lblGo = el("text", { class: "env-txt", y: 184 }), lblStart = el("text", { class: "env-txt", x: G.x0, y: 184 });
+lblStart.textContent = "press"; lblHeld.textContent = "held"; lblGo.textContent = "let go";
+const playhead = el("line", { class: "playhead", y1: G.top - 6, y2: G.bot, visibility: "hidden" });
+const handles = {};
+for (const h of ["attack", "decay", "release"]) handles[h] = el("circle", { r: 9, class: "handle", "data-h": h });
+function envSummary() {
+  const a = state.adsr;
+  return `Attack ${fmtTime(a.attack)}, decay ${fmtTime(a.decay)}, sustain ${Math.round(a.sustain * 100)}%, release ${fmtTime(a.release)}, volume ${Math.round(state.amp * 100)}%.`;
+}
+function drawEnvelope() {
+  const g = geo(), d = (pts) => "M" + pts.map((p) => p.map((v) => v.toFixed(1)).join(" ")).join("L");
+  outline.setAttribute("d", d(shapePoints(1)));
+  fill.setAttribute("d", d(shapePoints(state.amp)) + "Z");
+  const set = (h, x, y) => { handles[h].setAttribute("cx", x.toFixed(1)); handles[h].setAttribute("cy", y.toFixed(1)); };
+  set("attack", g.xa, yOf(1)); set("decay", g.xd, yOf(state.adsr.sustain)); set("release", g.xr, yOf(0));
+  lblHeld.setAttribute("x", g.xd + 4); lblGo.setAttribute("x", g.xh);
+  $("envsum").textContent = envSummary();
+}
+const stepRound = (v, st) => Math.round(v / st) * st;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+/** Move one handle to SVG point (x, y): the drag logic, also used by the selftest. */
+function dragHandle(h, x, y) {
+  const g = geo(), a = state.adsr, sq = (dx) => (Math.max(0, dx) / G.k) ** 2;
+  if (h === "attack") a.attack = round(clamp(stepRound(sq(x - G.x0), 0.005), 0, LIM.attack));
+  if (h === "decay") { a.decay = round(clamp(stepRound(sq(x - g.xa), 0.01), 0, LIM.decay)); a.sustain = round(clamp(stepRound((G.bot - y) / (G.bot - G.top), 0.01), 0, 1)); }
+  if (h === "release") a.release = round(clamp(stepRound(sq(x - g.xh), 0.01), 0, LIM.release));
+  syncAll(); applyVoice();
+}
+function svgPoint(e) {
+  const m = svg.getScreenCTM(); if (!m) return null;
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+  return [p.x, p.y];
+}
+let dragging = null;
+svg.addEventListener("pointerdown", (e) => {
+  const h = e.target?.dataset?.h; if (!h) return;
+  e.preventDefault(); dragging = h;
+  try { svg.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
+});
+svg.addEventListener("pointermove", (e) => { if (!dragging) return; const p = svgPoint(e); if (p) dragHandle(dragging, p[0], p[1]); });
+const endDrag = () => { if (dragging) { dragging = null; announce(envSummary()); } };
+for (const ev of ["pointerup", "pointercancel"]) svg.addEventListener(ev, endDrag);
+// Playhead: follows the most recent note through attack/decay, waits in "held", then runs the release.
+let ph = null; // { t0, rel }
+function drawPlayhead() {
+  if (!ph || !started) return playhead.setAttribute("visibility", "hidden");
+  const now = engine.context.currentTime, a = state.adsr, g = geo();
+  let x;
+  if (ph.rel === null || now < ph.rel) {
+    const t = now - ph.t0;
+    x = t < a.attack ? G.x0 + G.k * Math.sqrt(t) : t < a.attack + a.decay ? g.xa + G.k * Math.sqrt(t - a.attack) : g.xd + Math.min(G.hold - 4, (t - a.attack - a.decay) * 20);
+  } else {
+    const t = now - ph.rel;
+    if (t > a.release) { ph = null; return playhead.setAttribute("visibility", "hidden"); }
+    x = g.xh + G.k * Math.sqrt(t);
+  }
+  playhead.setAttribute("x1", x.toFixed(1)); playhead.setAttribute("x2", x.toFixed(1)); playhead.setAttribute("visibility", "visible");
+}
+function markStart(h, dur) {
+  if (!started) return;
+  const t0 = engine.context.currentTime, a = state.adsr;
+  ph = { t0, rel: dur !== undefined ? t0 + dur : a.sustain === 0 ? t0 + a.attack + a.decay * 2 : null, h };
+}
+function markRelease(h) { if (ph && ph.h === h && ph.rel === null) ph.rel = engine.context.currentTime; }
 
 // ---------- tuning & scale ----------
-let sclText = null, kbmText = null, direction = "up", scaleName = "";
+let sclText = null, kbmText = null, scaleName = "";
 const tuningSel = $("tuning");
+const TUNING_NAMES = { "12tet": "Western (12 equal steps)", just5: "Just intonation (12 pure steps)", shruti22: "Indian 22 shruti",
+  slendro: "Gamelan slendro (5 steps)", pelog: "Gamelan pelog (7 steps)", "edo:19": "19 equal steps", "edo:24": "Quarter tones (24 steps)", "edo:31": "31 equal steps" };
 const tunings = [...BUILTIN_TUNINGS, "edo:19", "edo:24", "edo:31"];
-tuningSel.innerHTML = tunings.map((t) => `<option>${t}</option>`).join("") + `<option value="__scl" hidden>Loaded .scl file</option>`;
+tuningSel.innerHTML = tunings.map((t) => `<option value="${t}">${TUNING_NAMES[t] ?? t}</option>`).join("") + `<option value="__scl" hidden>Your tuning file</option>`;
 const scaleSel = $("scale");
-const scales = BUILTIN_SCALES.length ? BUILTIN_SCALES : ["major", "minor", "pentatonic-major", "yaman", "bhairav", "yaman-22", "bhairav-22"];
-scaleSel.innerHTML = `<option value="">None (all steps)</option>` + scales.map((s) => `<option>${s}</option>`).join("");
-
+// Period (steps per repeat) of each built-in scale, so the picker only offers scales that fit the tuning.
+const SCALE_PERIOD = Object.fromEntries(BUILTIN_SCALES.filter((s) => s !== "chromatic").map((s) => [s, createScale(s).period]));
+const scaleLabel = (s) => s.split("-").map(cap).join(" ").replace(/ 22$/, " (22 shruti)");
+function fillScales() {
+  const size = engine.tuning.size, fits = Object.keys(SCALE_PERIOD).filter((s) => SCALE_PERIOD[s] === size);
+  scaleSel.innerHTML = `<option value="">All notes</option>` + fits.map((s) => `<option value="${s}">${scaleLabel(s)}</option>`).join("");
+  if (!fits.includes(scaleName)) scaleName = "";
+  scaleSel.value = scaleName;
+  return fits;
+}
+const GAMELAN = new Set(["slendro", "pelog"]);
+let gamelanVoiceOffered = false;
 async function applyTuning() {
   try {
     const v = tuningSel.value;
     engine.setScale(null); // re-applied below; a scale may not fit the new tuning's size
     await engine.setTuning(v === "__scl" ? { scl: sclText, ...(kbmText ? { kbm: kbmText } : {}) } : v);
-    const t = engine.tuning;
-    $("tinfo").textContent = `${t.name ?? v}: ${t.size} steps per period. Step 0 is ${t.freq(0).toFixed(2)} Hz.`;
-    announce(`Tuning ${t.name ?? v}, ${t.size} steps per period.`);
+    const t = engine.tuning, fits = fillScales();
+    let extra = "";
+    if (GAMELAN.has(v)) {
+      if (!scaleName) { scaleName = v === "pelog" ? "pelog-nem" : "slendro"; scaleSel.value = scaleName; }
+      if (!gamelanVoiceOffered) { gamelanVoiceOffered = true; loadPreset("saron", true); extra = " Switched the sound to Saron, a gamelan metal bar."; }
+    }
+    $("tinfo").textContent = `${TUNING_NAMES[v] ?? t.name ?? v}: ${t.size} notes, then the pattern repeats ${Math.abs(t.periodCents - 1200) < 0.01 ? "an octave higher" : `${Math.round(t.periodCents)} cents higher (a slightly stretched octave)`}. ${fits.length} matching scales.`;
     applyScale(true);
     buildKeyboard();
-  } catch (e) { announce(`Tuning error: ${errMsg(e)}`); $("tinfo").textContent = `Tuning error: ${errMsg(e)}`; }
+    announce(`Tuning ${TUNING_NAMES[v] ?? t.name ?? v}, ${t.size} notes.${scaleName ? ` Scale ${scaleLabel(scaleName)}.` : ""}${extra}`);
+  } catch (e) { announce(`Tuning problem: ${errMsg(e)}`); $("tinfo").textContent = `Tuning problem: ${errMsg(e)}`; }
 }
 function applyScale(quiet) {
-  try { engine.setScale(scaleName || null); if (!quiet) announce(scaleName ? `Scale ${scaleName}` : "No scale"); }
+  try { engine.setScale(scaleName || null); if (!quiet) announce(scaleName ? `Scale ${scaleLabel(scaleName)}` : "All notes"); }
   catch (e) {
-    announce(`Scale error: ${errMsg(e)}. Scale set to none.`); $("tinfo").textContent = `Scale error: ${errMsg(e)}`;
+    announce(`Scale problem: ${errMsg(e)}. Using all notes.`);
     scaleName = ""; scaleSel.value = "";
     try { engine.setScale(null); } catch { /* ignore */ }
   }
-  markScale();
+  markScale(); showCurrent();
 }
 tuningSel.addEventListener("change", applyTuning);
 scaleSel.addEventListener("change", () => { scaleName = scaleSel.value; applyScale(); });
-document.querySelectorAll("input[name=dir]").forEach((r) => r.addEventListener("change", () => { direction = r.value; markScale(); announce(direction === "up" ? "Ascending notes marked" : "Descending notes marked"); }));
 function fileInto(inputId, setter, label) {
   $(inputId).addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
     setter(await f.text());
-    if (!sclText) return announce(`${label} loaded. Now load a .scl file.`);
-    const opt = tuningSel.querySelector("[value=__scl]"); opt.hidden = false; opt.textContent = `Loaded ${f.name}`;
+    if (!sclText) return announce(`${label} loaded. Now choose a tuning file.`);
+    const opt = tuningSel.querySelector("[value=__scl]"); opt.hidden = false; opt.textContent = `Your file ${f.name}`;
     tuningSel.value = "__scl"; applyTuning();
   });
 }
-fileInto("scl", (t) => { sclText = t; }, ".scl file"); fileInto("kbm", (t) => { kbmText = t; }, ".kbm file");
+fileInto("scl", (t) => { sclText = t; }, "Tuning file"); fileInto("kbm", (t) => { kbmText = t; }, "Keyboard map");
 
-// ---------- keyboard ----------
+// ---------- notes that sound (pads, current note, Play) ----------
+const held = new Map(); // source -> { step, h, stopped }
+let pads = [];
+async function noteOn(step, src) {
+  if (held.has(src)) return;
+  const rec = { stopped: false, step }; held.set(src, rec);
+  pads[step]?.setAttribute("data-on", "");
+  try {
+    await startAudio();
+    if (rec.stopped) return;
+    rec.h = engine.play({ step, voice: VOICE });
+    markStart(rec.h);
+    rec.h.ended.then(() => { if (held.get(src) === rec) { held.delete(src); unmark(rec.step); if (src === "play") setPlayPressed(false); } });
+    announce(`${noteName(step)}, ${engine.tuning.freq(step).toFixed(1)} hertz`);
+  } catch (e) { held.delete(src); unmark(step); announce(`Could not play: ${errMsg(e)}`); }
+}
+const unmark = (step) => { if (![...held.values()].some((r) => r.step === step)) pads[step]?.removeAttribute("data-on"); };
+function noteOff(src) {
+  const rec = held.get(src); if (!rec) return;
+  rec.stopped = true; if (rec.h) { rec.h.stop(); markRelease(rec.h); } held.delete(src);
+  unmark(rec.step);
+}
+const noteName = (step) => { const t = engine.tuning, lab = t.labels?.[((step % t.size) + t.size) % t.size]; return `${lab ? `Tone ${lab}, ` : ""}step ${step}`; };
+
+// ---------- keyboard pads ----------
 const KEYS = "zxcvbnm,./asdfghjkl;'qwertyuiop[]".split("");
 const kb = $("keyboard");
-let pads = [];
-const held = new Map();
 function buildKeyboard() {
   const t = engine.tuning, n = 2 * t.size + 1;
   kb.innerHTML = ""; pads = [];
@@ -166,7 +317,7 @@ function buildKeyboard() {
     const ok = Number.isFinite(hz);
     b.disabled = !ok;
     b.innerHTML = (KEYS[step] ? `<span class="k" aria-hidden="true">${KEYS[step].toUpperCase()}</span>` : "") +
-      `<span>${lab ? lab + " " : ""}Step ${step}</span><small>${ok ? hz.toFixed(1) + " Hz" : "unmapped"}</small>`;
+      `<span>${lab ? lab + " · " : ""}${step}</span><small>${ok ? hz.toFixed(1) + " Hz" : "no note"}</small>`;
     b._hz = hz; b._lab = lab;
     b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); noteOn(step, "p" + e.pointerId); });
     for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, (e) => noteOff("p" + e.pointerId));
@@ -181,29 +332,13 @@ function markScale() {
   const sc = engine.scale;
   pads.forEach((b) => {
     const step = +b.dataset.step; let inS = false;
-    if (sc) { try { inS = sc.quantize(step, { direction }) === step; } catch { inS = false; } }
+    if (sc) { try { inS = sc.quantize(step) === step; } catch { inS = false; } }
     if (inS) b.dataset.scale = "1"; else delete b.dataset.scale;
     const where = sc ? (inS ? ", in scale" : ", outside scale") : "";
-    b.setAttribute("aria-label", `${b._lab ? b._lab + ", " : ""}step ${step}, ${Number.isFinite(b._hz) ? b._hz.toFixed(1) + " hertz" : "unmapped"}${where}`);
+    b.setAttribute("aria-label", `${b._lab ? `tone ${b._lab}, ` : ""}step ${step}, ${Number.isFinite(b._hz) ? b._hz.toFixed(1) + " hertz" : "no note"}${where}`);
   });
 }
-async function noteOn(step, src) {
-  if (held.has(src)) return;
-  const rec = { stopped: false, step }; held.set(src, rec);
-  pads[step]?.setAttribute("data-on", "");
-  try {
-    await startAudio();
-    if (rec.stopped) return;
-    rec.h = engine.play({ step, voice: "custom" });
-    announce(`Step ${step}, ${engine.tuning.freq(step).toFixed(1)} hertz`);
-  } catch (e) { announce(`Could not play: ${errMsg(e)}`); }
-}
-function noteOff(src) {
-  const rec = held.get(src); if (!rec) return;
-  rec.stopped = true; rec.h?.stop(); held.delete(src);
-  if (![...held.values()].some((r) => r.step === rec.step)) pads[rec.step]?.removeAttribute("data-on");
-}
-// Computer keys play only while focus is inside the keyboard (WCAG 2.1.4: no page-wide character shortcuts).
+// Letter keys play pads only while focus is inside the keyboard (WCAG 2.1.4: no page-wide character shortcuts).
 kb.addEventListener("keydown", (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   const i = KEYS.indexOf(e.key.toLowerCase());
@@ -212,17 +347,88 @@ kb.addEventListener("keydown", (e) => {
 kb.addEventListener("keyup", (e) => noteOff("c" + e.key.toLowerCase()));
 const releaseComputerKeys = () => [...held.keys()].filter((k) => k[0] === "c").forEach(noteOff);
 kb.addEventListener("focusout", (e) => { if (!kb.contains(e.relatedTarget)) releaseComputerKeys(); });
-window.addEventListener("blur", () => [...held.keys()].forEach(noteOff));
+window.addEventListener("blur", () => [...held.keys()].filter((k) => k !== "play").forEach(noteOff));
 
-// ---------- listen: scale runs, chord, single note ----------
-// Dev hook: open playground.html#selftest to click the Listen buttons (yaman asc/desc, chord, note) and
-// console.log "SELFTEST ok" or "SELFTEST fail: ...". Used for headless checks.
-let run = null;
+// ---------- current note ----------
 const num = (id, lo, hi, dflt) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; };
 const period = () => engine.scale?.period ?? engine.tuning.size;
 const octOffset = () => Math.round(num("lt-oct", -2, 2, 0)) * period();
+const curIndex = () => Math.round(parseFloat($("lt-n").value) || 0);
+/** The current note as a tuning step: scale note number n (or tuning step n with "All notes"), plus octave shift. */
+function currentStep() {
+  const n = curIndex(), sc = engine.scale;
+  return (sc ? sc.degree(n) : n) + octOffset();
+}
+function showCurrent() {
+  const step = currentStep(), hz = engine.tuning.freq(step);
+  $("curinfo").textContent = `Current note: ${noteName(step)}, ${Number.isFinite(hz) ? hz.toFixed(1) + " Hz" : "no note here"}.`;
+}
+$("lt-n").addEventListener("input", () => { showCurrent(); retuneHeld(); });
+$("lt-oct").addEventListener("input", () => { showCurrent(); retuneHeld(); });
+function retuneHeld() {
+  const step = currentStep(); if (!Number.isFinite(engine.tuning.freq(step))) return;
+  for (const src of ["play", "space", "cur"]) { const r = held.get(src); if (r?.h) { r.h.set({ step }, 0.03); unmark(r.step); r.step = step; pads[step]?.setAttribute("data-on", ""); } }
+}
+function moveCurrent(by) {
+  $("lt-n").value = curIndex() + by;
+  showCurrent(); retuneHeld();
+  const step = currentStep(), hz = engine.tuning.freq(step);
+  announce(`Note ${curIndex()}: ${noteName(step)}, ${Number.isFinite(hz) ? hz.toFixed(1) + " hertz" : "no note"}`);
+}
+function playCurrent(src) {
+  const step = currentStep();
+  if (!Number.isFinite(engine.tuning.freq(step))) { announce(`There is no note at step ${step} in this tuning.`); return false; }
+  noteOn(step, src); return true;
+}
+// "Hold to play" button: pointer or Space/Enter held.
+const cur = $("cur");
+cur.addEventListener("pointerdown", (e) => { e.preventDefault(); cur.setPointerCapture?.(e.pointerId); playCurrent("cur"); });
+for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) cur.addEventListener(ev, () => noteOff("cur"));
+cur.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!e.repeat) playCurrent("cur"); } });
+cur.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); noteOff("cur"); } });
+cur.addEventListener("blur", () => noteOff("cur"));
+
+// ---------- big Play / Stop ----------
+const playBtn = $("play");
+function setPlayPressed(on) { playBtn.setAttribute("aria-pressed", String(on)); playBtn.textContent = on ? "Playing (press to stop)" : "Play"; }
+function togglePlay() {
+  if (held.has("play")) { noteOff("play"); setPlayPressed(false); announce("Note stopped"); return; }
+  if (playCurrent("play")) setPlayPressed(true);
+}
+playBtn.addEventListener("click", togglePlay);
+function stopEverything() {
+  run?.stop(0.02); run = null;
+  for (const src of [...held.keys()]) noteOff(src);
+  engine.stopAll(); setPlayPressed(false); ph = null;
+  announce("Stopped");
+}
+$("stop").addEventListener("click", stopEverything);
+
+// ---------- page shortcuts ----------
+const isField = (t) => t && (t.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName));
+const onPage = (t) => !t || t === document.body || t === document.documentElement;
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (e.key === "Escape") { stopEverything(); return; } // never blocks Escape's own job (closing a menu)
+  if (!$("sc-on").checked || isField(t) || t === cur) return;
+  const inKb = kb.contains(t), inListen = $("listen").contains(t);
+  if (e.key === " ") {
+    if (!onPage(t)) return; // Space keeps activating whatever button has focus
+    e.preventDefault(); if (!e.repeat) playCurrent("space");
+  } else if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(e.key)) {
+    if (!(onPage(t) || inListen || inKb || t === playBtn)) return;
+    e.preventDefault(); moveCurrent(e.key === "ArrowUp" || e.key === "ArrowRight" ? 1 : -1);
+  } else if ((e.key === "h" || e.key === "H") && !inKb && !e.repeat) {
+    e.preventDefault(); togglePlay();
+  }
+});
+document.addEventListener("keyup", (e) => { if (e.key === " ") noteOff("space"); });
+$("sc-on").addEventListener("change", (e) => announce(e.target.checked ? "Shortcuts on" : "Shortcuts off. Escape still stops everything."));
+
+// ---------- listen: scale runs and chord ----------
+let run = null, lastScore = null;
 const playable = (steps) => steps.filter((s) => Number.isFinite(engine.tuning.freq(s)));
-// One period (or more) of steps plus the top note, in playing order, using the scale's up or down set.
 function runSteps(dir) {
   const sc = engine.scale, periods = Math.round(num("lt-per", 1, 3, 1));
   const len = sc ? sc[dir].length : engine.tuning.size;
@@ -233,10 +439,6 @@ function chordSteps() {
   const sc = engine.scale;
   return playable(Array.from({ length: sc ? sc.up.length : engine.tuning.size }, (_, i) => (sc ? sc.degree(i, { direction: "up" }) : i) + octOffset()));
 }
-function setRunning(on, label) {
-  $("lt-stop").disabled = !on;
-  if (label) announce(label);
-}
 async function listenPlay(kind) {
   try {
     await startAudio();
@@ -244,53 +446,39 @@ async function listenPlay(kind) {
     const gap = 1 / num("lt-tempo", 0.5, 16, 3), dur = gap * num("lt-len", 0.1, 4, 0.9);
     let events, label;
     if (kind === "chord") {
-      const steps = chordSteps(), amp = Math.min(1, 0.9 / Math.sqrt(steps.length));
-      events = steps.map((step) => ({ t: 0, step, dur: Math.max(dur, 1), amp, voice: "custom" }));
+      const steps = chordSteps(), amp = Math.min(1, 0.9 / Math.sqrt(steps.length)) * (state.amp / 0.5);
+      events = steps.map((step) => ({ t: 0, step, dur: Math.max(dur, 1), amp: Math.min(1, amp), voice: VOICE }));
       label = `Chord of ${steps.length} notes`;
     } else {
       const steps = runSteps(kind);
-      events = steps.map((step, i) => ({ t: i * gap, step, dur, voice: "custom" }));
-      label = `${engine.scale?.name ?? "All steps"} ${kind === "up" ? "ascending" : "descending"}, ${steps.length} notes`;
+      events = steps.map((step, i) => ({ t: i * gap, step, dur, voice: VOICE }));
+      label = `${engine.scale ? scaleLabel(engine.scale.name) : "All notes"} ${kind === "up" ? "going up" : "going down"}, ${steps.length} notes`;
     }
-    if (!events.length) return announce("No playable notes for this tuning.");
-    const mine = run = engine.playScore({ version: 1, events });
-    setRunning(true, label);
-    mine.ended.then(() => { if (run === mine) { run = null; setRunning(false); } });
+    if (!events.length) return announce("No notes to play in this tuning.");
+    // No score-level voices: notes look up "custom" in the engine as they are scheduled, so tone edits apply mid-run.
+    lastScore = { version: 1, events };
+    const mine = run = engine.playScore(lastScore);
+    markStart(null, events[0].dur);
+    announce(label);
+    mine.ended.then(() => { if (run === mine) run = null; });
     await mine.ready;
-  } catch (e) { setRunning(false); announce(`Could not play: ${errMsg(e)}`); throw e; }
-}
-async function listenNote() {
-  try {
-    await startAudio();
-    const n = Math.round(parseFloat($("lt-n").value) || 0), mode = document.querySelector("input[name=lt-mode]:checked").value;
-    const sc = engine.scale, deg = mode === "degree" && sc;
-    const step = (deg ? sc.degree(n) : n) + octOffset(), hz = engine.tuning.freq(step);
-    if (!Number.isFinite(hz)) return announce(`Step ${step} is unmapped in this tuning.`);
-    engine.play({ step, voice: "custom", dur: 1 });
-    announce(`${deg ? `Degree ${n}, ` : mode === "degree" ? "No scale selected, using raw step. " : ""}Step ${step}, ${hz.toFixed(1)} Hz`);
   } catch (e) { announce(`Could not play: ${errMsg(e)}`); throw e; }
 }
 $("lt-up").addEventListener("click", () => listenPlay("up").catch(() => {}));
 $("lt-down").addEventListener("click", () => listenPlay("down").catch(() => {}));
 $("lt-chord").addEventListener("click", () => listenPlay("chord").catch(() => {}));
-$("lt-note").addEventListener("click", () => listenNote().catch(() => {}));
-$("lt-stop").addEventListener("click", () => { run?.stop(); run = null; engine.stopAll(); setRunning(false, "Stopped"); });
+$("lt-stop").addEventListener("click", stopEverything);
 
-// ---------- audio start & analyser ----------
+// ---------- audio start & pictures ----------
 let analyser = null, started = null;
 function startAudio() {
   started ??= engine.start().then(() => {
     analyser = engine.context.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.6;
     engine.master.connect(analyser);
-    $("start").hidden = true; announce("Audio started");
-    startDrawing();
   });
   started.catch(() => { started = null; });
   return started;
 }
-$("start").addEventListener("click", () => startAudio().catch((e) => announce(`Audio error: ${errMsg(e)}`)));
-document.addEventListener("pointerdown", () => startAudio().catch(() => {}), { once: true });
-
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function fit(c) {
   const r = devicePixelRatio || 1, w = Math.round(c.clientWidth * r), h = Math.round(c.clientHeight * r);
@@ -303,14 +491,15 @@ function partialList() {
 function draw() {
   const wc = $("wave"), sc = $("spec"), w = fit(wc), s = fit(sc);
   const col = css("--wave"), bg = css("--canvas"), dpr = devicePixelRatio || 1;
-  const td = new Float32Array(2048); analyser.getFloatTimeDomainData(td);
-  const live = td.some((v) => Math.abs(v) > 0.001);
+  let td = null;
+  if (analyser) { td = new Float32Array(2048); analyser.getFloatTimeDomainData(td); }
+  const live = td?.some((v) => Math.abs(v) > 0.001);
   const parts = partialList(), total = parts.reduce((t, p) => t + p.a, 0) || 1;
   w.fillStyle = bg; w.fillRect(0, 0, wc.width, wc.height); w.strokeStyle = col; w.lineWidth = 2 * dpr; w.beginPath();
   for (let x = 0; x < wc.width; x++) {
     let v;
     if (live) v = td[Math.floor((x / wc.width) * 1024)] * 1.6;
-    else { const ph = (x / wc.width) * 4 * Math.PI; v = 0.9 * parts.reduce((t, p) => t + p.a * Math.sin(ph * p.r), 0) / total; }
+    else { const p = (x / wc.width) * 4 * Math.PI; v = 0.9 * parts.reduce((t, q) => t + q.a * Math.sin(p * q.r), 0) / total; }
     const y = wc.height / 2 - v * (wc.height / 2);
     x ? w.lineTo(x, y) : w.moveTo(x, y);
   }
@@ -321,47 +510,86 @@ function draw() {
     const bins = Math.floor(8000 / (engine.context.sampleRate / analyser.fftSize)), bw = sc.width / bins;
     for (let i = 0; i < bins; i++) { const h = (f[i] / 255) * sc.height; s.fillRect(i * bw, sc.height - h, Math.max(1, bw), h); }
   } else {
-    const f0 = engine.tuning.freq(9) || 440, pk = Math.max(1e-6, ...parts.map((p) => p.a));
+    const f0 = 261.6, pk = Math.max(1e-6, ...parts.map((p) => p.a));
     for (const p of parts) {
       const x = (p.r * f0 / 8000) * sc.width; if (x > sc.width) continue;
       const h = (p.a / pk) * sc.height * 0.9; s.fillRect(x - 2 * dpr, sc.height - h, 4 * dpr, h);
     }
   }
+  drawPlayhead();
 }
-let timer = null;
-function startDrawing() {
-  const slow = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const loop = () => { try { draw(); } catch { /* ignore */ } timer = slow ? setTimeout(loop, 250) : requestAnimationFrame(loop); };
-  clearTimeout(timer); loop();
-}
+const slow = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const loop = () => { try { draw(); } catch { /* ignore */ } slow ? setTimeout(loop, 250) : requestAnimationFrame(loop); };
+document.addEventListener("pointerdown", () => startAudio().catch(() => {}), { once: true });
 
-// ---------- export ----------
+// ---------- developers ----------
 document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
   const ta = $(b.dataset.copy); ta.select();
-  try { await navigator.clipboard.writeText(ta.value); announce("Copied to clipboard"); } catch { announce("Press Control C to copy the selected text"); }
+  try { await navigator.clipboard.writeText(ta.value); announce("Copied"); } catch { announce("Press Control C to copy the selected text"); }
 }));
-$("dljson").addEventListener("click", () => {
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([$("outjson").value], { type: "application/json" })), download: `${vname()}.json` });
-  document.body.append(a); a.click(); a.remove(); announce("Voice JSON downloaded");
-});
-
-// ---------- score + bridge ----------
-mountScorePlayer($("score"), engine, { getVoices: () => ({ custom: voiceDef(), [vname()]: voiceDef() }) });
-mountBridgePanel($("bridge"), engine);
 
 // ---------- init ----------
-loadPreset("organ");
-presetSel.value = "organ";
-applyTuning();
+loadPreset("organ", true);
+await applyTuning();
+loop();
 
+// Dev hook: playground.html#selftest exercises the page and logs "SELFTEST ok" or "SELFTEST fail: ...".
 if (location.hash === "#selftest") {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const ok = (c, m) => { if (!c) throw new Error(m); };
+  const key = (type, k, target = document.body) => target.dispatchEvent(new KeyboardEvent(type, { key: k, bubbles: true, cancelable: true }));
   (async () => {
     try {
+      await startAudio();
+      // runs, chord with yaman
       scaleSel.value = "yaman"; scaleSel.dispatchEvent(new Event("change"));
-      await new Promise((r) => setTimeout(r, 500));
-      if (engine.scale?.name !== "yaman") throw new Error("yaman not selected");
+      ok(engine.scale?.name === "yaman", "yaman not selected");
       await listenPlay("up"); await listenPlay("down"); await listenPlay("chord");
-      $("lt-n").value = "-3"; await listenNote(); $("lt-stop").click();
+      // runs use the CURRENT tone: change a harmonic mid-run and check the voice the next notes resolve
+      await listenPlay("up");
+      const h2 = $("h1"); h2.value = "0.37"; h2.dispatchEvent(new Event("input"));
+      ok(engine.voice(VOICE).harmonics[1] === 0.37, "custom voice did not follow harmonic slider");
+      ok(lastScore.events.every((e) => e.voice === VOICE) && !lastScore.voices, "run does not use the live custom voice");
+      $("attack").value = "0.05"; $("attack").dispatchEvent(new Event("input"));
+      ok(engine.voice(VOICE).envelope.attack === 0.05, "envelope slider not applied");
+      $("amp").value = "0.6"; $("amp").dispatchEvent(new Event("input"));
+      ok(engine.voice(VOICE).amp === 0.6, "volume not applied");
+      // shortcuts: Space down/up on the page, arrows, H, Escape
+      document.activeElement?.blur();
+      key("keydown", " "); await wait(50);
+      ok(held.has("space") && held.get("space").h, "Space did not start the current note");
+      key("keyup", " "); ok(!held.has("space"), "Space release did not end the note");
+      $("lt-n").value = "0"; key("keydown", "ArrowUp");
+      ok(curIndex() === 1 && currentStep() === engine.scale.degree(1), "ArrowUp did not move the current note");
+      key("keydown", "ArrowDown"); ok(curIndex() === 0, "ArrowDown did not move back");
+      key("keydown", "h"); await wait(50); ok(held.has("play"), "H did not start a held note");
+      key("keydown", "Escape"); ok(!held.size && !run, "Escape did not stop everything");
+      $("lt-n").value = "0"; $("lt-n").focus(); key("keydown", " ", $("lt-n")); ok(!held.has("space"), "Space fired inside a text box");
+      $("lt-n").blur();
+      // envelope graph drag via pointer events
+      const hd = handles.decay, box = svg.getBoundingClientRect(), m = svg.getScreenCTM();
+      const toScreen = (x, y) => new DOMPoint(x, y).matrixTransform(m);
+      const target = toScreen(geo().xa + G.k * Math.sqrt(1), yOf(0.5));
+      ok(box.width > 0, "graph not laid out");
+      hd.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, clientX: 0, clientY: 0 }));
+      svg.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: target.x, clientY: target.y }));
+      svg.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 }));
+      ok(Math.abs(+$("decay").value - 1) < 0.02 && Math.abs(+$("sustain").value - 0.5) < 0.02, `drag gave decay ${$("decay").value} sustain ${$("sustain").value}`);
+      ok(engine.voice(VOICE).envelope.decay === +$("decay").value, "drag did not reach the voice");
+      dragHandle("release", geo().xh + G.k * Math.sqrt(2), 0); ok(Math.abs(+$("release").value - 2) < 0.02, "release drag");
+      // pelog + pelog-nem + gamelan voice, then a run
+      tuningSel.value = "pelog"; await applyTuning();
+      ok(engine.tuning.name === "pelog" && engine.tuning.periodCents === 1220, "pelog not set");
+      ok([...scaleSel.options].every((o) => !o.value || SCALE_PERIOD[o.value] === 7), "scale list not filtered to 7-step scales");
+      scaleSel.value = "pelog-nem"; scaleSel.dispatchEvent(new Event("change"));
+      ok(engine.scale?.name === "pelog-nem", "pelog-nem not selected");
+      ok(presetSel.value === "saron" && engine.voice(VOICE).partials.length === 4, "gamelan voice not loaded");
+      await listenPlay("up");
+      const steps = lastScore.events.map((e) => e.step);
+      ok(steps.join() === "0,1,2,4,5,7", `pelog-nem run steps ${steps}`);
+      ok(Math.abs(engine.tuning.freq(7) / engine.tuning.freq(0) - Math.pow(2, 1220 / 1200)) < 1e-9, "stretched period");
+      ok(pads.length === 15 && /Hz/.test(pads[3].textContent), "pads not rebuilt for pelog");
+      await wait(300); $("stop").click();
       console.log("SELFTEST ok");
     } catch (e) { console.log(`SELFTEST fail: ${errMsg(e)}`); }
   })();

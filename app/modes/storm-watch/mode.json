@@ -1,0 +1,7 @@
+{
+  "name": "Storm watch",
+  "author": "itay",
+  "description": "Follows individual storms through 48 half-hourly IMERG snapshots using offline computer-vision tracks (OpenCV optical flow and watershed). From itay's clustering branch.",
+  "datasets": ["4285"],
+  "source": "itay, branch clustering"
+}

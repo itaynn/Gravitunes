@@ -1,0 +1,12 @@
+! slendro.scl
+!
+! Javanese slendro, representative values (every gamelan differs). Stretched period 1210 cents.
+! Rounded from the range of published averages of many gamelans; not one instrument.
+slendro (representative, stretched octave)
+ 5
+!
+238.0
+476.0
+715.0
+958.0
+1210.0

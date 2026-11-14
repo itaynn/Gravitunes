@@ -1,0 +1,7 @@
+{
+  "name": "Precipitation ball",
+  "author": "itay",
+  "description": "Place a ball on the moving IMERG precipitation video; rain raises a terrain whose slope rolls the ball around, with Web Audio sound following its motion. Keyboard: focus the map, Enter places the ball, arrows move it. From itay's clustering branch.",
+  "datasets": ["4285"],
+  "source": "itay, branch clustering"
+}

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090d18">
+    <meta
+      name="description"
+      content="Explore and track connected precipitation storms through NASA IMERG snapshots."
+    >
+    <title>Storm Watch — Earth Jukebox</title>
+    <link rel="stylesheet" href="./styles.css?v=2">
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="masthead">
+        <a class="brand" href="../../" aria-label="Back to the Gravitunes gallery">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span>EARTH JUKEBOX <span class="brand-divider">/</span> FIELD NOTES 03</span>
+        </a>
+        <nav class="masthead-links" aria-label="Related experiments">
+          <a class="source-link" href="../precipitation-ball/">Motion study <span aria-hidden="true">↗</span></a>
+          <a class="source-link" href="../scanning-line/">Sound study <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <section class="storm-intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> PRECIPITATION / TRACKING STUDY</p>
+          <h1 id="page-title">Storms,<br><em>in formation.</em></h1>
+        </div>
+        <p class="storm-intro-copy">
+          Follow connected rain systems through a day of IMERG snapshots.
+          Select a storm to keep its evolving shape illuminated. If systems
+          merge and later split, every part of the merged family stays marked.
+        </p>
+      </section>
+
+      <section class="tracker" aria-label="Interactive precipitation storm tracker">
+        <div class="tracker-frame">
+          <canvas
+            id="storm-map"
+            width="1440"
+            height="720"
+            role="img"
+            aria-label="Global precipitation snapshot. Select a detected storm to follow it across time."
+            tabindex="0"
+          >
+            Global precipitation snapshot with selectable tracked storm overlays.
+          </canvas>
+          <div class="tracker-topline" aria-hidden="true">
+            <span>NASA IMERG / NEAR REAL-TIME PRECIPITATION</span>
+            <span id="frame-clock">LOADING SNAPSHOTS</span>
+          </div>
+          <div class="tracker-bottomline" aria-hidden="true">
+            <span>PRECIPITATION REGIONS · RED + BLUE CORE-SEEDING</span>
+            <span id="storm-count">—</span>
+          </div>
+          <img id="snapshot-image" alt="" aria-hidden="true">
+        </div>
+
+        <div class="timeline-controls">
+          <button class="button button-secondary" id="previous-frame" type="button" disabled aria-label="Previous snapshot">←</button>
+          <button class="button button-primary" id="play-sequence" type="button" disabled>
+            <span class="button-icon" aria-hidden="true">▶</span>
+            <span id="play-label">Loading snapshots</span>
+          </button>
+          <button class="button button-secondary" id="next-frame" type="button" disabled aria-label="Next snapshot">→</button>
+          <label class="timeline-slider" for="timeline">
+            <span class="visually-hidden">Snapshot time</span>
+            <input id="timeline" type="range" min="0" max="47" step="1" value="0" disabled>
+          </label>
+          <output id="timeline-label" for="timeline">Loading · 48 frames</output>
+        </div>
+
+        <div class="tracker-info">
+          <section class="storm-selection" aria-labelledby="storm-list-title">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">TRACK SELECTION</p>
+                <h2 id="storm-list-title">Detected storms</h2>
+              </div>
+              <span class="panel-hint">SELECT A SHAPE</span>
+            </div>
+            <p class="selection-hint" id="selection-hint">Choose a storm to follow it; if storms merge and split, every part of the family stays highlighted.</p>
+            <div class="storm-list" id="storm-list" role="list" aria-live="polite"></div>
+          </section>
+
+          <details class="tracker-settings" open>
+            <summary>
+              <span>
+                <span class="eyebrow">TUNE THE MODEL</span>
+                <span class="settings-title">Tracking parameters</span>
+              </span>
+              <span class="settings-toggle" aria-hidden="true">−</span>
+            </summary>
+            <div class="settings-grid">
+              <label class="setting-control" for="minimum-area">
+                <span class="setting-heading"><span>Minimum storm area</span><output id="minimum-area-output">200 px</output></span>
+                <input id="minimum-area" data-setting="minimumArea" type="range" min="20" max="1600" step="20" value="200">
+                <span class="setting-scale"><span>SMALLER</span><span>LARGER</span></span>
+              </label>
+              <label class="setting-control" for="alpha-threshold">
+                <span class="setting-heading"><span>Mask alpha cutoff</span><output id="alpha-threshold-output">16 / 255</output></span>
+                <input id="alpha-threshold" data-setting="alphaThreshold" type="range" min="1" max="255" step="1" value="16">
+                <span class="setting-scale"><span>FAINT</span><span>STRICT</span></span>
+              </label>
+              <label class="setting-control" for="gap-radius">
+                <span class="setting-heading"><span>Bridge tiny gaps</span><output id="gap-radius-output">1 px</output></span>
+                <input id="gap-radius" data-setting="gapRadius" type="range" min="0" max="4" step="1" value="1">
+                <span class="setting-scale"><span>NONE</span><span>WIDER</span></span>
+              </label>
+              <label class="setting-control" for="seed-redness">
+                <span class="setting-heading"><span>Core-color strength</span><output id="seed-redness-output">140 / 255</output></span>
+                <input id="seed-redness" data-setting="seedRedness" type="range" min="40" max="230" step="10" value="140">
+                <span class="setting-scale"><span>FAINT</span><span>STRONG</span></span>
+              </label>
+              <label class="setting-control" for="seed-merge-distance">
+                <span class="setting-heading"><span>Core merge distance</span><output id="seed-merge-distance-output">36 px</output></span>
+                <input id="seed-merge-distance" data-setting="seedMergeDistance" type="range" min="8" max="100" step="4" value="36">
+                <span class="setting-scale"><span>NEAR</span><span>FAR</span></span>
+              </label>
+              <label class="setting-control" for="color-tolerance">
+                <span class="setting-heading"><span>Average-color tolerance</span><output id="color-tolerance-output">100 RGB</output></span>
+                <input id="color-tolerance" data-setting="colorTolerance" type="range" min="20" max="240" step="10" value="100">
+                <span class="setting-scale"><span>SIMILAR</span><span>FLEXIBLE</span></span>
+              </label>
+              <label class="setting-control" for="maximum-motion">
+                <span class="setting-heading"><span>Motion search radius</span><output id="maximum-motion-output">56 px</output></span>
+                <input id="maximum-motion" data-setting="maximumMotion" type="range" min="8" max="140" step="2" value="56">
+                <span class="setting-scale"><span>NEAR</span><span>FAR</span></span>
+              </label>
+              <label class="setting-control" for="overlap-threshold">
+                <span class="setting-heading"><span>Minimum mask overlap</span><output id="overlap-threshold-output">10%</output></span>
+                <input id="overlap-threshold" data-setting="overlapThreshold" type="range" min="0" max="80" step="5" value="10">
+                <span class="setting-scale"><span>LOOSE</span><span>STRICT</span></span>
+              </label>
+              <label class="setting-control" for="merge-threshold">
+                <span class="setting-heading"><span>Merge overlap</span><output id="merge-threshold-output">20%</output></span>
+                <input id="merge-threshold" data-setting="mergeThreshold" type="range" min="5" max="80" step="5" value="20">
+                <span class="setting-scale"><span>LOOSE</span><span>STRICT</span></span>
+              </label>
+              <label class="setting-control" for="match-confidence">
+                <span class="setting-heading"><span>Match confidence</span><output id="match-confidence-output">30%</output></span>
+                <input id="match-confidence" data-setting="matchConfidence" type="range" min="5" max="90" step="5" value="30">
+                <span class="setting-scale"><span>LOOSE</span><span>STRICT</span></span>
+              </label>
+              <label class="setting-control" for="memory-frames">
+                <span class="setting-heading"><span>Missing-frame memory</span><output id="memory-frames-output">2 frames</output></span>
+                <input id="memory-frames" data-setting="memoryFrames" type="range" min="0" max="8" step="1" value="2">
+                <span class="setting-scale"><span>SHORT</span><span>LONG</span></span>
+              </label>
+            </div>
+            <p class="settings-note">The page loads compact polygons precomputed with Python/OpenCV: alpha-mask morphology, dark red/blue core detection, watershed separation, contour simplification, optical-flow mask warping, and overlap/core association. Polygon areas and motion distances use the 900 × 450 analysis grid. Changing a control persists it and switches to the interactive in-browser reanalysis; rerun the documented Python preprocessing command to regenerate the optical-flow polygons. The 48-snapshot playback pass runs in 12.5 seconds.</p>
+          </details>
+        </div>
+
+        <details class="reference-video">
+          <summary>Original NASA animation reference <span>MP4 · local input</span></summary>
+          <video
+            controls
+            playsinline
+            preload="metadata"
+            src="../../../data/nasa-svs/4285/4285-imergert-current.mp4"
+            aria-label="NASA global precipitation animation used as a motion reference"
+          ></video>
+        </details>
+
+        <p class="tracker-status" id="tracker-status" role="status" aria-live="polite">Preparing storm analysis…</p>
+        <p class="source-caption">
+          Inputs included locally:
+          <a href="../../../data/nasa-svs/4285/imergert_alpha.2026-11-07T00:00:00Z.png">48 NASA IMERG PNG snapshots · every 30 minutes</a>
+          · <a href="../../../data/nasa-svs/4285/4285-imergert-current.mp4">NASA SVS 4285 animation</a>
+          · <a href="https://svs.gsfc.nasa.gov/4285/" target="_blank" rel="noreferrer">NASA SVS credits ↗</a>
+        </p>
+      </section>
+
+      <footer class="footer">
+        <span>AN EXPERIMENT IN DATA, SOUND & MOTION</span>
+        <span>NASA SVS 4285 · IMERG</span>
+      </footer>
+    </main>
+  </body>
+</html>

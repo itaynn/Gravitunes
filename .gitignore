@@ -224,3 +224,6 @@ data/*
 !data/README.md
 .claude/worktrees/
 .DS_Store
+!data/nasa-svs/
+data/nasa-svs/*
+!data/nasa-svs/4285/

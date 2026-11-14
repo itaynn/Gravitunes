@@ -27,12 +27,27 @@ const DEFS = {
   // 22-shruti degrees: Re 9/8=4, Ga 5/4=7, Ma' 45/32=11, Pa=13, Dha 5/3=16, Ni 15/8=20, Re komal 16/15=2, Dha komal 8/5=15, Ma 4/3=9
   "yaman-22": { up: [0, 4, 7, 11, 16, 20], down: [0, 4, 7, 11, 13, 16, 20], vadi: 7, samvadi: 20, period: 22 },
   "bhairav-22": { up: [0, 2, 7, 9, 13, 15, 20], down: [0, 2, 7, 9, 13, 15, 20], vadi: 15, samvadi: 2, period: 22 },
+  // Javanese gamelan (tunings "slendro", 5 steps, and "pelog", 7 steps). Degrees are 0-based: slendro
+  // tones 1 2 3 5 6 are degrees 0..4; pelog tones 1..7 are degrees 0..6. A pathet (mode) is as much
+  // about which tones are emphasized and where phrases end as about the note set, so the slendro
+  // pathets share all 5 notes and differ only in vadi/samvadi (the commonly described emphasized
+  // tones, used here as "emphasis" metadata). Practice varies between regions and ensembles.
+  slendro: { up: [0, 1, 2, 3, 4], period: 5 },
+  "slendro-nem": { up: [0, 1, 2, 3, 4], vadi: 1, samvadi: 4, period: 5 },     // tones 2 and 6
+  "slendro-sanga": { up: [0, 1, 2, 3, 4], vadi: 3, samvadi: 0, period: 5 },   // tones 5 and 1
+  "slendro-manyura": { up: [0, 1, 2, 3, 4], vadi: 4, samvadi: 2, period: 5 }, // tones 6 and 3
+  pelog: { up: [0, 1, 2, 3, 4, 5, 6], period: 7 },
+  "pelog-lima": { up: [0, 1, 2, 4, 5], vadi: 0, samvadi: 4, period: 7 },      // tones 1 2 3 5 6; 1 and 5
+  "pelog-nem": { up: [0, 1, 2, 4, 5], vadi: 5, samvadi: 1, period: 7 },       // tones 1 2 3 5 6; 6 and 2
+  "pelog-barang": { up: [1, 2, 4, 5, 6], vadi: 5, samvadi: 1, period: 7 },    // tones 2 3 5 6 7; 6 and 2
 };
 
 /**
  * Built-in scales. 12-TET: "chromatic", "major", "minor", "ionian", "dorian", "phrygian", "lydian",
  * "mixolydian", "aeolian", "locrian", "pentatonic-major", "pentatonic-minor", "harmonic-minor".
  * Ragas: "yaman", "bhairav" (12-TET degrees), "yaman-22", "bhairav-22" (22-shruti degrees).
+ * Gamelan: "slendro", "slendro-nem", "slendro-sanga", "slendro-manyura" (5-step "slendro" tuning),
+ * "pelog", "pelog-lima", "pelog-nem", "pelog-barang" (7-step "pelog" tuning).
  */
 export const BUILTIN_SCALES = Object.keys(DEFS);
 

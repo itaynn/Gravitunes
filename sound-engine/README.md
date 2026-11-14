@@ -35,14 +35,14 @@ python3 -m gravitunes_sound serve   # then open http://localhost:8000/player.htm
 pip install -e sound-engine/python            # add the live extra for the bridge: pip install -e "sound-engine/python[live]"
 python -m gravitunes_sound serve              # static files on :8000 and, with websockets, a live relay on ws://localhost:8765
 ```
-- http://localhost:8000/playground.html: design voices, try tunings and scales, play a keyboard, export JSON / JavaScript / Python. The Listen panel plays the current voice, tuning and scale as an ascending or descending run (up/down sets, 1 to 3 periods, tempo in notes per second), a chord, or one note by scale degree or raw step, with Stop. Open `playground.html#selftest` to run a built-in check of those buttons (logs `SELFTEST ok` or `SELFTEST fail: ...`). All URLs are relative, so it also works at `/sound-engine/playground.html` from a server rooted at the repo root.
+- http://localhost:8000/playground.html: a simple page for playing with sound, meant for anyone. Big Play / Stop at the top (Play holds the current note; Stop or Escape stops everything). Tone: harmonics sliders and bell-like extra tones with a live wave and overtone picture. Volume shape: a draggable attack/decay/sustain/release graph with a Volume slider, quick shapes (Pluck, Pad, Organ, Bell-like swell) and labelled sliders as the keyboard equivalent. Notes: tuning and scale pickers (the scale list only offers scales that fit the tuning; choosing slendro or pelog also switches to the Saron sound once). Listen: play the scale up or down, a chord, or hold the current note. Every sound uses the tone as currently set, including notes already scheduled in a run. Shortcuts (listed on the page, can be turned off): hold Space to play the current note, H to start/stop a held note, arrows to move the current note by one scale note, Escape to stop, letter keys on the keyboard pads. A closed "For developers" section at the bottom shows the tone as numbers to paste into `engine.voice(name, settings)`; score files and the live bridge are on `player.html`. Open `playground.html#selftest` to run a built-in check (logs `SELFTEST ok` or `SELFTEST fail: ...`). All URLs are relative, so it also works at `/sound-engine/playground.html` from a server rooted at the repo root.
 - http://localhost:8000/player.html: load a score file and play it, connect to the live bridge. `player.html?score=URL` loads a score at startup.
 - http://localhost:8000/tests/browser/smoke.html: in-browser smoke test of the real engine.
 - `examples/`: `minimal-js.html`, `play-score.html` (plays `storms.score.json`, can download a WAV), `score_from_python.py`, `live_from_python.py`, `make_storms_score.py`.
 
 `python -m gravitunes_sound validate FILE...` checks score files against the schema. `serve` options: `--port` (8000), `--ws-port` (8765); if a port is busy it says so and suggests another. `Score.preview()` falls back to one free port if 8000 is busy and reuses it for later previews.
 
-In the playground, computer letter keys play pads only while keyboard focus is on a pad (Tab into the keyboard); elsewhere they do nothing.
+In the playground, computer letter keys play pads only while keyboard focus is on a pad (Tab into the keyboard); elsewhere they do nothing. Space, H and arrow shortcuts never fire while typing in a box.
 
 ## JavaScript API
 
@@ -145,9 +145,11 @@ A note with an `id` and no `dur` keeps sounding (no default length). Later `set`
 
 ## Tunings and Scala
 
-`tuning` is `"12tet"`, `"just5"`, `"shruti22"`, `"edo:N"` (such as `"edo:19"`), `.scl` file text, a URL or path ending in `.scl` (fetched by the browser), or an object: `{scl, kbm}` (text or URLs), `{type: "edo", n}`, `{ratios: [...]}`, `{cents: [...]}`, each with optional `refStep`, `refFreq`, `a4`.
+`tuning` is `"12tet"`, `"just5"`, `"shruti22"`, `"slendro"`, `"pelog"`, `"edo:N"` (such as `"edo:19"`), `.scl` file text, a URL or path ending in `.scl` (fetched by the browser), or an object: `{scl, kbm}` (text or URLs), `{type: "edo", n}`, `{ratios: [...]}`, `{cents: [...]}`, each with optional `refStep`, `refFreq`, `a4`.
 
 Step convention: step 0 is middle C (261.6256 Hz) in every tuning, so in 12-TET step 9 is A4 (440 Hz) and step 7 is G4. Steps are counted in the tuning's own notes, so in 19-EDO step 19 is one octave up. A `.kbm` keyboard map or `refStep` / `refFreq` can move the reference. Example `.scl` and `.kbm` files are in `presets/`.
+
+Gamelan: `"slendro"` (5 steps) and `"pelog"` (7 steps) are Javanese gamelan tunings. They do not repeat at an exact octave: the period is stretched (1210 and 1220 cents), so step 5 of slendro is a little above twice step 0. There is no standard gamelan tuning (every set is tuned on its own); the built-in values are rounded, representative numbers in the range of published averages over many gamelans, not one instrument. `presets/slendro.scl` and `presets/pelog.scl` hold the same values so you can edit them. The `saron` (metallophone) and `gong` voices fit them; both use a slightly detuned doubled partial for the slow beating ("ombak") of gamelan instruments.
 ```js
 await engine.setTuning({ scl: sclText, kbm: kbmText });
 engine.play({ step: 5, dur: 1 });
@@ -155,15 +157,15 @@ engine.play({ step: 5, dur: 1 });
 
 ## Scales and ragas
 
-A scale limits which steps `value` may use. Built-in: `chromatic`, `major`, `minor`, `ionian`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `aeolian`, `locrian`, `pentatonic-major`, `pentatonic-minor`, `harmonic-minor`, and the ragas `yaman`, `bhairav` (12-TET degrees) and `yaman-22`, `bhairav-22` (for `shruti22`). A custom scale is an object:
+A scale limits which steps `value` may use. Built-in: `chromatic`, `major`, `minor`, `ionian`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `aeolian`, `locrian`, `pentatonic-major`, `pentatonic-minor`, `harmonic-minor`, and the ragas `yaman`, `bhairav` (12-TET degrees) and `yaman-22`, `bhairav-22` (for `shruti22`). For gamelan: `slendro`, `slendro-nem`, `slendro-sanga`, `slendro-manyura` (for the `slendro` tuning; the pathets share all 5 notes and differ only in their emphasized tones, stored as `vadi`/`samvadi`) and `pelog`, `pelog-lima`, `pelog-nem` (tones 1 2 3 5 6), `pelog-barang` (tones 2 3 5 6 7) for the `pelog` tuning. A custom scale is an object:
 ```js
 engine.setScale({ name: "yaman", up: [0, 2, 4, 6, 9, 11], down: [0, 2, 4, 6, 7, 9, 11], period: 12, vadi: 4, samvadi: 11 });
 ```
-`up` is used for rising values, `down` for falling ones (ragas differ going up and down; see Direction above). `vadi` and `samvadi` mark the two emphasized degrees (metadata). `period` defaults to the tuning size for custom scales. Built-in scales have a fixed period (12, or 22 for the `-22` ragas) and throw a clear error with a tuning of another size (for example `major` with `shruti22` or `edo:19`); use `chromatic` or a scale defined for that many steps. The playground's direction choice only changes which pads are marked. Note: a scale only maps `value`. An event with `step`, `note` or `freq` is not quantized.
+`up` is used for rising values, `down` for falling ones (ragas differ going up and down; see Direction above). `vadi` and `samvadi` mark the two emphasized degrees (metadata). `period` defaults to the tuning size for custom scales. Built-in scales have a fixed period (12, 22 for the `-22` ragas, 5 for slendro, 7 for pelog) and throw a clear error with a tuning of another size (for example `major` with `shruti22` or `edo:19`); use `chromatic` or a scale defined for that many steps. Note: a scale only maps `value`. An event with `step`, `note` or `freq` is not quantized.
 
 ## Live bridge protocol
 
-`python -m gravitunes_sound serve` runs a relay on `ws://localhost:8765`. Messages are JSON text frames, each one of: an event object; an array of events; `{ "score": {...} }` to play a whole score; or a command `{ "cmd": "stopAll" | "setTuning" | "setScale" | "voice", ... }` (`setTuning` and `setScale` take `spec`; `voice` takes `name` and `def`). The relay forwards each message to every other client. Errors playing a message are shown in the Live bridge panel (and announced), logged with `console.error`, and passed to `onerror`. The browser side connects from the Live bridge panel in `player.html` / `playground.html` or with `engine.connectBridge(url)`, and must have pressed Start audio first. Python sends with `gravitunes_sound.live`.
+`python -m gravitunes_sound serve` runs a relay on `ws://localhost:8765`. Messages are JSON text frames, each one of: an event object; an array of events; `{ "score": {...} }` to play a whole score; or a command `{ "cmd": "stopAll" | "setTuning" | "setScale" | "voice", ... }` (`setTuning` and `setScale` take `spec`; `voice` takes `name` and `def`). The relay forwards each message to every other client. Errors playing a message are shown in the Live bridge panel (and announced), logged with `console.error`, and passed to `onerror`. The browser side connects from the Live bridge panel in `player.html` or with `engine.connectBridge(url)`, and must have pressed Start audio first. Python sends with `gravitunes_sound.live`.
 
 ## Recipes
 

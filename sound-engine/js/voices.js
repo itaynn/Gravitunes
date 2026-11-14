@@ -37,6 +37,27 @@ export const PRESETS = {
     harmonics: range(12, (k) => 1 / (k * k) + 0.02),
     envelope: { attack: 0.002, decay: 0.35, sustain: 0, release: 0.2 },
   },
+  // Gamelan metallophone (saron-like bronze bar): a strong fundamental, a few inharmonic upper modes
+  // that die away quickly, and a long ring. The second partial at ratio 1.004 beats against the
+  // fundamental (about 1 Hz near middle C), a simple stand-in for "ombak", the slow beating of
+  // paired instruments. (detune moves every oscillator together, so it cannot make beats.)
+  saron: {
+    harmonics: [1],
+    partials: [
+      { ratio: 1.004, amp: 0.6, decay: 3 }, { ratio: 2.72, amp: 0.3, decay: 0.8 },
+      { ratio: 4.95, amp: 0.12, decay: 0.35 }, { ratio: 7.6, amp: 0.05, decay: 0.2 },
+    ],
+    envelope: { attack: 0.003, decay: 2.5, sustain: 0, release: 1.5 },
+  },
+  // Gong: soft attack, a slow beating pair at the fundamental and a cluster of low inharmonic modes.
+  gong: {
+    harmonics: [1, 0.25],
+    partials: [
+      { ratio: 1.003, amp: 0.8, decay: 6 }, { ratio: 1.49, amp: 0.25, decay: 3 },
+      { ratio: 2.03, amp: 0.2, decay: 2.5 }, { ratio: 2.41, amp: 0.12, decay: 1.5 }, { ratio: 3.32, amp: 0.06, decay: 0.8 },
+    ],
+    envelope: { attack: 0.02, decay: 6, sustain: 0, release: 4 },
+  },
 };
 
 function checkNum(v, name, lo, hi) {
@@ -90,7 +111,7 @@ export function resolveVoice(name = "sine", overrides = {}, registry = {}) {
     const user = fromPresetOnly ? undefined : registry[cur];
     const def = user ?? PRESETS[cur];
     if (!def) {
-      const known = [...new Set([...Object.keys(PRESETS), ...Object.keys(registry)])].join(", ");
+      const known = [...new Set([...Object.keys(PRESETS), ...registryNames(registry)])].join(", ");
       throw new Error(`unknown voice "${cur}". Known voices: ${known}. Define it with engine.voice("${cur}", { harmonics: [...] })`);
     }
     chain.unshift(def);
@@ -110,6 +131,9 @@ export function resolveVoice(name = "sine", overrides = {}, registry = {}) {
   }
   return out;
 }
+
+// for..in also lists inherited names (a score's registry layers over the engine's).
+function registryNames(r) { const out = []; for (const k in r) out.push(k); return out; }
 
 const waveCache = new WeakMap();
 /**

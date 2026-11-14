@@ -7,7 +7,7 @@
 (<code>python -m gravitunes_sound serve</code>, then <code>/tests/browser/smoke.html</code>).</p>
 <pre id="out">running…</pre>
 <script type="module">
-import { renderScore, createEngine, PRESETS, encodeWav } from "../../js/index.js";
+import { renderScore, createEngine, PRESETS, encodeWav, createTuning, createScale } from "../../js/index.js";
 
 const results = [];
 const check = (name, ok, info = "") => results.push(`${ok ? "PASS" : "FAIL"} ${name}${info ? " — " + info : ""}`);
@@ -156,6 +156,22 @@ await run("22-shruti tuning + raga", async () => {
   const b = await renderScore({ version: 1, tuning: "shruti22", scale: "yaman-22",
     events: [0, 0.25, 0.5, 0.75, 1].map((v, i) => ({ t: i * 0.3, value: v, dur: 0.25 })) }, { tail: 0.5 });
   check("22-shruti tuning + raga renders", stats(b).rms > 0.005);
+});
+
+await run("pelog-nem value sweep", async () => {
+  // value 0..1 over pelog-nem (tones 1 2 3 5 6) spans two stretched periods: steps 0..14.
+  const t = createTuning("pelog"), sc = createScale("pelog-nem", t);
+  const vals = [0, 0.3, 0.6, 1];
+  const b = await renderScore({ version: 1, tuning: "pelog", scale: "pelog-nem", valueRange: [0, 1],
+    events: vals.map((v, i) => ({ t: i * 0.7, value: v, dur: 0.6, voice: "sine" })) }, { tail: 0.3 });
+  const want = vals.map((v) => t.freq(sc.fromValue(v)));
+  const got = vals.map((_, i) => pitch(b, i * 0.7 + 0.1, i * 0.7 + 0.5));
+  check("pelog-nem value sweep gives the tuning's frequencies", got.every((f, i) => Math.abs(f - want[i]) < want[i] * 0.01),
+    got.map((f, i) => `${f.toFixed(1)}/${want[i].toFixed(1)}`).join(" "));
+  const g = await renderScore({ version: 1, tuning: "slendro", scale: "slendro",
+    events: [0, 0.5, 1].map((v, i) => ({ t: i * 0.4, value: v, dur: 0.6, voice: "saron" })) }, { tail: 0.5 });
+  const s = stats(g);
+  check("slendro + saron renders without clipping", s.rms > 0.003 && s.peak <= 1, `rms ${s.rms.toFixed(3)}`);
 });
 
 await run("scl tuning", async () => {

@@ -1,3 +1,20 @@
+.bigbar { margin: 0.6rem 0 0.2rem; }
+button.big { font-size: 1.3rem; min-width: 8rem; min-height: 3.2rem; padding: 0.5rem 1.4rem; }
+button.big[aria-pressed="true"] { background: var(--key-on); color: var(--fg); border-color: var(--key-on); }
+h2 { margin-top: 1rem; }
+details { margin: 0.6rem 0; } summary { cursor: pointer; font-weight: 600; }
+#dev { max-width: 62rem; margin: 1rem auto; padding: 0 1rem; }
+.volume { min-width: 14rem; } .volume output { font-variant-numeric: tabular-nums; color: var(--muted); }
+#envgraph { width: 100%; height: auto; display: block; background: var(--canvas); border: 1px solid var(--border); border-radius: 6px; margin-top: 0.5rem; touch-action: none; user-select: none; }
+#envgraph .axis { stroke: var(--border); stroke-width: 1; }
+#envgraph .env-fill { fill: var(--wave); fill-opacity: 0.25; stroke: none; }
+#envgraph .env-line { fill: none; stroke: var(--wave); stroke-width: 2.5; stroke-linejoin: round; }
+#envgraph .handle { fill: var(--bg); stroke: var(--focus); stroke-width: 3; cursor: grab; }
+#envgraph .handle:hover { fill: var(--key-on); }
+#envgraph .playhead { stroke: var(--focus); stroke-width: 2; stroke-dasharray: 4 3; }
+#envgraph .env-txt { fill: var(--muted); font: 12px system-ui, sans-serif; }
+.envsum { font-weight: 600; margin: 0.3rem 0; }
+kbd { font-family: ui-monospace, Menlo, monospace; border: 1px solid var(--border); border-radius: 4px; padding: 0 0.3rem; font-size: 0.85em; }
 .sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.5rem 1rem; }
 .sliders .field { display: block; }
 .sliders output { float: right; font-variant-numeric: tabular-nums; color: var(--muted); }

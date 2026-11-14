@@ -3,103 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gravitunes voice playground</title>
+<title>Gravitunes sound playground</title>
 <link rel="stylesheet" href="ui/common.css">
 <link rel="stylesheet" href="ui/playground.css">
 </head>
 <body>
 <a class="skip" href="#keyboard">Skip to keyboard</a>
 <header>
-  <h1>Voice playground</h1>
-  <p>Design a voice, choose a tuning and scale, and play it. Audio starts on your first key press, click or touch.
-  <a href="player.html">Open the score player</a>.</p>
-  <button type="button" id="start" class="primary">Start audio</button>
+  <h1>Sound playground</h1>
+  <p>Shape a tone, pick notes, and play. Changes are heard right away.</p>
+  <div class="row bigbar" role="group" aria-label="Play and stop">
+    <button type="button" id="play" class="big primary" aria-pressed="false" aria-describedby="playhelp">Play</button>
+    <button type="button" id="stop" class="big">Stop</button>
+  </div>
+  <p id="playhelp" class="muted">Play holds the current note until you press Stop (tones that fade out end by themselves). Escape also stops everything.</p>
 </header>
 <main id="main">
-  <fieldset><legend>Presets</legend>
-    <div class="row"><div class="field"><label for="preset">Start from preset</label><select id="preset"></select></div>
-    <div class="field"><label for="vname">Voice name</label><input id="vname" value="myvoice" pattern="[A-Za-z_][A-Za-z0-9_-]*"></div></div>
-  </fieldset>
-
-  <fieldset><legend>Harmonics</legend>
-    <p>Amplitude of each harmonic of the fundamental, from 0 to 1.</p>
-    <div id="harmonics" class="sliders"></div>
-  </fieldset>
-
-  <fieldset><legend>Inharmonic partials</legend>
-    <table><thead><tr><th scope="col">Ratio</th><th scope="col">Amplitude</th><th scope="col">Decay (s, optional)</th><th scope="col">Remove</th></tr></thead>
+  <fieldset><legend>Tone</legend>
+    <div class="row"><div class="field"><label for="preset">Start from a sound</label><select id="preset"></select></div></div>
+    <div class="row two">
+      <figure><figcaption>Wave shape</figcaption><canvas id="wave" role="img" aria-label="Picture of the wave shape of the current tone"></canvas></figure>
+      <figure><figcaption>Overtones (low to high pitch)</figcaption><canvas id="spec" role="img" aria-label="Picture of how loud each overtone of the current tone is"></canvas></figure>
+    </div>
+    <h2 id="harmh">Harmonics</h2>
+    <p class="muted">How loud each overtone is, from 0 to 1. Harmonic 1 is the note itself.</p>
+    <div id="harmonics" class="sliders" role="group" aria-labelledby="harmh"></div>
+    <details><summary>More harmonics (9 to 24)</summary><div id="harmonics2" class="sliders"></div></details>
+    <h2>Bell-like extra tones</h2>
+    <p class="muted">Extra tones at any pitch ratio, like the clang of a bell or metal bar.</p>
+    <table><thead><tr><th scope="col">Pitch ratio</th><th scope="col">Loudness</th><th scope="col">Fade time (seconds, blank = with the note)</th><th scope="col">Remove</th></tr></thead>
     <tbody id="partials"></tbody></table>
-    <p id="nopartials">No inharmonic partials.</p>
-    <button type="button" id="addpartial">Add partial</button>
+    <p id="nopartials">No extra tones.</p>
+    <button type="button" id="addpartial">Add an extra tone</button>
   </fieldset>
 
-  <fieldset><legend>Envelope, level and pan</legend>
+  <fieldset><legend>Volume shape</legend>
+    <div class="row">
+      <div class="field volume"><label for="amp">Volume</label><output for="amp" id="ampout"></output><input type="range" id="amp" min="0" max="1" step="0.01"></div>
+      <div class="field"><span id="shapelabel">Quick shapes</span>
+        <div class="row" role="group" aria-labelledby="shapelabel" id="shapes">
+          <button type="button" data-shape="pluck">Pluck</button><button type="button" data-shape="pad">Pad</button>
+          <button type="button" data-shape="organ">Organ</button><button type="button" data-shape="swell">Bell-like swell</button>
+        </div></div>
+    </div>
+    <svg id="envgraph" viewBox="0 0 600 190" aria-hidden="true" focusable="false"></svg>
+    <p id="envsum" class="envsum"></p>
+    <p class="muted">Drag the round handles in the picture, or use the sliders: how fast the sound starts (attack), how fast it falls (decay) to the level it holds while the note is held (sustain), and how long it fades after you let go (release). The time axis is stretched so short times are easy to set.</p>
     <div id="env" class="sliders"></div>
   </fieldset>
 
-  <fieldset><legend>Live preview</legend>
-    <p class="muted">Shows the sound as it plays. When silent, shows the designed timbre.</p>
-    <div class="row two">
-      <figure><figcaption>Waveform</figcaption><canvas id="wave" role="img" aria-label="Waveform of the current sound"></canvas></figure>
-      <figure><figcaption>Spectrum (0 to 8 kHz)</figcaption><canvas id="spec" role="img" aria-label="Frequency spectrum of the current sound"></canvas></figure>
-    </div>
-  </fieldset>
-
-  <fieldset><legend>Tuning and scale</legend>
+  <fieldset><legend>Notes</legend>
     <div class="row">
       <div class="field"><label for="tuning">Tuning</label><select id="tuning"></select></div>
-      <div class="field"><label for="scl">Load .scl file</label><input type="file" id="scl" accept=".scl,text/plain"></div>
-      <div class="field"><label for="kbm">Load .kbm file (optional)</label><input type="file" id="kbm" accept=".kbm,text/plain"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label for="scale">Scale or raga</label><select id="scale"></select></div>
-      <fieldset class="inner"><legend>Mark notes for direction (marking only: pads play their exact step; in scores, rising <code>value</code>s use the up notes and falling ones the down notes)</legend>
-        <label><input type="radio" name="dir" value="up" checked> Ascending</label>
-        <label><input type="radio" name="dir" value="down"> Descending</label></fieldset>
+      <div class="field"><label for="scale">Scale</label><select id="scale"></select></div>
     </div>
     <p id="tinfo" class="muted"></p>
+    <details><summary>Use your own tuning file</summary>
+      <div class="row">
+        <div class="field"><label for="scl">Tuning file (.scl)</label><input type="file" id="scl" accept=".scl,text/plain"></div>
+        <div class="field"><label for="kbm">Keyboard map file (.kbm, optional)</label><input type="file" id="kbm" accept=".kbm,text/plain"></div>
+      </div></details>
   </fieldset>
 
   <fieldset id="listen"><legend>Listen</legend>
-    <p class="muted">Plays the current voice, tuning and scale. Runs use the scale's ascending notes going up and its descending notes going down. With no scale, every tuning step is used.</p>
     <div class="row">
-      <div class="field"><label for="lt-tempo">Tempo (notes per second)</label><input type="number" id="lt-tempo" min="0.5" max="16" step="0.5" value="3"></div>
-      <div class="field"><label for="lt-len">Note length (fraction of the time between notes)</label><input type="number" id="lt-len" min="0.1" max="4" step="0.1" value="0.9"></div>
-      <div class="field"><label for="lt-oct">Start octave (period offset, -2 to 2)</label><input type="number" id="lt-oct" min="-2" max="2" step="1" value="0"></div>
-      <div class="field"><label for="lt-per">Number of periods (1 to 3)</label><input type="number" id="lt-per" min="1" max="3" step="1" value="1"></div>
+      <div class="field"><label for="lt-n">Current note (0 is the first note of the scale; negative goes lower)</label><input type="number" id="lt-n" step="1" value="0"></div>
+      <button type="button" id="cur" aria-describedby="curinfo">Hold to play current note</button>
     </div>
+    <p id="curinfo" class="muted"></p>
     <div class="row">
-      <button type="button" id="lt-up">Play scale ascending</button>
-      <button type="button" id="lt-down">Play scale descending</button>
+      <button type="button" id="lt-up">Play scale up</button>
+      <button type="button" id="lt-down">Play scale down</button>
       <button type="button" id="lt-chord">Play chord</button>
-      <button type="button" id="lt-stop" disabled>Stop</button>
+      <button type="button" id="lt-stop">Stop</button>
     </div>
-    <fieldset class="inner"><legend>Play one note</legend>
+    <details><summary>Speed and range</summary>
       <div class="row">
-        <label><input type="radio" name="lt-mode" value="degree" checked> Scale degree (0 is the first note; negative goes below)</label>
-        <label><input type="radio" name="lt-mode" value="step"> Raw tuning step</label>
-        <div class="field"><label for="lt-n">Number</label><input type="number" id="lt-n" step="1" value="0"></div>
-        <button type="button" id="lt-note">Play note</button>
-      </div>
-    </fieldset>
+        <div class="field"><label for="lt-tempo">Notes per second</label><input type="number" id="lt-tempo" min="0.5" max="16" step="0.5" value="3"></div>
+        <div class="field"><label for="lt-len">Note length (1 = until the next note)</label><input type="number" id="lt-len" min="0.1" max="4" step="0.1" value="0.9"></div>
+        <div class="field"><label for="lt-oct">Octave shift (-2 to 2)</label><input type="number" id="lt-oct" min="-2" max="2" step="1" value="0"></div>
+        <div class="field"><label for="lt-per">Octaves to play (1 to 3)</label><input type="number" id="lt-per" min="1" max="3" step="1" value="1"></div>
+      </div></details>
+    <details id="shortcuts"><summary>Keyboard shortcuts</summary>
+      <table>
+        <thead><tr><th scope="col">Key</th><th scope="col">Does</th><th scope="col">Works when</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Space</kbd> (hold)</td><td>Play the current note while held</td><td>Focus is on the "Hold to play" button or nowhere in particular</td></tr>
+          <tr><td><kbd>H</kbd></td><td>Start or stop a held note (same as Play)</td><td>Not typing in a box and not on the keyboard pads</td></tr>
+          <tr><td><kbd>Up</kbd> / <kbd>Right</kbd> arrow</td><td>Current note one scale note higher</td><td>Focus is on the page, a Listen button or a keyboard pad</td></tr>
+          <tr><td><kbd>Down</kbd> / <kbd>Left</kbd> arrow</td><td>Current note one scale note lower</td><td>Same as above</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Stop all sound</td><td>Anywhere</td></tr>
+          <tr><td><kbd>Z</kbd> to <kbd>]</kbd></td><td>Play the keyboard pads, left to right</td><td>Focus is on a keyboard pad</td></tr>
+        </tbody>
+      </table>
+      <label><input type="checkbox" id="sc-on" checked> Single-key shortcuts on (Space, H and arrows)</label>
+    </details>
   </fieldset>
 
   <fieldset><legend id="kblegend">Keyboard</legend>
-    <p>Press and hold a key to play. Notes in the chosen scale are marked. Tab to a key and press Space or Enter to play it.
-    While focus is on a keyboard key, the computer keys Z to / then A to ' then Q to ] also play the keys from left to right; elsewhere on the page they do nothing.</p>
+    <p>Press and hold a pad to play. Notes in the scale are marked. Tab to a pad and hold Space or Enter.</p>
     <div id="keyboard" role="group" aria-labelledby="kblegend"></div>
   </fieldset>
 
-  <fieldset><legend>Export voice</legend>
-    <div class="row"><button type="button" id="dljson">Download JSON</button></div>
-    <div class="exp"><label for="outjson">JSON</label><textarea id="outjson" rows="6" readonly></textarea><button type="button" data-copy="outjson">Copy JSON</button></div>
-    <div class="exp"><label for="outjs">JavaScript</label><textarea id="outjs" rows="6" readonly></textarea><button type="button" data-copy="outjs">Copy JavaScript</button></div>
-    <div class="exp"><label for="outpy">Python</label><textarea id="outpy" rows="6" readonly></textarea><button type="button" data-copy="outpy">Copy Python</button></div>
-  </fieldset>
-
-  <fieldset><legend>Play a score file</legend><div id="score"></div>
-    <p class="muted">The current voice is available to scores as "custom" (and under the name above).</p></fieldset>
-  <fieldset><legend>Live bridge</legend><div id="bridge"></div></fieldset>
+  <details id="dev"><summary>For developers</summary>
+    <p>The current tone as numbers, for <code>engine.voice(name, settings)</code> in code. Scores and the live bridge are in the <a href="player.html">player page</a>.</p>
+    <div class="exp"><label for="outjson">Tone settings</label><textarea id="outjson" rows="8" readonly></textarea><button type="button" data-copy="outjson">Copy</button></div>
+  </details>
 </main>
 <div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <script type="module" src="ui/playground.js"></script>

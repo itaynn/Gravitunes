@@ -55,7 +55,9 @@ JSON text frames over `ws://localhost:8765`. Each message is one event object, a
 - Loudness: each voice's gain is divided by about the RMS of its partial amplitudes, so `amp` sounds roughly the same across timbres. A master gain (0.8) feeds a DynamicsCompressor used as a limiter (threshold −6 dB, ratio 20).
 - A note with `sustain: 0` and no `dur` ends by itself after its decay. Otherwise a note with no `dur` holds until `stop()`.
 - A release scheduled for the future (from `dur` or a sustain-0 voice) is not "stopped": `set` works until the release begins. An explicit `stop` replaces a release that has not begun (earlier or later); voice stealing only moves it earlier.
-- Built-in scales have a fixed period (12; 22 for `*-22`); `createScale` throws if the tuning's size differs. `chromatic` follows the tuning.
+- Built-in scales have a fixed period (12; 22 for `*-22`; 5 for `slendro*`; 7 for `pelog*`); `createScale` throws if the tuning's size differs. `chromatic` follows the tuning.
+- Tunings may have a period other than 1200 cents (`slendro` 1210, `pelog` 1220, any `.scl`); `freq`/`stepOf` follow `periodCents`.
+- `playScore` resolves voices per note from the score's voices layered over the engine registry, so `engine.voice()` changes reach notes not yet scheduled (about 0.25 s ahead).
 - A note `id` reused while the old note is still sounding stops the old note.
 - `set`/`stop` events for an id that has already ended are silently ignored, because data streams can outlive notes.
 - `presets/*.json` are generated from `PRESETS` in `voices.js`, which is the source of truth.

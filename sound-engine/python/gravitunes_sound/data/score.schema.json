@@ -25,7 +25,7 @@
       "items": { "type": "number" }
     },
     "tuning": {
-      "description": "Built-in name (\"12tet\", \"just5\", \"shruti22\", \"edo:N\"), Scala .scl text, a URL to a .scl file, or an object.",
+      "description": "Built-in name (\"12tet\", \"just5\", \"shruti22\", \"slendro\", \"pelog\", \"edo:N\"), Scala .scl text, a URL to a .scl file, or an object.",
       "oneOf": [
         { "type": "string", "minLength": 1 },
         {
@@ -33,7 +33,7 @@
           "description": "Needs one of type, scl, ratios or cents. type \"edo\" needs n.",
           "additionalProperties": false,
           "properties": {
-            "type": { "enum": ["12tet", "edo", "just5", "shruti22"] },
+            "type": { "enum": ["12tet", "edo", "just5", "shruti22", "slendro", "pelog"] },
             "n": { "type": "integer", "minimum": 1 },
             "scl": { "type": "string" },
             "kbm": { "type": "string" },

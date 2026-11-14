@@ -2,11 +2,23 @@
 import { parseScl, parseKbm } from "./scala.js";
 
 /** Built-in tuning names accepted as strings. "edo:N" is also accepted for any N >= 1. */
-export const BUILTIN_TUNINGS = ["12tet", "just5", "shruti22"];
+export const BUILTIN_TUNINGS = ["12tet", "just5", "shruti22", "slendro", "pelog"];
 
 const JUST5 = ["16/15", "9/8", "6/5", "5/4", "4/3", "45/32", "3/2", "8/5", "5/3", "9/5", "15/8", "2/1"];
 const SHRUTI22 = ["256/243", "16/15", "10/9", "9/8", "32/27", "6/5", "5/4", "81/64", "4/3", "27/20", "45/32",
   "729/512", "3/2", "128/81", "8/5", "5/3", "27/16", "16/9", "9/5", "15/8", "243/128", "2/1"];
+
+// Javanese gamelan. There is no standard tuning: every gamelan is tuned on its own (its "embat"), and
+// its octaves are usually stretched a little beyond 1200 cents. These are rounded, representative
+// values in the range reported by surveys that averaged measurements of many Javanese gamelans
+// (e.g. Surjodiningrat, Sudarjana & Susanto 1972). They are NOT the measurements of one instrument.
+// Cents of degrees 2..n and the period (last entry), as in a .scl file. presets/*.scl mirror these.
+// Slendro: 5 near-equal steps (~240 c, slightly uneven); period 1210 c.
+export const SLENDRO_CENTS = [238, 476, 715, 958, 1210];
+// Pelog: 7 unequal steps, small (~115-165 c) and large (~250-280 c); period 1220 c.
+export const PELOG_CENTS = [125, 265, 545, 680, 795, 950, 1220];
+const SLENDRO_LABELS = ["1 ji", "2 ro", "3 lu", "5 ma", "6 nem"];
+const PELOG_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
 
 const C4_FROM_A4 = Math.pow(2, -9 / 12);
 
@@ -109,13 +121,14 @@ function build({ name, degreeCents, period, refStep, refFreq, kbm, labels }) {
   return t;
 }
 
-function fromScl(sclText, kbmText, name, o) {
+function fromScl(sclText, kbmText, name, o, labels) {
   const scl = parseScl(sclText);
   const kbm = kbmText ? parseKbm(kbmText) : null;
   const degreeCents = [0, ...scl.pitches.slice(0, -1).map((p) => p.cents)];
   let refStep = o.refStep ?? 0, refFreq = o.refFreq ?? o.a4 * C4_FROM_A4;
   if (kbm) { refStep = kbm.refNote - 60; refFreq = kbm.refFreq; }
-  return build({ name: name || scl.description || "scl", degreeCents, period: scl.periodCents, refStep, refFreq, kbm });
+  return build({ name: name || scl.description || "scl", degreeCents, period: scl.periodCents, refStep, refFreq, kbm,
+    labels: labels && labels.length === degreeCents.length ? labels : undefined });
 }
 
 function edo(n, name, o) {
@@ -134,6 +147,8 @@ function builtin(name, o) {
     const t = fromScl(sclTextFromTokens("22 shruti", SHRUTI22), null, "shruti22", o);
     return t;
   }
+  if (key === "slendro") return fromScl(centsToScl(SLENDRO_CENTS), null, "slendro", o, SLENDRO_LABELS);
+  if (key === "pelog") return fromScl(centsToScl(PELOG_CENTS), null, "pelog", o, PELOG_LABELS);
   throw new Error(`unknown tuning ${JSON.stringify(name)}: use one of ${BUILTIN_TUNINGS.map((s) => `"${s}"`).join(", ")}, "edo:N" (e.g. "edo:19"), Scala .scl text, or an object like {scl, kbm}`);
 }
 
@@ -143,9 +158,10 @@ function builtin(name, o) {
  * (If only refStep is given, refFreq stays middle C, i.e. refStep sounds at middle C.)
  *
  * spec forms:
- *  - "12tet" | "just5" | "shruti22" | "edo:19"
+ *  - "12tet" | "just5" | "shruti22" | "slendro" | "pelog" | "edo:19"
+ *    (slendro: 5 steps, pelog: 7 steps; both repeat at a stretched period, not 1200 cents)
  *  - Scala text (string containing a newline)
- *  - { type:"12tet"|"edo"|"just5"|"shruti22", n?, a4?, refStep?, refFreq? }
+ *  - { type:"12tet"|"edo"|"just5"|"shruti22"|"slendro"|"pelog", n?, a4?, refStep?, refFreq? }
  *  - { scl: string, kbm?: string, refStep?, refFreq? }   (kbm overrides refStep/refFreq)
  *  - { ratios: (number|"a/b")[] } | { cents: number[] }   (last entry is the period, like scl)
  *  - an existing Tuning object (returned as-is)
@@ -173,7 +189,7 @@ export function createTuning(spec, opts = {}) {
   if (spec.ratios) return fromScl(ratiosToScl(spec.ratios), null, "ratios", o);
   if (spec.cents) return fromScl(centsToScl(spec.cents), null, "cents", o);
   if (spec.type === "edo") return edo(spec.n, `edo:${spec.n}`, o);
-  if (spec.type === "12tet" || spec.type === "just5" || spec.type === "shruti22") return builtin(spec.type, o);
+  if (["12tet", "just5", "shruti22", "slendro", "pelog"].includes(spec.type)) return builtin(spec.type, o);
   throw new Error(`tuning: unrecognized object; give {type: ${BUILTIN_TUNINGS.map((s) => `"${s}"`).join("|")}|"edo", n}, {scl, kbm}, {ratios} or {cents}`);
 }
 
