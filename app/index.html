@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gravitunes</title>
+  <link rel="stylesheet" href="core/style.css">
+</head>
+<body>
+  <header>
+    <h1>Gravitunes</h1>
+    <p>An Earth Information Jukebox: listen to NASA Earth visualizations. Pick a mode.</p>
+  </header>
+  <main>
+    <h2 class="visually-hidden">Modes</h2>
+    <ul id="modes" class="modes" aria-live="polite"><li>Loading modes...</li></ul>
+  </main>
+  <script type="module">
+    const ul = document.getElementById('modes');
+    try {
+      const { modes } = await (await fetch('modes/index.json')).json();
+      ul.replaceChildren(...modes.map((m) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = m.href ? new URL(m.href, new URL(`modes/${m.id}/`, location.href)).href : `mode.html?mode=${encodeURIComponent(m.id)}`;
+        a.textContent = m.name;
+        const p = document.createElement('p');
+        p.textContent = [m.description, m.author && `By ${m.author}.`].filter(Boolean).join(' ');
+        li.append(a, p);
+        return li;
+      }));
+    } catch (e) {
+      ul.innerHTML = '<li>Could not load modes/index.json. Run: python3 app/tools/build-modes-index.py</li>';
+    }
+  </script>
+</body>
+</html>

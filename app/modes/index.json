@@ -1,0 +1,21 @@
+{
+  "modes": [
+    {
+      "id": "ozone-probe",
+      "name": "Ozone probe",
+      "author": "moran",
+      "description": "Explore near-surface ozone by hover, touch or arrow keys: higher ozone plays a higher note, patchy areas sound brighter, east/west pans left/right. Play the timeline to hear it change over two weeks.",
+      "datasets": [
+        "5152"
+      ]
+    },
+    {
+      "id": "synth-lab",
+      "name": "Synth lab",
+      "author": "moran",
+      "description": "Play with the sound engine: timbre, tunings, scales; play a scale up/down, as a chord, or one note.",
+      "datasets": "none",
+      "href": "../../../sound-engine/playground.html"
+    }
+  ]
+}

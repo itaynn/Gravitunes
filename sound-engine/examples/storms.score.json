@@ -1,0 +1,456 @@
+{
+  "version": 1,
+  "title": "Storms",
+  "tuning": "12tet",
+  "scale": "pentatonic-major",
+  "valueRange": [
+    0,
+    50
+  ],
+  "voices": {
+    "rain": {
+      "harmonics": [
+        1,
+        0.5,
+        0.25
+      ],
+      "envelope": {
+        "attack": 0.02,
+        "release": 0.4
+      }
+    },
+    "wind": {
+      "extends": "pad",
+      "envelope": {
+        "attack": 0.5,
+        "release": 1.5
+      }
+    }
+  },
+  "events": [
+    {
+      "id": "storm-alma",
+      "value": 12,
+      "voice": "wind",
+      "amp": 0.28,
+      "t": 0.0
+    },
+    {
+      "value": 4.166666666666666,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 0.2
+    },
+    {
+      "value": 10.2,
+      "amp": 0.28,
+      "type": "set",
+      "t": 1.2,
+      "id": "storm-alma"
+    },
+    {
+      "id": "storm-beto",
+      "value": 38,
+      "voice": "wind",
+      "amp": 0.45333333333333337,
+      "t": 1.5
+    },
+    {
+      "value": 33.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 1.7
+    },
+    {
+      "value": 34.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 2.05
+    },
+    {
+      "value": 13.799999999999999,
+      "amp": 0.28,
+      "type": "set",
+      "t": 2.4,
+      "id": "storm-alma"
+    },
+    {
+      "value": 35.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 2.4
+    },
+    {
+      "value": 36.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 2.75
+    },
+    {
+      "value": 32.3,
+      "amp": 0.45333333333333337,
+      "type": "set",
+      "t": 2.9,
+      "id": "storm-beto"
+    },
+    {
+      "id": "storm-cora",
+      "value": 22,
+      "voice": "wind",
+      "amp": 0.3466666666666667,
+      "t": 3.0
+    },
+    {
+      "value": 37.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 3.0999999999999996
+    },
+    {
+      "value": 12.5,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 3.2
+    },
+    {
+      "value": 38.33333333333333,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 3.45
+    },
+    {
+      "value": 13.5,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 3.5500000000000003
+    },
+    {
+      "value": 10.2,
+      "amp": 0.28,
+      "type": "set",
+      "t": 3.6,
+      "id": "storm-alma"
+    },
+    {
+      "value": 18.7,
+      "amp": 0.3466666666666667,
+      "type": "set",
+      "t": 4.0,
+      "id": "storm-cora"
+    },
+    {
+      "value": 43.699999999999996,
+      "amp": 0.45333333333333337,
+      "type": "set",
+      "t": 4.3,
+      "id": "storm-beto"
+    },
+    {
+      "value": 13.799999999999999,
+      "amp": 0.28,
+      "type": "set",
+      "t": 4.8,
+      "id": "storm-alma"
+    },
+    {
+      "value": 25.299999999999997,
+      "amp": 0.3466666666666667,
+      "type": "set",
+      "t": 5.0,
+      "id": "storm-cora"
+    },
+    {
+      "id": "storm-dane",
+      "value": 45,
+      "voice": "wind",
+      "amp": 0.5,
+      "t": 5.0
+    },
+    {
+      "value": 50.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 5.2
+    },
+    {
+      "value": 51.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 5.55
+    },
+    {
+      "value": 32.3,
+      "amp": 0.45333333333333337,
+      "type": "set",
+      "t": 5.7,
+      "id": "storm-beto"
+    },
+    {
+      "value": 52.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 5.9
+    },
+    {
+      "type": "stop",
+      "t": 6.0,
+      "id": "storm-alma"
+    },
+    {
+      "value": 18.7,
+      "amp": 0.3466666666666667,
+      "type": "set",
+      "t": 6.0,
+      "id": "storm-cora"
+    },
+    {
+      "value": 38.25,
+      "amp": 0.5,
+      "type": "set",
+      "t": 6.2,
+      "id": "storm-dane"
+    },
+    {
+      "value": 53.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 6.25
+    },
+    {
+      "value": 54.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 6.6
+    },
+    {
+      "value": 55.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 6.95
+    },
+    {
+      "value": 25.299999999999997,
+      "amp": 0.3466666666666667,
+      "type": "set",
+      "t": 7.0,
+      "id": "storm-cora"
+    },
+    {
+      "id": "storm-elsa",
+      "value": 18,
+      "voice": "wind",
+      "amp": 0.32,
+      "t": 7.0
+    },
+    {
+      "value": 43.699999999999996,
+      "amp": 0.45333333333333337,
+      "type": "set",
+      "t": 7.1,
+      "id": "storm-beto"
+    },
+    {
+      "value": 6.666666666666667,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 7.2
+    },
+    {
+      "value": 56.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 7.3
+    },
+    {
+      "value": 51.74999999999999,
+      "amp": 0.5,
+      "type": "set",
+      "t": 7.4,
+      "id": "storm-dane"
+    },
+    {
+      "value": 7.666666666666667,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 7.55
+    },
+    {
+      "value": 57.0,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 7.65
+    },
+    {
+      "type": "stop",
+      "t": 8.0,
+      "id": "storm-cora"
+    },
+    {
+      "value": 15.299999999999999,
+      "amp": 0.32,
+      "type": "set",
+      "t": 8.0,
+      "id": "storm-elsa"
+    },
+    {
+      "type": "stop",
+      "t": 8.5,
+      "id": "storm-beto"
+    },
+    {
+      "id": "storm-finn",
+      "value": 30,
+      "voice": "wind",
+      "amp": 0.4,
+      "t": 8.5
+    },
+    {
+      "value": 38.25,
+      "amp": 0.5,
+      "type": "set",
+      "t": 8.6,
+      "id": "storm-dane"
+    },
+    {
+      "value": 20.833333333333336,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 8.7
+    },
+    {
+      "value": 20.7,
+      "amp": 0.32,
+      "type": "set",
+      "t": 9.0,
+      "id": "storm-elsa"
+    },
+    {
+      "value": 21.833333333333336,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 9.049999999999999
+    },
+    {
+      "value": 22.833333333333336,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": 0.5,
+      "t": 9.399999999999999
+    },
+    {
+      "value": 25.5,
+      "amp": 0.4,
+      "type": "set",
+      "t": 9.7,
+      "id": "storm-finn"
+    },
+    {
+      "value": 23.833333333333336,
+      "voice": "rain",
+      "amp": 0.4,
+      "dur": 0.3,
+      "pan": -0.5,
+      "t": 9.75
+    },
+    {
+      "value": 51.74999999999999,
+      "amp": 0.5,
+      "type": "set",
+      "t": 9.8,
+      "id": "storm-dane"
+    },
+    {
+      "value": 15.299999999999999,
+      "amp": 0.32,
+      "type": "set",
+      "t": 10.0,
+      "id": "storm-elsa"
+    },
+    {
+      "value": 34.5,
+      "amp": 0.4,
+      "type": "set",
+      "t": 10.9,
+      "id": "storm-finn"
+    },
+    {
+      "type": "stop",
+      "t": 11.0,
+      "id": "storm-dane"
+    },
+    {
+      "value": 20.7,
+      "amp": 0.32,
+      "type": "set",
+      "t": 11.0,
+      "id": "storm-elsa"
+    },
+    {
+      "type": "stop",
+      "t": 12.0,
+      "id": "storm-elsa"
+    },
+    {
+      "value": 25.5,
+      "amp": 0.4,
+      "type": "set",
+      "t": 12.1,
+      "id": "storm-finn"
+    },
+    {
+      "value": 34.5,
+      "amp": 0.4,
+      "type": "set",
+      "t": 13.3,
+      "id": "storm-finn"
+    },
+    {
+      "type": "stop",
+      "t": 14.5,
+      "id": "storm-finn"
+    }
+  ]
+}

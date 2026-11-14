@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gravitunes</title>
+  <link rel="stylesheet" href="core/style.css">
+</head>
+<body>
+  <a class="skip" href="#map">Skip to map</a>
+  <header>
+    <p><a href="./">Back to all modes</a></p>
+    <h1 id="mode-title">Loading...</h1>
+    <p id="mode-desc"></p>
+  </header>
+  <main class="layout">
+    <section aria-labelledby="map-heading">
+      <h2 id="map-heading" class="visually-hidden">Map</h2>
+      <p id="dataset-title"></p>
+      <canvas id="map" width="1024" height="512" tabindex="0" role="application"
+        aria-label="World map. Arrow keys move 5 degrees, Shift+arrow 1 degree, Alt+arrow 20 degrees, Home returns to 0,0, Enter selects."></canvas>
+      <img id="colorbar" alt="Color bar: white is low, purple is high" class="colorbar">
+      <p id="status" role="status"></p>
+    </section>
+    <aside aria-label="Controls">
+      <button id="start-sound" type="button" class="primary">Start sound</button>
+      <h2>Time</h2>
+      <p id="time-label" aria-hidden="true"></p>
+      <div id="timeline"></div>
+      <h2>Mode controls</h2>
+      <div id="mode-controls"></div>
+    </aside>
+  </main>
+  <div id="live" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="core/host.js"></script>
+</body>
+</html>

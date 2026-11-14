@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gravitunes.local/sound-engine/score.schema.json",
+  "title": "Gravitunes score",
+  "description": "Score format shared by the JS engine, score files, the live bridge and the Python helper. Times are seconds, or beats when `tempo` is set.",
+  "type": "object",
+  "required": ["version", "events"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "title": { "type": "string" },
+    "tempo": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Beats per minute. If set, event times `t`, `dur` and glide times are in beats." },
+    "tuning": { "$ref": "#/$defs/tuning" },
+    "scale": { "$ref": "#/$defs/scale" },
+    "valueRange": { "$ref": "#/$defs/range", "description": "Default [min, max] for events that use `value`. If omitted, min/max of all values in the score." },
+    "voices": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/voice" }
+    },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } }
+  },
+  "$defs": {
+    "range": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": { "type": "number" }
+    },
+    "tuning": {
+      "description": "Built-in name (\"12tet\", \"just5\", \"shruti22\", \"edo:N\"), Scala .scl text, a URL to a .scl file, or an object.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "description": "Needs one of type, scl, ratios or cents. type \"edo\" needs n.",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "enum": ["12tet", "edo", "just5", "shruti22"] },
+            "n": { "type": "integer", "minimum": 1 },
+            "scl": { "type": "string" },
+            "kbm": { "type": "string" },
+            "ratios": { "type": "array", "items": { "type": ["number", "string"] }, "minItems": 1 },
+            "cents": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+            "refStep": { "type": "integer" },
+            "refFreq": { "type": "number", "exclusiveMinimum": 0 },
+            "a4": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "anyOf": [ { "required": ["type"] }, { "required": ["scl"] }, { "required": ["ratios"] }, { "required": ["cents"] } ],
+          "allOf": [
+            { "if": { "properties": { "type": { "const": "edo" } }, "required": ["type"] }, "then": { "required": ["n"] } }
+          ]
+        }
+      ]
+    },
+    "scale": {
+      "description": "Built-in name (e.g. \"major\", \"pentatonic-major\", \"yaman\"), or an object with up/down step sets.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["up"],
+          "properties": {
+            "name": { "type": "string" },
+            "up": { "type": "array", "items": { "type": "integer" }, "minItems": 1 },
+            "down": { "type": "array", "items": { "type": "integer" }, "minItems": 1 },
+            "period": { "type": "integer", "minimum": 1 },
+            "vadi": { "type": "integer" },
+            "samvadi": { "type": "integer" }
+          }
+        }
+      ]
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attack": { "type": "number", "minimum": 0, "maximum": 60, "description": "Seconds." },
+        "decay": { "type": "number", "minimum": 0, "maximum": 60, "description": "Seconds." },
+        "sustain": { "type": "number", "minimum": 0, "maximum": 1 },
+        "release": { "type": "number", "minimum": 0, "maximum": 60, "description": "Seconds." }
+      }
+    },
+    "partial": {
+      "type": "object",
+      "required": ["ratio"],
+      "additionalProperties": false,
+      "properties": {
+        "ratio": { "type": "number", "exclusiveMinimum": 0 },
+        "amp": { "type": "number", "minimum": 0, "maximum": 10 },
+        "decay": { "type": "number", "exclusiveMinimum": 0, "description": "Optional per-partial decay time in seconds." }
+      }
+    },
+    "voice": {
+      "type": "object",
+      "properties": {
+        "extends": { "type": "string", "description": "Name of a voice to start from." },
+        "harmonics": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+        "partials": { "type": "array", "items": { "$ref": "#/$defs/partial" } },
+        "envelope": { "$ref": "#/$defs/envelope" },
+        "amp": { "type": "number", "minimum": 0, "maximum": 1 },
+        "pan": { "type": "number", "minimum": -1, "maximum": 1 },
+        "detune": { "type": "number", "minimum": -1200, "maximum": 1200, "description": "Cents." }
+      }
+    },
+    "glide": {
+      "type": "object",
+      "required": ["to"],
+      "properties": {
+        "to": { "description": "Target pitch: Hz (number), or an object with at least one of freq, note, step, value.", "oneOf": [
+          { "type": "number", "exclusiveMinimum": 0 },
+          { "type": "object", "properties": {
+            "freq": { "type": "number", "exclusiveMinimum": 0 }, "step": { "type": "number" },
+            "note": { "type": "string", "pattern": "^[A-Ga-g][#b]?-?[0-9]+$" }, "value": { "type": "number" } },
+            "anyOf": [ { "required": ["freq"] }, { "required": ["note"] }, { "required": ["step"] }, { "required": ["value"] } ] }
+        ] },
+        "time": { "type": "number", "minimum": 0 },
+        "at": { "type": "number", "minimum": 0, "description": "Delay after the note starts before the slide begins." }
+      }
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["note", "set", "stop"], "default": "note" },
+        "t": { "type": "number", "minimum": 0 },
+        "id": { "type": ["string", "number"] },
+        "freq": { "type": "number", "exclusiveMinimum": 0 },
+        "note": { "type": "string", "pattern": "^[A-Ga-g][#b]?-?[0-9]+$" },
+        "step": { "type": "number" },
+        "value": { "type": "number" },
+        "direction": { "enum": ["up", "down"], "description": "Which scale set `value` uses (ragas differ up and down). Default: compared with the previous value for the same id, else the previous value event." },
+        "range": { "$ref": "#/$defs/range" },
+        "voice": { "type": "string" },
+        "amp": { "type": "number", "minimum": 0, "maximum": 1 },
+        "amplitude": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dur": { "type": "number", "minimum": 0 },
+        "duration": { "type": "number", "minimum": 0 },
+        "pan": { "type": "number", "minimum": -1, "maximum": 1 },
+        "harmonics": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+        "partials": { "type": "array", "items": { "$ref": "#/$defs/partial" } },
+        "envelope": { "$ref": "#/$defs/envelope" },
+        "glide": { "$ref": "#/$defs/glide" },
+        "ramp": { "type": "number", "minimum": 0, "description": "For set events: ramp time in seconds." }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "enum": ["set", "stop"] } }, "required": ["type"] },
+          "then": { "required": ["id"] },
+          "else": { "anyOf": [
+            { "required": ["freq"] }, { "required": ["note"] },
+            { "required": ["step"] }, { "required": ["value"] } ] } }
+      ]
+    }
+  }
+}

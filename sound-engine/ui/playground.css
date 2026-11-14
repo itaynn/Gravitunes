@@ -1,0 +1,16 @@
+.sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.5rem 1rem; }
+.sliders .field { display: block; }
+.sliders output { float: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); align-items: start; }
+figure { margin: 0; } figcaption { font-weight: 600; }
+.muted { color: var(--muted); }
+table { border-collapse: collapse; } th, td { padding: 0.2rem 0.5rem; text-align: left; } td input { width: 7rem; }
+fieldset.inner { background: transparent; margin: 0; }
+#keyboard { display: flex; flex-wrap: wrap; gap: 4px; touch-action: none; user-select: none; -webkit-user-select: none; }
+#keyboard button { flex: 0 0 4.4rem; height: 6rem; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 0.2rem; background: var(--key-out); border-width: 2px; line-height: 1.2; touch-action: none; font-weight: 400; }
+#keyboard button[data-scale="1"] { background: var(--key); border-color: var(--accent); font-weight: 700; }
+#keyboard button[data-on] { background: var(--key-on); color: var(--fg); }
+#keyboard button small { color: inherit; opacity: 0.9; font-size: 0.75rem; }
+#keyboard button .k { font-size: 0.7rem; border: 1px solid currentColor; border-radius: 3px; padding: 0 0.25rem; margin-bottom: 0.2rem; }
+.exp { display: grid; gap: 0.2rem; margin: 0.6rem 0; } .exp textarea { width: 100%; }
+.exp button { justify-self: start; }

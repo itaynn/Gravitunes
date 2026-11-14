@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitunes score player</title>
+<link rel="stylesheet" href="ui/common.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><h1>Score player</h1>
+<p>Load a score file to hear it. Playback starts only when you press Play. <a href="playground.html">Open the voice playground</a>.</p></header>
+<main id="main">
+  <fieldset><legend>Score</legend><div id="score"></div></fieldset>
+  <fieldset><legend>Live bridge</legend><div id="bridge"></div></fieldset>
+</main>
+<div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<script type="module">
+import { createEngine } from "./js/index.js";
+import { mountScorePlayer, mountBridgePanel } from "./ui/common.js";
+const engine = createEngine();
+mountScorePlayer(document.getElementById("score"), engine);
+mountBridgePanel(document.getElementById("bridge"), engine);
+</script>
+</body>
+</html>
