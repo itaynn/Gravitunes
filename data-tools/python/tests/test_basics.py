@@ -61,6 +61,22 @@ class TestDecoder(unittest.TestCase):
         est = self.dec.fit_background(frames).astype(int)
         self.assertTrue(np.all(np.abs(est - bg) <= 8), est)
 
+    def test_log_scale_roundtrip(self):
+        n = 200
+        vals = np.logspace(-3, 1.3, n)
+        dec = BlendDecoder(ramp(n), vals[0], vals[-1], {"values": [0.001, 0.002], "alpha": [0, 1]}, values=vals, log=True)
+        v = np.logspace(-2, 1.2, 100, dtype=np.float32).reshape(10, 10)
+        out = dec.decode(dec.render(v))
+        self.assertLess(np.nanmean(np.abs(np.log10(out) - np.log10(v))), 0.05)
+
+    def test_ramp_values_from_ticks(self):
+        from gravitunes_data.dataset import ramp_values
+        d = {"colorbar": {"x0": 10, "ticks": [[10, 0.01], [20, 0.1], [30, 1]], "scale": "log"}}
+        v, log = ramp_values(d, 21)
+        self.assertTrue(log)
+        self.assertAlmostEqual(v[0], 0.01); self.assertAlmostEqual(v[10], 0.1); self.assertAlmostEqual(v[20], 1.0)
+        self.assertEqual(ramp_values({"colorbar": {}}, 5), (None, False))
+
     def test_bad_colour_is_nan(self):
         green = np.zeros((1, 1, 3), np.uint8); green[..., 1] = 255
         self.assertTrue(np.isnan(self.dec.decode(green)[0, 0]))

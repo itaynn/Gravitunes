@@ -33,12 +33,15 @@ Sizes built by default: 512x256 and 256x128 (add `--size 128x64` etc.).
 
 Browser grid format: `.bin` is uint8, `T*H*W`, layout `t,y,x` (y=0 is 90°N, x=0 is 180°W), 255 = no data,
 value = `offset + byte * scale` (from the `.json` header, which also has `times`, `units`, `credits`).
+If the header has `"transform": "log10"` (5154 NOx), value = `10 ** (offset + byte * scale)`.
 
 ## Dataset descriptors
 
 `data-tools/datasets/<id>.json` lets the browser use a dataset without Python. Each one records units, range,
 start time and step, frame sources, color bar position and stops, the opacity curve, and overlay boxes.
-So far only `5152.json` (near-surface ozone) exists; 5153 (CO) and 5154 (NOx) share the same layout.
+Available: `5152.json` (ozone), `5153.json` (carbon monoxide), `5154.json` (nitrogen oxides). A non-linear color bar
+has `colorbar.ticks` (`[[x, value], ...]` in color-bar pixels) and `colorbar.scale` (`linear` or `log`, how to
+interpolate between ticks); without ticks the bar is linear over `range`.
 
 ## How the decoding works (5152 / GEOS-CF style)
 
@@ -55,6 +58,17 @@ nearly transparent and are rough. **These are approximations from visualization 
 Gotchas found:
 - The 5152 MP4 starts **24 h after** the PNG frames. `build` fills hours 0–23 from PNG frames 1–24.
 - The color bar image has a white border pixel at its right end. Sample x 71–462 on row 60, not up to 464.
+- 5153 and 5154 have the same frame layout and the same 24 h MP4 offset (checked on the date box).
+
+### 5153 (CO) and 5154 (NOx)
+
+- **CO** color bar is not linear: labels 40/100/130/200/500 ppbv are unevenly spaced; values between them are
+  interpolated linearly (label positions ±3 px). CO is drawn fully opaque (measured), so the background doesn't matter.
+  Re-render error median ~2.2 RGB levels; MP4 vs PNG ~1.0 ppbv mean (0.5 median) at 512×256. Decoded 47–484 ppbv.
+- **NOx** color bar is logarithmic, 0.001 to ~22 ppbv (top value extrapolated; decades are not evenly spaced).
+  Grids store log10(value). Opacity rises from 0 at ~0.0011 to 1 at ~0.0022 ppbv, so below ~0.002 is just "very low".
+  Re-render error median ~3.3 RGB levels; MP4 vs PNG ~0.04 log10 units mean (~9 %) at 512×256. Decoded 0.001–18.8 ppbv;
+  the darkest green saturates over the biggest cities (Beijing, Delhi).
 - SVS folders: `vis/a0X0000/a0XXX00/a0XXXXX/` (ten-thousands, then hundreds), e.g. 5152 → `a000000/a005100/a005152`.
 
 ## Data location

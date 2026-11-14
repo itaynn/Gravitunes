@@ -28,6 +28,22 @@ def descriptor(svs_id) -> dict:
     return json.loads(p.read_text())
 
 
+def ramp_values(d: dict, n: int) -> tuple[np.ndarray | None, bool]:
+    """Value of each of the n sampled colour-bar pixels, from the descriptor's colorbar "ticks".
+
+    ticks: [[x, value], ...] in colour-bar image pixels; "scale": "log" interpolates in log10.
+    Without ticks the bar is linear over "range" (returns None).
+    """
+    cb = d["colorbar"]
+    if "ticks" not in cb:
+        return None, False
+    log = cb.get("scale") == "log"
+    xs, vs = np.array(cb["ticks"], float).T
+    f = np.log10(vs) if log else vs
+    v = np.interp(cb["x0"] + np.arange(n), xs, f)
+    return (10 ** v if log else v), log
+
+
 def _parse_time(s: str) -> datetime:
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
@@ -130,7 +146,8 @@ def build(svs_id, sizes=((512, 256), (256, 128)), fill_from_png: bool = True, pr
 
     ramp = read_colorbar(src / d["colorbar"]["file"], d["colorbar"].get("row"), d["colorbar"].get("x0"), d["colorbar"].get("x1"))
     lo, hi = d["range"]
-    dec = BlendDecoder(ramp, lo, hi, d["encoding"].get("opacity"))
+    values, log = ramp_values(d, len(ramp))
+    dec = BlendDecoder(ramp, lo, hi, d["encoding"].get("opacity"), values=values, log=log)
 
     progress("fitting background + overlay mask from 24 video frames")
     sample = np.stack(list(video_frames(src / mp4["file"], np.linspace(0, count - 1, 24).astype(int), (W0, H0))))
@@ -140,7 +157,9 @@ def build(svs_id, sizes=((512, 256), (256, 128)), fill_from_png: bool = True, pr
     Image.fromarray(bg).save(work / "background.png")
     Image.fromarray((~mask * 255).astype(np.uint8)).save(work / "overlay_mask.png")
 
-    scale, offset = (hi - lo) / 254.0, float(lo)
+    # bytes are linear in value, or in log10(value) for log colour bars: value = 10 ** (offset + byte * scale)
+    tf = np.log10 if log else (lambda x: x)
+    scale, offset = (tf(hi) - tf(lo)) / 254.0, float(tf(lo))
     grids = {s: np.full((total, s[1], s[0]), NODATA, np.uint8) for s in sizes}
     filled = np.zeros(total, bool)
 
@@ -148,7 +167,7 @@ def build(svs_id, sizes=((512, 256), (256, 128)), fill_from_png: bool = True, pr
         v = dec.decode(frame, bg)
         v[mask] = np.nan
         for (W, H), g in grids.items():
-            a = _down(v, W0 // W)
+            a = tf(_down(v, W0 // W))
             g[hour] = np.where(np.isfinite(a), np.clip(np.round((a - offset) / scale), 0, 254), NODATA)
         filled[hour] = True
 
@@ -165,7 +184,8 @@ def build(svs_id, sizes=((512, 256), (256, 128)), fill_from_png: bool = True, pr
     for (W, H), g in grids.items():
         p = work / f"{svs_id}_{W}x{H}.npz"
         np.savez_compressed(p, data=g, scale=scale, offset=offset, times=np.array(times), filled=filled,
-                            meta=json.dumps({k: d[k] for k in ("id", "title", "units", "range", "source", "credits", "disclaimer")}))
+                            meta=json.dumps({k: d[k] for k in ("id", "title", "units", "range", "source", "credits", "disclaimer")}
+                                            | {"transform": "log10" if log else "linear"}))
         out[(W, H)] = p
         progress(f"wrote {p} ({p.stat().st_size / 1e6:.1f} MB)")
     return out
@@ -191,10 +211,13 @@ def load(svs_id, size=(256, 128), every: int = 1, build_if_missing: bool = True)
         build(svs_id, sizes=(tuple(size),))
     z = np.load(p)
     g = z["data"][::every]
-    vals = np.where(g == NODATA, np.nan, z["offset"] + g.astype(np.float32) * z["scale"]).astype(np.float32)
+    meta = json.loads(str(z["meta"]))
+    lin = z["offset"] + g.astype(np.float32) * z["scale"]
+    if meta.get("transform") == "log10":
+        lin = 10 ** lin
+    vals = np.where(g == NODATA, np.nan, lin).astype(np.float32)
     T, H, W = vals.shape
     times = [_parse_time(t) for t in z["times"][::every]]
-    meta = json.loads(str(z["meta"]))
     meta["filled"] = z["filled"][::every].tolist()
     lat = np.linspace(90 - 90 / H, -90 + 90 / H, H)
     lon = np.linspace(-180 + 180 / W, 180 - 180 / W, W)
@@ -216,6 +239,7 @@ def export_web(svs_id, size=(256, 128)) -> tuple[Path, Path]:
     meta = json.loads(str(z["meta"]))
     header = {"id": str(svs_id), "dims": [W, H], "frames": T, "dtype": "uint8", "layout": "t,y,x (y=0 is 90N, x=0 is 180W)",
               "nodata": NODATA, "scale": float(z["scale"]), "offset": float(z["offset"]),
+              "transform": meta.get("transform", "linear"),
               "units": meta["units"], "range": meta["range"], "times": z["times"].tolist(),
               "filled": z["filled"].astype(int).tolist(), "source": meta["source"], "credits": meta["credits"],
               "disclaimer": meta["disclaimer"]}

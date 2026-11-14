@@ -47,12 +47,15 @@ class BlendDecoder:
     """Decode values from pixels drawn as a(v)*ramp(v) + (1-a(v))*B."""
 
     def __init__(self, ramp: np.ndarray, vmin: float, vmax: float, opacity: dict | None = None,
-                 bg_levels: np.ndarray = np.arange(0, 256, 8.0)):
+                 bg_levels: np.ndarray = np.arange(0, 256, 8.0), values: np.ndarray | None = None, log: bool = False):
+        """values: value of each ramp entry (increasing); default linspace(vmin, vmax).
+        log: the colour bar is logarithmic (opacity and render interpolate in log10)."""
         self.ramp = np.asarray(ramp, float)
         self.vmin, self.vmax = float(vmin), float(vmax)
-        self.values = np.linspace(vmin, vmax, len(self.ramp))
+        self.values = np.linspace(vmin, vmax, len(self.ramp)) if values is None else np.asarray(values, float)
+        self._f = np.log10 if log else (lambda x: np.asarray(x, float))
         if opacity:
-            self.alpha = np.interp(self.values, opacity["values"], opacity["alpha"])
+            self.alpha = np.interp(self._f(self.values), self._f(opacity["values"]), opacity["alpha"])
         else:
             self.alpha = np.ones(len(self.ramp))
         self.bg_levels = np.asarray(bg_levels, float)
@@ -87,7 +90,7 @@ class BlendDecoder:
     def render(self, values: np.ndarray, background=None) -> np.ndarray:
         """Forward model, values -> RGB uint8 (for checking a decode)."""
         v = np.nan_to_num(np.asarray(values, float), nan=self.vmin)
-        i = np.clip(np.round((v - self.vmin) / (self.vmax - self.vmin) * (len(self.ramp) - 1)), 0, len(self.ramp) - 1).astype(int)
+        i = np.round(np.interp(self._f(np.maximum(v, self.values[0])), self._f(self.values), np.arange(len(self.ramp)))).astype(int)
         a = self.alpha[i][..., None]
         b = 0.0 if background is None else np.asarray(background, float)[..., None]
         return np.clip(a * self.ramp[i] + (1 - a) * b, 0, 255).astype(np.uint8)
