@@ -3,25 +3,23 @@
 Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 
 ## In main
-- App: gallery, core (viewer, timeline, input, panel, sound adapter with frequency caps), dataset picker
-- Modes: ozone-probe, world-orchestra, timbre-atlas, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
-- Sound engine (scales, tunings, Scala, voices, live edits, mono/stereo)
-- Data tools: ozone (5152), CO (5153), NOx (5154) value grids
+- App: gallery, core (viewer, timeline, input, panel, sound adapter with frequency caps), dataset picker, Natural Earth basemap
+- Modes: ozone-probe, world-orchestra, timbre-atlas, layered-maps, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
+- Sound engine (caps, rolloff, lowpass, sample voices, open instrument library; scales, tunings, Scala, live edits, mono/stereo)
+- Data tools: ozone (5152), CO (5153), NOx (5154) value grids; log grids in front end
 - Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)
 - Standalone demos: `python3 app/tools/build-standalone.py` → dist/ (git-ignored)
-- Front end reads log (NOx) grids; picker lists ozone, CO, NOx
 
 ## Running (agents)
 | Agent | Doing |
 |---|---|
-| Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
 | Flow tracers + vortex melodies | two demos on 4285 using flow analysis |
+| App polish | one consistent app + standalone with demo switcher; tone demo; timbre map |
 
 ## Next
-2. Layered maps (hear several gases together)
-4. Natural Earth basemap in `data/earth/`
+1. Fresh critic per demo → fix → new critic, until clean
 
 ## Needs Moran
-- Listen in Chrome (`python3 -m http.server 8000` → `/app/`) and give feedback
+- Listen in Chrome (`python3 -m http.server 8000` → `/app/`) or open `dist/index.html`
 - Browser-only checks: `/sound-engine/tests/browser/smoke.html`, `realtime.html`, `playground.html#selftest`
 - Clean old worktrees (sandbox blocks it for Claude)
