@@ -2,7 +2,10 @@
   "use strict";
 
   const PITCH_BANDS = 88;
-  const LOWEST_MIDI_NOTE = 21;
+  // The 88 image bands share a C major scale from C2 to C5 (22 notes, 4 bands each): no shrill highs.
+  const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+  const SCALE_NOTES = Array.from({ length: 22 }, (_, i) => 36 + 12 * Math.floor(i / 7) + MAJOR_STEPS[i % 7]);
+  const bandMidi = (band) => SCALE_NOTES[Math.floor((band * SCALE_NOTES.length) / PITCH_BANDS)];
   const COLUMN_COUNT = 3600;
   const PROGRESS_INTERVAL_MS = 25;
   const AUDIO_START_LEAD_SECONDS = 0.05;
@@ -58,8 +61,8 @@
     for (let row = 0; row <= PITCH_BANDS; row += 1) {
       const y = (row / PITCH_BANDS) * height;
       const bandFromBottom = PITCH_BANDS - row - 1;
-      const midiNote = LOWEST_MIDI_NOTE + bandFromBottom;
-      const isOctaveBoundary = midiNote % 12 === 0;
+      const midiNote = bandMidi(bandFromBottom);
+      const isOctaveBoundary = midiNote % 12 === 0 && (bandFromBottom === 0 || bandMidi(bandFromBottom - 1) !== midiNote);
       context.beginPath();
       context.moveTo(0, y);
       context.lineTo(width, y);
@@ -67,7 +70,7 @@
       context.lineWidth = isOctaveBoundary || row === 0 || row === PITCH_BANDS ? 1.5 : 1;
       context.stroke();
 
-      if (row < PITCH_BANDS && (isOctaveBoundary || midiNote === LOWEST_MIDI_NOTE)) {
+      if (row < PITCH_BANDS && isOctaveBoundary) {
         const labelY = y + height / PITCH_BANDS / 2;
         context.fillStyle = "rgba(5, 10, 17, 0.85)";
         context.fillRect(0, y, 34, height / PITCH_BANDS);
@@ -166,7 +169,7 @@
 
       const oscillator = audioContext.createOscillator();
       const noteGain = audioContext.createGain();
-      const midiNote = LOWEST_MIDI_NOTE + band;
+      const midiNote = bandMidi(band);
       const frequency = 440 * (2 ** ((midiNote - 69) / 12));
 
       oscillator.type = "sine";

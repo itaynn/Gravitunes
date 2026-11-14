@@ -951,7 +951,6 @@
       const button = document.createElement("button");
       button.className = "storm-option";
       button.type = "button";
-      button.setAttribute("role", "listitem");
       const isSelectedFamily = selectedStormId === component.id || component.lineageIds.includes(selectedStormId);
       button.setAttribute("aria-pressed", String(isSelectedFamily));
       const color = stormColor(isSelectedFamily ? selectedStormId : component.id);
@@ -975,7 +974,10 @@
         selectionHint.textContent = `Following Storm ${component.id} · every part of its merged family stays highlighted after a split.`;
         renderFrame(currentFrameIndex);
       });
-      list.append(button);
+      const item = document.createElement("div");
+      item.setAttribute("role", "listitem");
+      item.append(button);
+      list.append(item);
     }
   }
 
@@ -1255,7 +1257,23 @@
     if (keyEvent.key === "Escape") {
       selectedStormId = null;
       renderFrame(currentFrameIndex);
+      status.textContent = "No storm selected.";
+      return;
     }
+    // Arrow keys step through this frame's storms (largest first) and select one.
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[keyEvent.key];
+    if (!step) return;
+    keyEvent.preventDefault();
+    const sorted = [...(analyzedFrames[currentFrameIndex]?.components ?? [])].sort((a, b) => b.area - a.area);
+    if (!sorted.length) {
+      status.textContent = "No storms in this frame.";
+      return;
+    }
+    const at = sorted.findIndex((c) => c.id === selectedStormId || c.lineageIds.includes(selectedStormId));
+    const next = sorted[at < 0 ? (step > 0 ? 0 : sorted.length - 1) : (at + step + sorted.length) % sorted.length];
+    selectedStormId = next.id;
+    renderFrame(currentFrameIndex);
+    status.textContent = `Storm ${next.id}, ${sorted.indexOf(next) + 1} of ${sorted.length}, area ${next.area.toLocaleString()} analysis pixels.`;
   });
   settingsPanel.addEventListener("toggle", () => {
     settingsPanel.querySelector(".settings-toggle").textContent = settingsPanel.open ? "−" : "+";

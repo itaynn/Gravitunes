@@ -108,7 +108,7 @@ def collect_modules(entry, patches=None):
         src = p.read_text()
         for old, new in patches.get(k, []):
             if old not in src:
-                raise SystemExit(f'patch for {k} no longer matches: {old!r}')
+                raise RuntimeError(f'patch for {k} no longer matches: {old!r}')
             src = src.replace(old, new)
 
         def sub(m):
@@ -207,9 +207,11 @@ def inline_html(page, link_map, drop_sources=()):
         p = repo_path(ref, base)
         name = link_map.get(p)
         # Links to other demos point at their bundled file; anything else is not bundled.
-        new = f'href="{name}"' if name else f'data-offline-href="{ref}"'
-        return m.group(1) + new
-    text = re.sub(r'(<a\b[^>]*?)href="([^"]+)"', anchor, text)
+        if name:
+            return f'{m.group(1)}href="{name}"{m.group(3)}{m.group(4)}</a>'
+        # Not bundled: plain text instead of a dead link.
+        return f'<span>{m.group(4)} (not in the offline file)</span>'
+    text = re.sub(r'(<a\b[^>]*?)href="([^"]+)"([^>]*>)(.*?)</a>', anchor, text, flags=re.S)
     return text, entry
 
 
@@ -317,8 +319,8 @@ Each demo is one self-contained file that works offline; every demo has a menu a
 </ul>
 <p class="note"><strong>On iPhone:</strong> WhatsApp's preview does not run the demo. Save the file
 (Share, Save to Files), then open it from the Files app so it opens in Safari. On a computer, open it in Chrome, Safari, Firefox or Edge.
-Tap "Start sound" first; check that the phone is not on silent. Grids are sampled every {every} hours (some demos more sparsely) to keep the files small;
-recorded instrument samples are left out (the Tone lab uses their analysed tones instead).</p>
+Tap "Start sound" first; check that the phone is not on silent. Grids are sampled every {every} hours or more to keep the files small;
+recorded instrument samples are left out (the Tone lab uses their analysed tones instead).{skipped}</p>
 </body></html>
 '''
 
@@ -367,13 +369,14 @@ def main():
 
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
     items = '\n'.join(
-        f'<li class="card"><h2><a href="{m["id"]}.html">{html.escape(m["name"])}</a></h2>'
+        f'<li class="card"><h2>{html.escape(m["name"])}</h2>'
         f'<p>{html.escape(one_line(m.get("description", "")))}</p>'
         f'<p class="links"><a class="open" href="{m["id"]}.html" aria-label="Open {html.escape(m["name"])}">Open</a> '
         f'<a href="{m["id"]}.html" download aria-label="Download {html.escape(m["name"])}">Download</a> '
         f'<span class="size">{(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB</span></p></li>'
         for m in existing)
-    (out / 'index.html').write_text(INDEX.format(items=items, every=a.every or DEFAULT_EVERY))
+    (out / 'index.html').write_text(INDEX.format(items=items, every=a.every or DEFAULT_EVERY, skipped=''.join(
+        f' {html.escape(m["name"])} is only in the online version ({html.escape(SKIP[m["id"]])}).' for m in all_modes if m['id'] in SKIP)))
     print(f'index {out / "index.html"}  ({len(existing)} demos)')
 
 

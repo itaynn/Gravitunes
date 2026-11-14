@@ -146,15 +146,37 @@
     }
   }
 
+  // Pitch follows the rain under the ball, on a C major pentatonic scale from C3 to C5.
+  const PENTA = [0, 2, 4, 7, 9];
+  const RAIN_NOTES = Array.from({ length: 11 }, (_, i) => 48 + 12 * Math.floor(i / 5) + PENTA[i % 5]);
+  function rainFrequency(rain) {
+    const i = Math.round(Math.max(0, Math.min(1, rain)) * (RAIN_NOTES.length - 1));
+    return 440 * 2 ** ((RAIN_NOTES[i] - 69) / 12);
+  }
+
+  function rainLevel(rain) {
+    if (rain <= MIN_SURFACE_HEIGHT) return "no rain";
+    if (rain < 0.25) return "light rain";
+    if (rain < 0.6) return "moderate rain";
+    return "heavy rain";
+  }
+
+  function describeSpot(x, y) {
+    const ns = y < WORLD_HEIGHT / 3 ? "north" : y > (2 * WORLD_HEIGHT) / 3 ? "south" : "";
+    const ew = x < WORLD_WIDTH / 3 ? "west" : x > (2 * WORLD_WIDTH) / 3 ? "east" : "";
+    const area = ns || ew ? `${ns}${ns && ew ? "-" : ""}${ew} of the map` : "centre of the map";
+    return `${area}, ${rainLevel(heightAt(x, y))}`;
+  }
+
   function updateSounds(inStorm, speed, acceleration) {
     if (!audioContext || !audioNodes) return;
 
     const now = audioContext.currentTime;
     const speedRatio = Math.min(1, speed / MAX_SPEED);
     const accelerationRatio = 1 - Math.exp(-(acceleration * pitchResponse) / 1800);
-    const frequency = 170 + speedRatio * 620 + accelerationRatio * 360;
+    const frequency = rainFrequency(ball ? heightAt(ball.x, ball.y) : 0);
     audioNodes.tone.frequency.setTargetAtTime(frequency, now, 0.06);
-    audioNodes.harmony.frequency.setTargetAtTime(frequency * 1.5, now, 0.06);
+    audioNodes.harmony.frequency.setTargetAtTime(frequency / 2, now, 0.06);
     audioNodes.toneGain.gain.setTargetAtTime(
       soundEnabled ? motionVolume * (0.025 + speedRatio * 0.18 + accelerationRatio * 0.035) : 0,
       now,
@@ -274,7 +296,7 @@
     simulation = "armed";
     resetButton.disabled = false;
     prompt.classList.add("is-hidden");
-    setStatus("Ball placed · waiting for a raised surface to reach it.");
+    setStatus(`Ball placed · ${describeSpot(ball.x, ball.y)} · waiting for a raised surface to reach it.`);
   }
 
   function setBallPosition(clientX, clientY) {
@@ -288,7 +310,7 @@
     ball = null;
     simulation = "waiting";
     resetButton.disabled = true;
-    prompt.textContent = "Click anywhere on the map to place your ball";
+    prompt.textContent = "Click, or focus the map and press Enter, to place your ball";
     prompt.classList.remove("is-hidden");
     setStatus("Place a ball in the map · it will stay still until a raised surface reaches it.");
   }
@@ -415,7 +437,7 @@
     if (!offset) return;
     event.preventDefault();
     placeBallAt(ball.x + offset[0], ball.y + offset[1]);
-    setStatus("Ball repositioned · waiting for a raised surface to reach it.");
+    setStatus(`Ball moved · ${describeSpot(ball.x, ball.y)}.`);
   });
 
   resetButton.addEventListener("click", resetBall);
@@ -476,7 +498,7 @@
     videoLoadRetries = 0;
     videoButton.disabled = false;
     frameLabel.textContent = "FIELD READY";
-    prompt.textContent = "Click anywhere on the map to place your ball";
+    prompt.textContent = "Click, or focus the map and press Enter, to place your ball";
     if (!ball) setStatus("Video ready · place a ball and wait for a raised surface to reach it.");
     if (!userPausedVideo) {
       video.play().catch((error) => {
