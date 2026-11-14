@@ -3,7 +3,7 @@ import { announce, errMsg } from "./common.js";
 
 const $ = (id) => document.getElementById(id);
 const N_HARM = 24, N_SHOWN = 8;
-const engine = createEngine();
+const engine = createEngine({ output: "mono" }); // the page starts in mono; the Sound choice switches to stereo
 // Every sound on this page uses the voice "custom", which applyVoice() re-registers on every change.
 // engine.play resolves the voice when a note starts, and playScore resolves it per note as it schedules
 // (about 0.25 s ahead), so pads, runs, chords, shortcuts and the Play button always use the current tone.
@@ -35,9 +35,26 @@ function applyVoice() {
   try { engine.voice(VOICE, def); voiceErr = ""; }
   catch (e) { if (errMsg(e) !== voiceErr) announce(`That tone can't be played: ${errMsg(e)}`); voiceErr = errMsg(e); }
   $("outjson").value = JSON.stringify(def, null, 2);
-  // Notes already sounding follow volume and left/right right away.
-  for (const r of held.values()) r.h?.set?.({ amp: state.amp, pan: state.pan }, 0.03);
+  scheduleLive();
   drawEnvelope();
+}
+
+// Notes already sounding (Play, Space, pads, runs and chords) follow every tone change: harmonics,
+// extra tones, sustain, volume and left/right. Updates are batched to one per animation frame so
+// dragging a slider doesn't flood the audio graph.
+let livePending = false;
+const live = { updates: 0 }; // debug counter, read by the selftest
+function scheduleLive() {
+  if (livePending) return;
+  livePending = true;
+  const run = () => { if (livePending) { livePending = false; pushLive(); } };
+  requestAnimationFrame(run); setTimeout(run, 50); // whichever comes first (frames pause in hidden tabs)
+}
+function pushLive() {
+  if (voiceErr || !engine.activeCount) return;
+  try { engine.voice(VOICE, voiceDef(), { live: true }); } catch { return; }
+  for (const r of held.values()) r.h?.set?.({ amp: state.amp, pan: state.pan }, 0.03);
+  live.updates++;
 }
 
 // ---------- sliders ----------
@@ -60,7 +77,20 @@ const E = (key, label, max, step) => syncs.push(slider(adsrBox, { id: key, label
   fmt: key === "sustain" ? (v) => `${Math.round(v * 100)}%` : fmtTime }));
 E("attack", "Attack (start)", 3, 0.005); E("decay", "Decay (fall)", 4, 0.01);
 E("sustain", "Sustain (held level)", 1, 0.01); E("release", "Release (fade after letting go)", 5, 0.01);
-syncs.push(slider(adsrBox, { id: "pan", label: "Left / right", min: -1, max: 1, step: 0.01, get: () => state.pan, set: (v) => { state.pan = v; },
+// ---------- mono / stereo ----------
+const stereoBox = $("stereo");
+syncs.push(slider(stereoBox, { id: "balance", label: "Balance (whole sound, left/right)", min: -1, max: 1, step: 0.01,
+  get: () => engine.balance, set: (v) => engine.setBalance(v),
+  fmt: (v) => (Math.abs(v) < 0.005 ? "center" : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? "left" : "right"}`) }));
+syncs.push(slider(stereoBox, { id: "width", label: "Width (spread notes: low left, high right)", min: 0, max: 1, step: 0.01,
+  get: () => engine.width, set: (v) => engine.setWidth(v), fmt: (v) => (v < 0.005 ? "off" : `${Math.round(v * 100)}%`) }));
+for (const r of document.querySelectorAll('input[name="output"]')) r.addEventListener("change", () => {
+  if (!r.checked) return;
+  engine.setOutput(r.value);
+  stereoBox.hidden = r.value !== "stereo";
+  announce(r.value === "stereo" ? "Stereo. Left/right, balance and width controls are shown." : "Mono. Both ears hear the same sound.");
+});
+syncs.push(slider(stereoBox, { id: "pan", label: "Left / right (this tone)", min: -1, max: 1, step: 0.01, get: () => state.pan, set: (v) => { state.pan = v; },
   fmt: (v) => (Math.abs(v) < 0.005 ? "center" : `${Math.round(Math.abs(v) * 100)}% ${v < 0 ? "left" : "right"}`) }));
 // Volume sits next to the graph (static markup).
 {
@@ -352,7 +382,8 @@ window.addEventListener("blur", () => [...held.keys()].filter((k) => k !== "play
 // ---------- current note ----------
 const num = (id, lo, hi, dflt) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; };
 const period = () => engine.scale?.period ?? engine.tuning.size;
-const octOffset = () => Math.round(num("lt-oct", -2, 2, 0)) * period();
+// Octave shift 0 starts one period below middle C (C3 in 12-TET): low-to-mid notes are easier on the ear.
+const octOffset = () => (Math.round(num("lt-oct", -2, 2, 0)) - 1) * period();
 const curIndex = () => Math.round(parseFloat($("lt-n").value) || 0);
 /** The current note as a tuning step: scale note number n (or tuning step n with "All notes"), plus octave shift. */
 function currentStep() {
@@ -554,13 +585,30 @@ if (location.hash === "#selftest") {
       ok(engine.voice(VOICE).envelope.attack === 0.05, "envelope slider not applied");
       $("amp").value = "0.6"; $("amp").dispatchEvent(new Event("input"));
       ok(engine.voice(VOICE).amp === 0.6, "volume not applied");
+      // live timbre: hold Play, move a harmonic slider several times in one frame, the held note follows (batched)
+      $("stop").click(); await wait(50);
+      togglePlay(); await wait(80);
+      const ph = held.get("play")?.h; ok(ph, "Play did not hold a note");
+      const calls = []; const realSet = ph.set; ph.set = (p, ...r) => { calls.push(p); return realSet(p, ...r); };
+      const before = live.updates;
+      for (const v of ["0.1", "0.5", "0.9"]) { const s = $("h8"); s.value = v; s.dispatchEvent(new Event("input")); }
+      await wait(120);
+      ok(calls.some((p) => p.voice === VOICE), "held Play note's timbre was not updated live");
+      ok(live.updates - before === 1, `slider updates not batched per frame (${live.updates - before} pushes)`);
+      ok(engine.voice(VOICE).harmonics[8] === 0.9, "voice does not have the new 9th harmonic");
+      // stereo controls: hidden in mono, shown in stereo
+      ok(engine.output === "mono" && stereoBox.hidden, "page should start in mono with stereo controls hidden");
+      $("out-stereo").click(); ok(engine.output === "stereo" && !stereoBox.hidden, "stereo choice did not switch");
+      $("width").value = "0.5"; $("width").dispatchEvent(new Event("input")); ok(engine.width === 0.5, "width slider");
+      $("out-mono").click(); ok(engine.output === "mono" && stereoBox.hidden, "mono choice did not switch back");
+      togglePlay(); ok(!held.has("play"), "Play did not stop");
       // shortcuts: Space down/up on the page, arrows, H, Escape
       document.activeElement?.blur();
       key("keydown", " "); await wait(50);
       ok(held.has("space") && held.get("space").h, "Space did not start the current note");
       key("keyup", " "); ok(!held.has("space"), "Space release did not end the note");
       $("lt-n").value = "0"; key("keydown", "ArrowUp");
-      ok(curIndex() === 1 && currentStep() === engine.scale.degree(1), "ArrowUp did not move the current note");
+      ok(curIndex() === 1 && currentStep() === engine.scale.degree(1) - engine.scale.period, "ArrowUp did not move the current note");
       key("keydown", "ArrowDown"); ok(curIndex() === 0, "ArrowDown did not move back");
       key("keydown", "h"); await wait(50); ok(held.has("play"), "H did not start a held note");
       key("keydown", "Escape"); ok(!held.size && !run, "Escape did not stop everything");
@@ -586,7 +634,7 @@ if (location.hash === "#selftest") {
       ok(presetSel.value === "saron" && engine.voice(VOICE).partials.length === 4, "gamelan voice not loaded");
       await listenPlay("up");
       const steps = lastScore.events.map((e) => e.step);
-      ok(steps.join() === "0,1,2,4,5,7", `pelog-nem run steps ${steps}`);
+      ok(steps.join() === "-7,-6,-5,-3,-2,0", `pelog-nem run steps ${steps}`);
       ok(Math.abs(engine.tuning.freq(7) / engine.tuning.freq(0) - Math.pow(2, 1220 / 1200)) < 1e-9, "stretched period");
       ok(pads.length === 15 && /Hz/.test(pads[3].textContent), "pads not rebuilt for pelog");
       await wait(300); $("stop").click();

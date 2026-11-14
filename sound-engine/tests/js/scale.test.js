@@ -51,16 +51,16 @@ test("degree across octaves", () => {
 });
 test("fromValue", () => {
   const s = createScale("major");
-  assert.equal(s.fromValue(0), 0);
-  assert.equal(s.fromValue(1), 24);
-  assert.equal(s.fromValue(-5), 0);
-  assert.equal(s.fromValue(9), 24);
-  assert.equal(s.fromValue(0.5), 12);
-  assert.equal(s.fromValue(50, { min: 0, max: 100 }), 12);
+  assert.equal(s.fromValue(0), -24);
+  assert.equal(s.fromValue(1), 12);
+  assert.equal(s.fromValue(-5), -24);
+  assert.equal(s.fromValue(9), 12);
+  assert.equal(s.fromValue(0.5), -5); // default range C2..C5: the middle (F#3) is not in C major; ties go up, giving step -5 (G3)
+  assert.equal(s.fromValue(50, { min: 0, max: 100 }), -5);
   assert.equal(s.fromValue(0, { low: 60, high: 72 }), 60);
   assert.equal(s.fromValue(1, { low: 60, high: 72 }), 72);
   for (let i = 0; i <= 20; i++) assert.ok(Number.isInteger(s.fromValue(i / 20)));
-  assert.equal(s.fromValue(5, { min: 5, max: 5 }), 0);
+  assert.equal(s.fromValue(5, { min: 5, max: 5 }), -24);
 });
 test("raga up/down sets", () => {
   const y = createScale("yaman");

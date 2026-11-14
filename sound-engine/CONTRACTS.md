@@ -15,8 +15,10 @@ Internal contract for everyone building `sound-engine/`. Users should read `READ
 ```js
 const engine = createEngine({ polyphony: 32, masterGain: 0.8, tuning: "12tet", scale: null, a4: 440, context });
 await engine.start();                 // resumes the AudioContext; call from a user gesture
-const h = engine.play(event);         // → handle { id, voice, stop(time?), set({amp,freq,step,note,value,direction,pan}, ramp=0.05), ended: Promise }
+const h = engine.play(event);         // → handle { id, voice, stop(time?), set({amp,freq,step,note,value,direction,pan,harmonics,partials,envelope,voice}, ramp=0.05), ended: Promise }
 engine.voice(name, def);              // define/override a voice; def may use { extends: "bell" }
+engine.voice(name, def, { live: true }); // also apply the timbre to sounding notes of that voice (score notes only if the score doesn't define it)
+engine.setOutput("mono"|"stereo"); engine.setBalance(x, ramp=0.05); engine.setWidth(x, ramp=0.05); // + getters output/balance/width; createEngine({output, balance, width})
 engine.voice(name);                   // → resolved VoiceDef
 engine.voices();                      // → string[]
 await engine.setTuning(spec);         // name | scl text | URL | {scl,kbm} | {type:"edo",n} | Tuning
@@ -35,7 +37,7 @@ engine.connectBridge(url?, { onstatus, onmessage, onerror });  // live bridge cl
 ## Event normalization (`score.normalizeEvent`)
 - `type` defaults to `"note"`. `set` and `stop` events need an `id`.
 - Aliases: `amplitude` → `amp`, `duration` → `dur`. Both spellings are accepted everywhere.
-- **Pitch priority:** `freq` > `note` > `step` > `value`. A `note` is always 12-TET from `a4`. A `step` goes through `tuning.freq` and is *not* quantized by the scale. A `value` maps through `scale.fromValue` over `range ?? score.valueRange ?? [0, 1]`, using the scale's `up` or `down` set per `direction`.
+- **Pitch priority:** `freq` > `note` > `step` > `value`. A `note` is always 12-TET from `a4`. A `step` goes through `tuning.freq` and is *not* quantized by the scale. A `value` maps through `scale.fromValue` over `range ?? score.valueRange ?? [0, 1]` onto steps `[-2 periods, +1 period]` by default (C2..C5 in 12-TET; `fromValue({low, high})` overrides), using the scale's `up` or `down` set per `direction`.
 - **Direction:** explicit `direction` wins. Otherwise (`score.directionTracker`): compared with the previous value for the same `id`, else the previous value event overall (score: time order; live: the engine's event stream); lower → `"down"`, equal/higher/first → `"up"`. `normalizeScore` fills it in for note/set events with `value`.
 - `glide.to` is Hz, or a `{freq|note|step|value}` object resolved the same way.
 - Timing: in a score, `t` is seconds from score start. In `engine.play`, `t` is seconds from now, and `at` (play-only) is an absolute `AudioContext` time that wins over `t`. Negative values are errors.
@@ -60,4 +62,6 @@ JSON text frames over `ws://localhost:8765`. Each message is one event object, a
 - `playScore` resolves voices per note from the score's voices layered over the engine registry, so `engine.voice()` changes reach notes not yet scheduled (about 0.25 s ahead).
 - A note `id` reused while the old note is still sounding stops the old note.
 - `set`/`stop` events for an id that has already ended are silently ignored, because data streams can outlive notes.
+- Live timbre (`handle.set` with harmonics/partials/envelope/voice): harmonics crossfade to a new oscillator over 10–50 ms (phase-aligned when the pitch never moved) instead of `setPeriodicWave`, which clicks (smoke test: raw switch jump 0.29 vs steady 0.09; crossfade 0.060 vs 0.060). Partials match by index. The level gain ramps to the new normalization. A new sustain applies after the attack if no release is scheduled. Voice `amp`/`pan` are not re-applied. Ramps that start "now" set the current value explicitly; `cancelAndHoldAtTime(now)` after a finished ramp clicked in Chrome.
+- Output chain: notes → master gain → balance (StereoPanner) → limiter → soft clipper. `output: "mono"` forces every note pan and the balance to 0. `width` adds `width × clamp(log2(f/C4)/2, −1, 1)` to each note's pan (stereo only). Balance shifts everything; pan positions one note.
 - `presets/*.json` are generated from `PRESETS` in `voices.js`, which is the source of truth.

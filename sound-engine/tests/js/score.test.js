@@ -93,12 +93,12 @@ test("resolvePitch priority", () => {
 test("resolvePitch value", () => {
   const tuning = createTuning("12tet");
   const scale = createScale("major", tuning);
-  near(resolvePitch({ value: 0 }, { tuning, scale }), 261.6256);
-  near(resolvePitch({ value: 1 }, { tuning, scale }), 261.6256 * 4);
-  near(resolvePitch({ value: 5, range: [0, 10] }, { tuning, scale }), 261.6256 * 2);
-  near(resolvePitch({ value: 5 }, { tuning, scale, valueRange: [0, 10] }), 261.6256 * 2);
-  near(resolvePitch({ value: 5, range: [0, 5] }, { tuning, scale, valueRange: [0, 100] }), 261.6256 * 4);
-  near(resolvePitch({ value: 0.5 }, { tuning }), 261.6256 * 2); // chromatic default
+  near(resolvePitch({ value: 0 }, { tuning, scale }), 261.6256 / 4); // default output range C2..C5
+  near(resolvePitch({ value: 1 }, { tuning, scale }), 261.6256 * 2);
+  near(resolvePitch({ value: 5, range: [0, 10] }, { tuning, scale }), 261.6256 * 2 ** (-5 / 12)); // middle: F#3 snaps (ties up) to G3
+  near(resolvePitch({ value: 5 }, { tuning, scale, valueRange: [0, 10] }), 261.6256 * 2 ** (-5 / 12)); // middle: F#3 snaps (ties up) to G3
+  near(resolvePitch({ value: 5, range: [0, 5] }, { tuning, scale, valueRange: [0, 100] }), 261.6256 * 2);
+  near(resolvePitch({ value: 0.5 }, { tuning }), 261.6256 * 2 ** (-6 / 12)); // chromatic default: F#3, the middle of C2..C5
   // step is not quantized by the scale
   near(resolvePitch({ step: 1 }, { tuning, scale }), 261.6256 * Math.pow(2, 1 / 12));
   // unmapped kbm key
@@ -129,7 +129,7 @@ test("value direction: per id, else previous value event; explicit direction win
 
 test("raga phrase uses the down set when descending", () => {
   const tuning = createTuning("12tet"), scale = createScale("yaman", tuning);
-  const s = normalizeScore({ version: 1, valueRange: [0, 24], events: [{ t: 0, value: 12 }, { t: 1, value: 7 }, { t: 2, value: 0 }, { t: 3, value: 7 }] });
+  const s = normalizeScore({ version: 1, valueRange: [0, 36], events: [{ t: 0, value: 36 }, { t: 1, value: 31 }, { t: 2, value: 24 }, { t: 3, value: 31 }] });
   const steps = s.events.map((e) => tuning.stepOf(resolvePitch(e, { tuning, scale, valueRange: s.valueRange })));
   near(steps[1], 7);   // Pa: only in yaman's down set
   near(steps[3], 6);   // ascending skips Pa

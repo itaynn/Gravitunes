@@ -52,6 +52,14 @@
     <div id="env" class="sliders"></div>
   </fieldset>
 
+  <fieldset><legend>Sound: mono or stereo</legend>
+    <div class="row" role="radiogroup" aria-label="Sound">
+      <label><input type="radio" name="output" value="mono" id="out-mono" checked> Mono (both ears hear the same)</label>
+      <label><input type="radio" name="output" value="stereo" id="out-stereo"> Stereo (left and right can differ)</label>
+    </div>
+    <div id="stereo" class="sliders" hidden></div>
+  </fieldset>
+
   <fieldset><legend>Notes</legend>
     <div class="row">
       <div class="field"><label for="tuning">Tuning</label><select id="tuning"></select></div>
@@ -81,7 +89,7 @@
       <div class="row">
         <div class="field"><label for="lt-tempo">Notes per second</label><input type="number" id="lt-tempo" min="0.5" max="16" step="0.5" value="3"></div>
         <div class="field"><label for="lt-len">Note length (1 = until the next note)</label><input type="number" id="lt-len" min="0.1" max="4" step="0.1" value="0.9"></div>
-        <div class="field"><label for="lt-oct">Octave shift (-2 to 2)</label><input type="number" id="lt-oct" min="-2" max="2" step="1" value="0"></div>
+        <div class="field"><label for="lt-oct">Octave shift (-2 to 2; 0 starts at C3, one octave below middle C)</label><input type="number" id="lt-oct" min="-2" max="2" step="1" value="0"></div>
         <div class="field"><label for="lt-per">Octaves to play (1 to 3)</label><input type="number" id="lt-per" min="1" max="3" step="1" value="1"></div>
       </div></details>
     <details id="shortcuts"><summary>Keyboard shortcuts</summary>

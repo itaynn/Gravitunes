@@ -67,8 +67,8 @@ test("value -> pelog-nem -> Hz data path", () => {
     near(hz, expectHz(step), 1e-6);
     assert.ok(hz >= prev); prev = hz;
   }
-  assert.equal(sc.fromValue(0), 0); assert.equal(sc.fromValue(1), 14);
-  near(t.freq(14), C4 * Math.pow(2, 2 * per / 1200));
+  assert.equal(sc.fromValue(0), -14); assert.equal(sc.fromValue(1), 7);
+  near(t.freq(7), C4 * Math.pow(2, per / 1200));
 });
 
 test("gamelan voice presets are valid and match presets/*.json", () => {

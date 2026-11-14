@@ -69,7 +69,7 @@ export const BUILTIN_SCALES = Object.keys(DEFS);
  * @property {(x:number, opts?:{direction?:"up"|"down"})=>number} quantize
  *   nearest allowed integer step to float step x (ties go up). direction picks the up/down set.
  * @property {(v:number, opts?:{min?:number,max?:number,low?:number,high?:number,direction?:"up"|"down"})=>number} fromValue
- *   linear map v from [min,max] (default [0,1], clamped) to steps [low,high] (default [0, 2*period]),
+ *   linear map v from [min,max] (default [0,1], clamped) to steps [low,high] (default [-2*period, period]: C2..C5 in 12-TET, low-to-mid on purpose),
  *   then quantize. Returns an integer step.
  * @property {(n:number, opts?:{direction?:"up"|"down"})=>number} degree
  *   n-th scale note across periods: degree(0)=root+set[0], degree(len)=that + period, negatives ok.
@@ -108,7 +108,7 @@ function make(def, tuning) {
     return best;
   };
   s.fromValue = (v, o = {}) => {
-    const min = o.min ?? 0, max = o.max ?? 1, low = o.low ?? 0, high = o.high ?? 2 * period;
+    const min = o.min ?? 0, max = o.max ?? 1, low = o.low ?? -2 * period, high = o.high ?? period;
     let t = max === min ? 0 : (v - min) / (max - min);
     t = Math.min(1, Math.max(0, t));
     return s.quantize(low + t * (high - low), { direction: o.direction });

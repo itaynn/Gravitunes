@@ -35,7 +35,7 @@ python3 -m gravitunes_sound serve   # then open http://localhost:8000/player.htm
 pip install -e sound-engine/python            # add the live extra for the bridge: pip install -e "sound-engine/python[live]"
 python -m gravitunes_sound serve              # static files on :8000 and, with websockets, a live relay on ws://localhost:8765
 ```
-- http://localhost:8000/playground.html: a simple page for playing with sound, meant for anyone. Big Play / Stop at the top (Play holds the current note; Stop or Escape stops everything). Tone: harmonics sliders and bell-like extra tones with a live wave and overtone picture. Volume shape: a draggable attack/decay/sustain/release graph with a Volume slider, quick shapes (Pluck, Pad, Organ, Bell-like swell) and labelled sliders as the keyboard equivalent. Notes: tuning and scale pickers (the scale list only offers scales that fit the tuning; choosing slendro or pelog also switches to the Saron sound once). Listen: play the scale up or down, a chord, or hold the current note. Every sound uses the tone as currently set, including notes already scheduled in a run. Shortcuts (listed on the page, can be turned off): hold Space to play the current note, H to start/stop a held note, arrows to move the current note by one scale note, Escape to stop, letter keys on the keyboard pads. A closed "For developers" section at the bottom shows the tone as numbers to paste into `engine.voice(name, settings)`; score files and the live bridge are on `player.html`. Open `playground.html#selftest` to run a built-in check (logs `SELFTEST ok` or `SELFTEST fail: ...`). All URLs are relative, so it also works at `/sound-engine/playground.html` from a server rooted at the repo root.
+- http://localhost:8000/playground.html: a simple page for playing with sound, meant for anyone. Big Play / Stop at the top (Play holds the current note; Stop or Escape stops everything). Tone: harmonics sliders and bell-like extra tones with a live wave and overtone picture. Volume shape: a draggable attack/decay/sustain/release graph with a Volume slider, quick shapes (Pluck, Pad, Organ, Bell-like swell) and labelled sliders as the keyboard equivalent. Notes: tuning and scale pickers (the scale list only offers scales that fit the tuning; choosing slendro or pelog also switches to the Saron sound once). Listen: play the scale up or down, a chord, or hold the current note. Every sound uses the tone as currently set, and notes already sounding (held Play/Space notes, pads, runs, chords) follow tone changes live, at most once per animation frame. Sound: Mono (default, both ears the same) or Stereo, which shows Left/right (this tone), Balance (whole sound) and Width (spread notes by pitch). Shortcuts (listed on the page, can be turned off): hold Space to play the current note, H to start/stop a held note, arrows to move the current note by one scale note, Escape to stop, letter keys on the keyboard pads. A closed "For developers" section at the bottom shows the tone as numbers to paste into `engine.voice(name, settings)`; score files and the live bridge are on `player.html`. Open `playground.html#selftest` to run a built-in check (logs `SELFTEST ok` or `SELFTEST fail: ...`). All URLs are relative, so it also works at `/sound-engine/playground.html` from a server rooted at the repo root.
 - http://localhost:8000/player.html: load a score file and play it, connect to the live bridge. `player.html?score=URL` loads a score at startup.
 - http://localhost:8000/tests/browser/smoke.html: in-browser smoke test of the real engine.
 - `examples/`: `minimal-js.html`, `play-score.html` (plays `storms.score.json`, can download a WAV), `score_from_python.py`, `live_from_python.py`, `make_storms_score.py`.
@@ -54,8 +54,13 @@ const engine = createEngine({ polyphony: 32, masterGain: 0.8, tuning: "12tet", s
 await engine.start();                       // resume the AudioContext (user gesture)
 const h = engine.play(event);               // handle: { id, voice, stop(time?), set(params, ramp=0.05), ended }
 h.set({ amp: 0.2, step: 7 }, 0.3);          // change a sounding note
+h.set({ harmonics: [1, 0, 0.5] });          // change its timbre while it sounds (also partials, envelope, voice: "bell" or a def)
 h.stop();
 engine.voice("snow", { extends: "bell", harmonics: [1, 0.3] });  // define a voice; engine.voice("snow") reads it
+engine.voice("snow", def, { live: true });  // ...and apply the new timbre to every "snow" note sounding now
+engine.setOutput("mono");                   // "mono": both ears identical (pan/balance/width ignored) | "stereo" (default)
+engine.setBalance(-0.3);                    // shift the whole output left/right (-1..1); pan positions one note
+engine.setWidth(0.5);                       // stereo spread by pitch, 0..1: low notes left, high notes right
 engine.voices();                            // names of all voices
 await engine.setTuning("just5");            // name | .scl text | URL | {scl,kbm} | {type:"edo",n:19}
 engine.setScale("yaman");                   // name | {up,down,period,vadi,samvadi} | null
@@ -72,6 +77,10 @@ Other exports: `PRESETS`, `parseScl`, `parseKbm`, `createTuning`, `createScale`,
 Built-in voices: `sine` (default), `organ`, `bell`, `hollow`, `bright`, `pad`, `pluck`. `presets/*.json` are generated copies.
 
 In `engine.play`, `t` is seconds from now and `at` is an absolute `AudioContext` time. A note with no `dur` holds until `handle.stop()`. A reused `id` stops the earlier note. `set`/`stop` for an ended id are ignored silently. `h.set()` works until the note's release actually begins (a `dur` release still in the future does not block it); an explicit `h.stop(time)` replaces a release that has not begun yet, whether earlier or later. `engine.stopAll()` also resolves the `ended` promise of running scores.
+
+Live timbre: `h.set({ harmonics, partials, envelope, voice })` changes a sounding note's sound. Harmonics crossfade to a new oscillator over 10–50 ms (started in phase when the pitch hasn't moved), because switching the wave instantly clicks; partials are matched by position (amps and ratios ramp, added ones fade in, removed ones fade out); loudness stays matched; a new `sustain` reaches a held note. `amp`/`pan` of a voice are not changed on sounding notes (set them directly). Bad input throws the same helpful errors as `engine.voice`.
+
+Output: `createEngine({ output: "stereo" | "mono", balance: 0, width: 0 })`; `engine.output`, `engine.balance`, `engine.width` read them back. Balance shifts everything; pan positions one note. In mono, every note is centered and balance is ignored, at the same loudness as a centered stereo note.
 
 `engine.connectBridge(url, { onstatus, onmessage, onerror })`: `onerror(text, msg)` is called (and `console.error` logged) for every message that could not be played, including later failures such as a score whose tuning fails to load. A bad item in an array does not stop the rest.
 
@@ -133,7 +142,7 @@ Tuning objects need one of `type` (`12tet`, `edo` with `n`, `just5`, `shruti22`)
 Pitch priority: `freq` > `note` > `step` > `value`. A `note` is always 12-TET from `a4`.
 
 ### value and range
-`value` is a data number. It is mapped linearly from `range` (event) or else `valueRange` (score) or else `[0, 1]`, clamped, onto two periods of the scale (two octaves from step 0, middle C), then snapped to the nearest allowed scale step. With no scale, every step is allowed.
+`value` is a data number. It is mapped linearly from `range` (event) or else `valueRange` (score) or else `[0, 1]`, clamped, onto three periods of the scale, from two periods below middle C to one above (C2 to C5 in 12-TET, so mid-range data lands around C3 to C4; high notes tire the ear), then snapped to the nearest allowed scale step. With no scale, every step is allowed.
 
 Direction (for ragas whose up and down notes differ): a note or `set` with `value` uses the scale's `down` set if its value is lower than the previous one, else `up`. "Previous" is the previous value for the same `id` (for an id's first value, and for events without an id: the previous value event in the score, in time order). `"direction": "up"|"down"` on the event overrides this. Live events (`engine.play`/`send`, the bridge) are tracked the same way across the engine's stream; `handle.set({value})` compares with that note's last value.
 
