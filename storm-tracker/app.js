@@ -605,13 +605,19 @@
     const distance = matchedCore?.distance
       ?? Math.hypot(horizontalDistance(predictedX, target.x), target.y - predictedY);
     const motionGate = settings.maximumMotion * Math.sqrt(elapsedFrames);
+    const associatedCore = matchedCore && distance <= motionGate
+      ? corePoint
+      : { x: wrapX(predictedX), y: predictedY, strength: 0 };
     const overlap = overlapCount / Math.max(1, Math.min(source.area, target.area));
     const areaSimilarity = Math.exp(-Math.abs(Math.log(target.area / source.area)));
     const coreSimilarity = Math.exp(-distance / motionGate);
     const colorSimilarity = Math.exp(-rgbDistance(source.meanColor, target.meanColor) / (settings.colorTolerance * 2));
     const confidence = overlap * 0.3 + coreSimilarity * 0.42 + areaSimilarity * 0.14 + colorSimilarity * 0.14;
     if (confidence < settings.matchConfidence || (overlap < settings.overlapThreshold && distance > motionGate)) return null;
-    return { source, target, overlap, distance, confidence, predictedX, predictedY, corePoint };
+    return {
+      source, target, overlap, distance, confidence, predictedX, predictedY,
+      corePoint: associatedCore,
+    };
   }
 
   function createStormId(parentId = null, frameIndex = currentFrameIndex) {
@@ -774,15 +780,24 @@
           for (const anchor of source.lineageAnchors) {
             if (!target.lineageAnchors.some((item) => item.id === anchor.id)) {
               const dt = source.missed + 1;
-              const predictedX = anchor.x + anchor.vx * dt;
+              const predictedX = wrapX(anchor.x + anchor.vx * dt);
               const predictedY = anchor.y + anchor.vy * dt;
               const matchedCore = closestCorePoint(target, predictedX, predictedY, assignedCorePoints);
-              const canFollowCore = matchedCore && matchedCore.distance <= settings.maximumMotion * 2;
+              const motionGate = settings.maximumMotion * Math.sqrt(dt);
+              const canFollowCore = matchedCore && matchedCore.distance <= motionGate;
               if (canFollowCore) assignedCorePoints.add(matchedCore.point);
+              const anchorX = canFollowCore ? matchedCore.point.x : predictedX;
+              const anchorY = canFollowCore ? matchedCore.point.y : predictedY;
+              const anchorYIndex = Math.round(anchorY);
+              const anchorXIndex = Math.round(anchorX) % ANALYSIS_WIDTH;
+              if (!canFollowCore && (anchorYIndex < 0 || anchorYIndex >= ANALYSIS_HEIGHT
+                || labels[anchorYIndex * ANALYSIS_WIDTH + anchorXIndex] !== target.label)) {
+                continue;
+              }
               target.lineageAnchors.push({
                 ...anchor,
-                x: canFollowCore ? matchedCore.point.x : predictedX,
-                y: canFollowCore ? matchedCore.point.y : predictedY,
+                x: anchorX,
+                y: anchorY,
                 vx: canFollowCore ? signedHorizontalDelta(anchor.x, matchedCore.point.x) / dt : anchor.vx,
                 vy: canFollowCore ? (matchedCore.point.y - anchor.y) / dt : anchor.vy,
               });

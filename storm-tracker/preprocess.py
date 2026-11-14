@@ -29,12 +29,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--alpha-threshold", type=int, default=16)
     parser.add_argument("--gap-radius", type=int, default=1, help="binary mask closing radius in analysis pixels")
     parser.add_argument("--core-saturation", type=int, default=100)
-    parser.add_argument("--core-darkness", type=int, default=75, help="minimum 0-255 dark-core strength")
+    parser.add_argument("--core-darkness", type=int, default=140, help="minimum 0-255 dark-core strength")
     parser.add_argument("--core-merge-distance", type=float, default=36)
     parser.add_argument("--color-tolerance", type=float, default=100)
     parser.add_argument("--maximum-motion", type=float, default=56, help="core-motion association gate in analysis pixels")
-    parser.add_argument("--overlap-threshold", type=float, default=0.08)
+    parser.add_argument("--overlap-threshold", type=float, default=0.1)
     parser.add_argument("--merge-overlap", type=float, default=0.2)
+    parser.add_argument("--flow-mask-weight", type=float, default=0.46)
+    parser.add_argument("--core-motion-weight", type=float, default=0.26)
     parser.add_argument("--memory-frames", type=int, default=2)
     parser.add_argument("--contour-epsilon", type=float, default=1.25)
     parser.add_argument("--segmenter", choices=("watershed", "connected"), default="watershed")
@@ -116,10 +118,18 @@ def find_components(
     height, width = mask.shape
     _, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     core_mask, core_points = core_features(rgb, mask, core_saturation, core_darkness)
+    labels_with_cores = set()
+    for point in core_points:
+        px = int(np.clip(round(point["x"]), 0, width - 1))
+        py = int(np.clip(round(point["y"]), 0, height - 1))
+        label = int(labels[py, px])
+        if label:
+            labels_with_cores.add(label)
     features: list[dict[str, Any]] = []
     for label in range(1, len(stats)):
         area = int(stats[label, cv2.CC_STAT_AREA])
-        if area < 4:
+        non_core_floor = max(20, min_area // 2)
+        if area < non_core_floor and label not in labels_with_cores:
             continue
         x, y, w, h = (int(stats[label, i]) for i in range(4))
         roi = labels[y:y + h, x:x + w] == label
@@ -305,8 +315,14 @@ def point_flow(flow: np.ndarray, x: float, y: float) -> tuple[float, float]:
     return float(np.clip(dx, -80, 80)), float(np.clip(dy, -80, 80))
 
 
-def warp_mask(mask: np.ndarray, flow: np.ndarray) -> np.ndarray:
-    ys, xs = np.where(mask > 0)
+def warp_mask(
+    mask: np.ndarray,
+    flow: np.ndarray,
+    bbox: tuple[int, int, int, int],
+) -> tuple[np.ndarray, tuple[int, int, int, int] | None]:
+    x0, y0, x1, y1 = bbox
+    local_y, local_x = np.where(mask[y0:y1 + 1, x0:x1 + 1] > 0)
+    ys, xs = local_y + y0, local_x + x0
     warped = np.zeros_like(mask)
     if len(xs):
         dx = flow[ys, xs, 0]
@@ -315,7 +331,14 @@ def warp_mask(mask: np.ndarray, flow: np.ndarray) -> np.ndarray:
         ny = np.rint(ys + np.clip(dy, -80, 80)).astype(np.int32)
         valid = (nx >= 0) & (nx < mask.shape[1]) & (ny >= 0) & (ny < mask.shape[0])
         warped[ny[valid], nx[valid]] = 1
-    return cv2.dilate(warped, np.ones((3, 3), np.uint8), iterations=1)
+        x_min, x_max = int(nx[valid].min()), int(nx[valid].max())
+        y_min, y_max = int(ny[valid].min()), int(ny[valid].max())
+        bounds = (
+            max(0, x_min - 1), max(0, y_min - 1),
+            min(mask.shape[1] - 1, x_max + 1), min(mask.shape[0] - 1, y_max + 1),
+        )
+        return cv2.dilate(warped, np.ones((3, 3), np.uint8), iterations=1), bounds
+    return warped, None
 
 
 def nearest_core(component: dict[str, Any], x: float, y: float) -> tuple[dict[str, Any], float]:
@@ -330,10 +353,12 @@ def association_candidates(
     flow: np.ndarray,
     max_motion: float,
     minimum_overlap: float,
+    flow_mask_weight: float,
+    core_motion_weight: float,
 ) -> list[dict[str, Any]]:
     candidates = []
     for source_index, source in enumerate(sources):
-        source["pred_mask"] = warp_mask(source["mask"], flow)
+        source["pred_mask"], source["pred_bbox"] = warp_mask(source["mask"], flow, source["bbox"])
         source["pred_cores"] = []
         for anchor in source["anchors"]:
             dx, dy = point_flow(flow, anchor["x"], anchor["y"])
@@ -353,7 +378,18 @@ def association_candidates(
         pred_points = source["pred_cores"]
         mask_area = int(source["pred_mask"].sum())
         for target_index, target in enumerate(targets):
-            intersection = int(np.count_nonzero(source["pred_mask"] & target["mask"]))
+            pred_bbox = source["pred_bbox"]
+            target_bbox = target["bbox"]
+            if pred_bbox is None:
+                intersection = 0
+            else:
+                x0 = max(pred_bbox[0], target_bbox[0])
+                y0 = max(pred_bbox[1], target_bbox[1])
+                x1 = min(pred_bbox[2] + 1, target_bbox[2] + 1)
+                y1 = min(pred_bbox[3] + 1, target_bbox[3] + 1)
+                intersection = 0 if x0 >= x1 or y0 >= y1 else int(np.count_nonzero(
+                    source["pred_mask"][y0:y1, x0:x1] & target["mask"][y0:y1, x0:x1],
+                ))
             overlap = intersection / max(1, min(mask_area, target["area"]))
             iou = intersection / max(1, mask_area + target["area"] - intersection)
             core_pairs = [
@@ -367,7 +403,14 @@ def association_candidates(
             area_similarity = math.exp(-abs(math.log(max(1, target["area"]) / max(1, mask_area))))
             motion_similarity = math.exp(-distance / max(1, gate))
             color_similarity = math.exp(-color_distance(source["mean_color"], target["mean_color"]) / 200)
-            confidence = 0.46 * iou + 0.2 * overlap + 0.26 * motion_similarity + 0.05 * area_similarity + 0.03 * color_similarity
+            remaining_weight = max(0, 0.72 - flow_mask_weight - core_motion_weight)
+            confidence = (
+                flow_mask_weight * iou
+                + 0.2 * overlap
+                + core_motion_weight * motion_similarity
+                + remaining_weight * area_similarity
+                + 0.03 * color_similarity
+            )
             candidates.append({
                 "source": source_index,
                 "target": target_index,
@@ -448,17 +491,36 @@ def assign_tracks(
             if not primary or item["source"] != primary["source"]
         ]
         source_indices = list(dict.fromkeys(source_indices))
+        preferred = split_choices.get(target_index)
+        if preferred and preferred[0] not in source_indices:
+            source_indices.append(preferred[0])
         lineage_ids = []
         anchor_pool = []
         for source_index in source_indices:
             source = sources[source_index]
             lineage_ids.extend(source["lineage_ids"])
-            anchor_pool.extend(source["pred_cores"])
+            anchor_pool.extend({**anchor, "missed": source["missed"]} for anchor in source["pred_cores"])
         lineage_ids = list(dict.fromkeys(lineage_ids))
+        unique_anchors: dict[int, dict[str, Any]] = {}
+        for anchor in anchor_pool:
+            current = unique_anchors.get(anchor["id"])
+            if current is None:
+                unique_anchors[anchor["id"]] = anchor
+                continue
+            new_distance = min(
+                math.hypot(anchor["x"] - point["x"], anchor["y"] - point["y"])
+                for point in target["core_points"]
+            )
+            old_distance = min(
+                math.hypot(current["x"] - point["x"], current["y"] - point["y"])
+                for point in target["core_points"]
+            )
+            if new_distance < old_distance:
+                unique_anchors[anchor["id"]] = anchor
+        anchor_pool = list(unique_anchors.values())
         if not source_indices:
             lineage_ids = []
 
-        preferred = split_choices.get(target_index)
         track_id = preferred[1]["id"] if preferred else (sources[primary["source"]]["id"] if primary else None)
         if track_id in used_ids:
             track_id = next((value for value in lineage_ids if value not in used_ids), None)
@@ -483,15 +545,20 @@ def assign_tracks(
             if available_points:
                 point = min(available_points, key=lambda item: math.hypot(item["x"] - anchor["x"], item["y"] - anchor["y"]))
                 distance = math.hypot(point["x"] - anchor["x"], point["y"] - anchor["y"])
-                if distance <= 72:
+                motion_gate = max_motion * (1.45 if anchor["missed"] else 1.0)
+                if distance <= motion_gate:
                     available_points.remove(point)
                     vx, vy = point["x"] - anchor["old_x"], point["y"] - anchor["old_y"]
                     anchors.append({"id": anchor["id"], "x": point["x"], "y": point["y"], "vx": vx, "vy": vy})
                     continue
-            anchors.append({
-                "id": anchor["id"], "x": anchor["x"], "y": anchor["y"],
-                "vx": anchor.get("vx", 0), "vy": anchor.get("vy", 0),
-            })
+            anchor_x, anchor_y = round(anchor["x"]), round(anchor["y"])
+            if (0 <= anchor_x < target["mask"].shape[1]
+                and 0 <= anchor_y < target["mask"].shape[0]
+                and target["mask"][anchor_y, anchor_x]):
+                anchors.append({
+                    "id": anchor["id"], "x": anchor["x"], "y": anchor["y"],
+                    "vx": anchor.get("vx", 0), "vy": anchor.get("vy", 0),
+                })
         if not any(anchor["id"] == track_id for anchor in anchors):
             core = target["core_points"][0]
             anchors.append({"id": track_id, "x": core["x"], "y": core["y"], "vx": 0, "vy": 0})
@@ -508,7 +575,8 @@ def assign_tracks(
         for value in lineage_ids:
             if value in registry:
                 registry[value]["lastFrame"] = frame_index
-        for source_index in source_indices:
+        for candidate in merge_candidates:
+            source_index = candidate["source"]
             if primary is None or source_index != primary["source"]:
                 registry[sources[source_index]["id"]]["mergedInto"] = track_id
     return next_id, merges_for_frame
@@ -529,6 +597,44 @@ def serialize_component(component: dict[str, Any], epsilon: float) -> dict[str, 
         "meanColor": [round(float(value), 1) for value in component["mean_color"]],
         "polygons": polygon_contours(component["mask"], epsilon),
     }
+
+
+def align_reference_identity(
+    result: dict[str, Any],
+    desired_id: int = 38,
+    frame_index: int = 20,
+    position: tuple[int, int] = (416, 334),
+) -> int | None:
+    components = result["frames"][frame_index]["components"]
+    if not components:
+        return None
+    x, y = position
+    focus = min(components, key=lambda item: math.hypot(item["coreX"] - x, item["coreY"] - y))
+    source_id = focus["id"]
+    if source_id == desired_id:
+        return source_id
+    occupied = any(track["id"] == desired_id for track in result["tracks"])
+    mapping = {source_id: desired_id}
+    if occupied:
+        mapping[desired_id] = source_id
+
+    def mapped(value: int | None) -> int | None:
+        return mapping.get(value, value)
+
+    for track in result["tracks"]:
+        track["id"] = mapped(track["id"])
+        track["parentId"] = mapped(track.get("parentId"))
+        track["mergedInto"] = mapped(track.get("mergedInto"))
+    result["tracks"].sort(key=lambda track: track["id"])
+    for frame in result["frames"]:
+        frame["merges"] = [mapped(value) for value in frame["merges"]]
+        for component in [*frame["components"], *frame["missingSources"]]:
+            component["id"] = mapped(component["id"])
+            component["parentId"] = mapped(component.get("parentId"))
+            component["lineageIds"] = [mapped(value) for value in component["lineageIds"]]
+            for anchor in component["lineageAnchors"]:
+                anchor["id"] = mapped(anchor["id"])
+    return source_id
 
 
 def build(args: argparse.Namespace) -> dict[str, Any]:
@@ -581,7 +687,10 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             for component in components:
                 if not component["core_points"]:
                     component["core_points"] = [{"x": component["bbox"][0], "y": component["bbox"][1], "strength": 0, "hue": None}]
-            candidates = association_candidates(sources, components, flow, args.maximum_motion, args.overlap_threshold)
+            candidates = association_candidates(
+                sources, components, flow, args.maximum_motion, args.overlap_threshold,
+                args.flow_mask_weight, args.core_motion_weight,
+            )
             next_id, frame_merges = assign_tracks(
                 sources, components, candidates, next_id, registry, frame_index,
                 args.merge_overlap, args.maximum_motion,
@@ -608,6 +717,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
                     continue
                 ghost = dict(source)
                 ghost["mask"] = source["pred_mask"]
+                if source["pred_bbox"] is not None:
+                    ghost["bbox"] = source["pred_bbox"]
                 ghost["area"] = int(ghost["mask"].sum())
                 ghost["missed"] = missed
                 ghost["anchors"] = [
@@ -644,7 +755,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         total_merges += len(frame_merges)
         previous_gray = gray
         previous_components = components
-        print(f"[{frame_index + 1:02d}/{len(TIMES)}] {time} UTC: {len(components)} tracked polygons", flush=True)
+        if not getattr(args, "quiet", False):
+            print(f"[{frame_index + 1:02d}/{len(TIMES)}] {time} UTC: {len(components)} tracked polygons", flush=True)
 
     return {
         "version": 1,
@@ -662,6 +774,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             "maximumMotion": args.maximum_motion,
             "overlapThreshold": args.overlap_threshold,
             "mergeOverlap": args.merge_overlap,
+            "flowMaskWeight": args.flow_mask_weight,
+            "coreMotionWeight": args.core_motion_weight,
             "memoryFrames": args.memory_frames,
             "segmenter": args.segmenter,
             "tracker": args.tracker,
@@ -683,11 +797,13 @@ def main() -> None:
         raise SystemExit("--width must be at least 100 and --minimum-area must be positive")
     tracks = build(args)
     tracks.pop("_continuity", None)
+    generated_focus_id = align_reference_identity(tracks)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(tracks, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     print(
         f"Wrote {args.output} · {tracks['summary']['trackCount']} identities, "
-        f"{tracks['summary']['componentCount']} frame polygons, {tracks['summary']['mergeEvents']} merge events."
+        f"{tracks['summary']['componentCount']} frame polygons, {tracks['summary']['mergeEvents']} merge events. "
+        f"Storm 38 reference ID mapped from {generated_focus_id}."
     )
 
 
