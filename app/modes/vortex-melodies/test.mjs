@@ -69,3 +69,21 @@ const div = parseLayer(dl, new Int8Array(readFileSync(join(dataDir, dl.file))));
 const bed = data.frames.map((_, t) => convergence(div, t));
 assert.ok(bed.every((c) => c >= -1 && c <= 1));
 console.log(`vortex-melodies tests ok (${data.tracks.length} tracks, bed ${Math.min(...bed).toFixed(2)}..${Math.max(...bed).toFixed(2)})`);
+
+// Scale menu wiring: every motif note, in every menu scale and voice octave, is a scale tone within C2..C5.
+{
+  const { motifFreq: mf } = await import('./vortex.js');
+  const { PLEASANT, scaleFreqs, noteHz } = await import('../../core/scales.js');
+  for (const id of PLEASANT) {
+    const ts = scaleFreqs(id, noteHz(-24), noteHz(12));
+    for (const m of MOTIFS) for (const dir of ['ccw', 'cw']) for (const oct of [-1, 0, 1]) {
+      const fs = orient(m.steps, dir).map((st) => mf(ts, noteHz(m.root), st, oct));
+      for (const f of fs) assert.ok(ts.includes(f) && f >= noteHz(-24) * 0.999 && f <= noteHz(12) * 1.001, `${id} ${f}`);
+      if (oct === 0) assert.ok(new Set(fs).size >= Math.min(3, new Set(m.steps).size), `${id} ${m.name} stays melodic`);
+    }
+  }
+  const src = readFileSync(join(here, 'main.js'), 'utf8');
+  assert.match(src, /scaleControl\(panel/);
+  assert.doesNotMatch(src, /world-orchestra\/|const getJson/);
+}
+console.log('vortex-melodies scale wiring ok');

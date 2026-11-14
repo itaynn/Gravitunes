@@ -237,13 +237,28 @@ def grid_files(data, ds, every):
     return out
 
 
+def own_files(folder, prefix):
+    if not folder.is_dir():
+        return None
+    out = {}
+    for p in sorted(folder.rglob('*')):
+        if p.is_file():
+            k = prefix.rstrip('/') + '/' + p.relative_to(folder).as_posix()
+            out[k] = ({'text': p.read_text(), 'type': mimetypes.guess_type(str(p))[0] or 'text/plain'}
+                      if p.suffix in ('.json', '.txt', '.csv') else {'b64': base64.b64encode(p.read_bytes()).decode()})
+    return out
+
+
 def build_host_mode(m, data, every, link_map, all_modes):
     mid = m['id']
     datasets = m.get('datasets')
     ids = [str(d) for d in datasets] if isinstance(datasets, list) else ['5152']
     files = {}
     for ds in ids:
-        g = grid_files(data, ds, every)
+        own = (m.get('datasetDirs') or {}).get(ds)
+        # A mode that ships its own copy of a dataset (mode.json datasetDirs) is bundled whole and not
+        # subsampled: its extra layers (e.g. flow) are frame-aligned with the grid. Keys match host.js URLs.
+        g = own_files(MODES / mid / own, f'/modes/{mid}/{own}') if own else grid_files(data, ds, every)
         if g is None:
             print(f'  ! {mid}: no grid for dataset {ds} in {data}', file=sys.stderr)
             return None

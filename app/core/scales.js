@@ -61,3 +61,10 @@ export function quantize(value, [lo, hi], scale, lowHz = 98, highHz = 392) {
   const index = Math.round(f * (fs.length - 1));
   return { freq: fs[index], index, count: fs.length };
 }
+
+// Nearest of `tones` (ascending Hz, e.g. from scaleFreqs) to freq: keeps octave-shifted notes in scale and range.
+export function snapToScale(freq, tones) {
+  let best = tones[0];
+  for (const f of tones) if (Math.abs(Math.log(f / freq)) < Math.abs(Math.log(best / freq))) best = f;
+  return best;
+}

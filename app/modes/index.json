@@ -1,6 +1,18 @@
 {
   "modes": [
     {
+      "id": "flow-tracers",
+      "name": "Flow tracers",
+      "author": "moran",
+      "description": "About 30 evenly scattered tracers drift with the apparent motion of the rain (optical flow) and sing as they travel: more rain under a tracer plays a higher, louder note, faster motion sounds brighter, east/west pans left/right, and the voice changes with the world-orchestra region it passes. Hover or use the arrow keys to hear the local motion described, e.g. moving north-east, 30 km/h.",
+      "datasets": [
+        "4285"
+      ],
+      "datasetDirs": {
+        "4285": "data/4285/"
+      }
+    },
+    {
       "id": "layered-maps",
       "name": "Layered maps",
       "author": "moran",
@@ -12,18 +24,6 @@
       ],
       "standalone": {
         "every": 6
-      }
-    },
-    {
-      "id": "flow-tracers",
-      "name": "Flow tracers",
-      "author": "moran",
-      "description": "About 30 evenly scattered tracers drift with the apparent motion of the rain (optical flow) and sing as they travel: more rain under a tracer plays a higher, louder note, faster motion sounds brighter, east/west pans left/right, and the voice changes with the world-orchestra region it passes. Hover or use the arrow keys to hear the local motion described, e.g. moving north-east, 30 km/h.",
-      "datasets": [
-        "4285"
-      ],
-      "datasetDirs": {
-        "4285": "data/4285/"
       }
     },
     {

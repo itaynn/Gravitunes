@@ -2,26 +2,23 @@
 // analysis/scripts/flow-tracers/build.py) and sing as they go. Pitch <- value under the tracer (scale-quantized,
 // low register), loudness <- value, pan <- longitude, brightness <- tracer speed, timbre <- world-orchestra region.
 import { loadFlow, flowAt, compass } from '../../core/flow.js';
-import { SCALES, quantize, noteHz, noteName } from '../../core/scales.js';
+import { quantize, noteHz, noteName, scaleFreqs, snapToScale } from '../../core/scales.js';
+import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch } from '../../core/voices.js';
-// Region -> voice lookup reused as-is from world-orchestra (it is not in core/ yet).
-import { voiceAt } from '../world-orchestra/orchestra.js';
+import { voiceAt, formatLatLon } from '../../core/geo.js';
+import { loadEarth, valueHelpers } from '../../core/data.js';
+import { soundHint } from '../../core/ui.js';
 import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture } from './tracers.js';
-
-const getJson = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Could not load ${url}`);
-  return r.json();
-};
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
-  const dir = new URL(`data/${dataset.id}/`, import.meta.url);
+  // The mode's own copy of the dataset (mode.json datasetDirs) also holds the flow layers.
+  const dir = new URL(dataset.dir, location.href);
   (async () => {
     const [flowData, mj, ij] = await Promise.all([
       loadFlow(dir, null).catch(() => null),
-      getJson('/data/earth/musical-centers.json'), getJson('/data/earth/instruments.json'),
+      loadEarth('musical-centers'), loadEarth('instruments'),
     ]);
     if (!alive) return;
     if (!flowData) throw new Error(`no flow data for dataset ${dataset.id} (only 4285 is prepared)`);
@@ -31,8 +28,7 @@ export default function start(ctx) {
   function run({ header, layers }, centers, instruments) {
     const flow = Object.entries(layers).find(([k]) => k.startsWith('flow_'))[1];
     const dtH = header.dt_hours || dataset.stepHours || 0.5;
-    const norm = dataset.norm || ((v) => v);
-    const fmtV = (v) => dataset.format(v);
+    const { norm, fmtV } = valueHelpers(dataset);
     const instIds = Object.keys(instruments);
     const instLabel = (id) => instruments[id]?.label || id;
 
@@ -62,14 +58,11 @@ export default function start(ctx) {
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
       return { voice: r.voice, name: instLabel(r.primary.instrument), region: r.primary.region || r.primary.label };
     }
-    function noteFor(value) {
-      const f = quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq;
-      return Math.max(noteHz(-24), Math.min(noteHz(12), f));
-    }
+    const noteFor = (value) => quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180 }) {
       const { voice } = voiceFor(tr);
-      let freq = noteFor(tr.value) * 2 ** (voice.octave || 0);
-      freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
+      // The voice's octave shift, snapped back into the chosen scale within C2..C5.
+      const freq = snapToScale(noteFor(tr.value) * 2 ** (voice.octave || 0), scaleFreqs(s.scale, noteHz(-24), noteHz(12)));
       const sh = shapeForPitch(voice, freq);
       sound.play({ freq, amp, pan, dur, t, harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope,
         noise: sh.noise, lowpass: 400 + 1600 * speedBrightness(tr.speed || 0) });
@@ -88,7 +81,7 @@ export default function start(ctx) {
     panel.select('Timbre', [['region', 'World-orchestra region it passes'], ['single', 'Single voice'], ['speed', 'By speed']],
       (v) => { s.timbre = v; }, { value: s.timbre });
     panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single });
-    panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; }, { value: s.scale });
+    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
     const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: noteName },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
     const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: noteName,
@@ -144,7 +137,6 @@ export default function start(ctx) {
 
     // ---- hover / keys: local flow as a short gesture
     let lastHover = 0;
-    const fmtPos = (lat, lon) => `${Math.abs(lat).toFixed(0)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(0)}°${lon >= 0 ? 'E' : 'W'}`;
     function probe({ lat, lon }, force = false) {
       const now = performance.now();
       if (!force && now - lastHover < 200) return;
@@ -155,7 +147,7 @@ export default function start(ctx) {
       const near = tracers.find((tr) => Math.abs(tr.lat - lat) < 3 && Math.abs(((tr.lon - lon + 540) % 360) - 180) < 3);
       const tracerTxt = near ? ` Tracer ${near.id + 1} is here.` : '';
       if (!f || v == null || v < s.minValue) {
-        describe(`${fmtPos(lat, lon)}: ${v != null && v >= s.minValue ? fmtV(v) : 'dry'}, no detectable motion.${tracerTxt}`);
+        describe(`${formatLatLon(lat, lon)}: ${v != null && v >= s.minValue ? fmtV(v) : 'dry'}, no detectable motion.${tracerTxt}`);
         return;
       }
       const speed = Math.hypot(f.u, f.v);
@@ -166,7 +158,7 @@ export default function start(ctx) {
         sing(probeTr, { amp: 0.3, dur: 0.6 / g.rate, t: k / g.rate, pan: g.pan0 + (g.pan1 - g.pan0) * x });
       }
       const vn = voiceFor(probeTr);
-      describe(`${fmtPos(lat, lon)}: moving ${compass(f.u, f.v)}, ${Math.round(speed)} km/h, ${fmtV(v)}, ${vn.name}-inspired.${tracerTxt}`);
+      describe(`${formatLatLon(lat, lon)}: moving ${compass(f.u, f.v)}, ${Math.round(speed)} km/h, ${fmtV(v)}, ${vn.name}-inspired.${tracerTxt}`);
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
@@ -205,7 +197,7 @@ export default function start(ctx) {
     });
 
     rescatter();
-    if (!sound.started) panel.text('Press "Start sound" to hear the tracers. Without sound, motion is still announced.');
+    soundHint(panel, sound, 'press Play tracers. Without sound, motion is still announced.');
     describe(`Flow tracers ready: ${s.count} tracers on precipitation. Press Play tracers, or explore the map with the arrow keys to hear the local motion.`);
     return () => { offFrame(); offHover(); offClick(); offState(); clearInterval(sumTimer); removeOverlay(); };
   }

@@ -208,7 +208,7 @@ export async function loadDataset(id, overrides = {}) {
 
   let pcache = {};
   return {
-    id: def.id, title: def.title, units: def.units, range: def.range, source: def.source,
+    id: def.id, dir: def.dir, title: def.title, units: def.units, range: def.range, source: def.source,
     frames: images, count, colorbarUrl, usingGrid: !!grid, stepHours: grid ? (count > 1 ? hourOf(1) - hourOf(0) : stepH) || stepH : (images.length > 1 ? images[1].hour - images[0].hour : stepH) || stepH,
     timeOf, load, valueAt, image: () => cache.get('cur')?.im,
     // transform: 'linear' | 'log10'. norm(v) -> 0..1 over range (log space for log datasets); denorm inverts.

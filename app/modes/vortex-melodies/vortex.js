@@ -1,6 +1,7 @@
 // Vortex melodies: pure logic (no DOM), tested by test.mjs.
 // Input: the compact vortices.json written by analysis/scripts/vortex-melodies/build.py.
 import { rankNormaliser } from '../../core/flow.js';
+import { snapToScale } from '../../core/scales.js';
 
 // Motifs as scale steps (ascending form) from a root (semitones from C4). Big vortices: longer and lower (from G2);
 // small: short and higher (from G3). Everything stays within about G2..G4.
@@ -83,4 +84,12 @@ export function dueNotes(nSteps, loopSec, t0, from, to) {
   let k = Math.ceil((from - t0) / step + 1e-9);
   for (; t0 + k * step <= to; k++) out.push({ k: ((k % nSteps) + nSteps) % nSteps, at: t0 + k * step });
   return out;
+}
+
+// Frequency of motif step k: `step` scale tones above the first tone at or above rootHz, shifted by the
+// voice's octave and snapped back onto `tones` (the chosen scale within C2..C5), so it stays in scale.
+export function motifFreq(tones, rootHz, step, octave = 0) {
+  const root = Math.max(0, tones.findIndex((f) => f >= rootHz * 0.999));
+  const f = tones[Math.max(0, Math.min(tones.length - 1, root + step))] * 2 ** octave;
+  return snapToScale(f, tones);
 }

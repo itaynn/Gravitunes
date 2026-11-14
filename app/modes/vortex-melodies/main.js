@@ -2,26 +2,23 @@
 // Loop speed <- spin rank, loudness <- strength x size rank, pan <- longitude, ccw rising / cw falling,
 // timbre <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, flowAt, rankNormaliser } from '../../core/flow.js';
-import { SCALES, scaleFreqs, noteHz } from '../../core/scales.js';
+import { scaleFreqs, noteHz } from '../../core/scales.js';
+import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch } from '../../core/voices.js';
-// Region -> voice lookup reused as-is from world-orchestra (it is not in core/ yet).
-import { voiceAt, distKm } from '../world-orchestra/orchestra.js';
-import { MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes } from './vortex.js';
-
-const getJson = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Could not load ${url}`);
-  return r.json();
-};
+import { voiceAt, distKm } from '../../core/geo.js';
+import { getJson, loadEarth } from '../../core/data.js';
+import { soundHint } from '../../core/ui.js';
+import { motifFreq, MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes } from './vortex.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
-  const dir = new URL(`data/${dataset.id}/`, import.meta.url);
+  // The mode's own copy of the dataset (mode.json datasetDirs) also holds the flow layers and vortices.
+  const dir = new URL(dataset.dir, location.href);
   (async () => {
     const [flowData, vort, mj, ij] = await Promise.all([
       loadFlow(dir), getJson(new URL('vortices.json', dir)),
-      getJson('/data/earth/musical-centers.json'), getJson('/data/earth/instruments.json'),
+      loadEarth('musical-centers'), loadEarth('instruments'),
     ]);
     if (!alive) return;
     setup = run(flowData, vort, mj.centers, ij.instruments);
@@ -63,11 +60,7 @@ export default function start(ctx) {
     function playStep(v, k, at, ampScale = 1) {
       const { voice, center } = voiceFor(v);
       const m = motifOf(v, center);
-      const ts = tones();
-      const root = ts.findIndex((f) => f >= noteHz(m.root) * 0.999);
-      const idx = Math.max(0, Math.min(ts.length - 1, root + m.steps[k % m.steps.length]));
-      let freq = ts[idx] * 2 ** (voice.octave || 0);
-      freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
+      const freq = motifFreq(tones(), noteHz(m.root), m.steps[k % m.steps.length], voice.octave || 0);
       const sh = shapeForPitch(voice, freq);
       const step = loopSeconds(v.spinRank) / m.steps.length;
       sound.play({ freq, amp: 0.4 * v.loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
@@ -130,7 +123,7 @@ export default function start(ctx) {
     panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single });
     panel.select('Melody', [['size', 'By size (big = longer, lower)'], ['region', 'By region'], ['lifetime', 'By lifetime']],
       (v) => { s.melody = v; }, { value: s.melody });
-    panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; }, { value: s.scale });
+    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
     panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
       (v) => { s.volume = v; sound.setVolume?.(v); });
@@ -197,7 +190,7 @@ export default function start(ctx) {
     raf = requestAnimationFrame(spin);
 
     active = activeVortices(data, ranks, time.now(), s.maxVoices, trackById);
-    if (!sound.started) panel.text('Press "Start sound" to hear the vortices. Without sound, vortices are still described.');
+    soundHint(panel, sound, 'press Play vortices. Without sound, vortices are still described.');
     describe(`Vortex melodies ready: ${data.tracks.length} tracked vortices. Press Play vortices, or move over the map with the arrow keys to find and solo a vortex.`);
     return () => { offFrame(); offHover(); offClick(); offState(); clearInterval(sched); removeOverlay(); cancelAnimationFrame(raf); };
   }

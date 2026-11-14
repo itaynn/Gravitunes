@@ -1,5 +1,6 @@
 // Flow tracers: pure logic (no DOM), tested by test.mjs.
 import { flowAt, advect } from '../../core/flow.js';
+import { distKm } from '../../core/geo.js';
 
 // Seeded RNG (mulberry32) so a scatter can be reproduced in tests.
 export function rng(seed = 1) {
@@ -14,11 +15,6 @@ export function rng(seed = 1) {
 }
 
 const rad = (d) => (d * Math.PI) / 180;
-export function distKm(lat1, lon1, lat2, lon2) {
-  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
-}
 
 // Even (blue-noise) scatter: best-candidate sampling on the sphere between latMin..latMax.
 // Each new point is the farthest of k uniform-area candidates from the points already placed.
