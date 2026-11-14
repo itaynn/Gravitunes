@@ -14,12 +14,12 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 | Agent | Doing |
 |---|---|
 | Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
+| Standalone demos | build-standalone.py → git-ignored dist/*.html (one file per demo, WhatsApp-sized) |
+| Flow tracers + vortex melodies | two demos on 4285 using flow analysis |
 | Timbre atlas | hover-the-map demo of each region's instrument; make voices distinct per culture (shared with world-orchestra) |
 
 ## Next
-1. Flow tracers demo, then vortex melodies demo (after flow analysis)
 2. Layered maps (hear several gases together)
-3. Shareable demo file ("Download this demo")
 4. Natural Earth basemap in `data/earth/`
 
 ## Needs Moran
