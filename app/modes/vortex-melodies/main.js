@@ -1,8 +1,8 @@
 // Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif.
 // Loop speed <- spin rank, loudness <- strength x size rank, pan <- longitude, ccw rising / cw falling,
 // timbre <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
-import { loadFlow, flowAt, rankNormaliser } from '../../core/flow.js';
-import { scaleFreqs, noteHz } from '../../core/scales.js';
+import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
+import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { voiceAt, distKm } from '../../core/geo.js';
@@ -25,8 +25,8 @@ export default function start(ctx) {
   })().catch((e) => { console.error(e); describe(`Vortex melodies could not load (only dataset 4285 is prepared): ${e.message}`); });
 
   function run({ layers }, data, centers, instruments) {
-    const flow = Object.entries(layers).find(([k]) => k.startsWith('flow_'))[1];
-    const div = Object.entries(layers).find(([k]) => k.startsWith('divergence_'))[1];
+    const flow = layerByPrefix(layers, 'flow_');
+    const div = layerByPrefix(layers, 'divergence_');
     const ranks = buildRanks(data);
     const trackById = new Map(data.tracks.map((t) => [t.id, t]));
     // Net convergence per frame is small (about -0.1..0.1 on 4285), so the bed follows its rank over the sequence.
@@ -64,7 +64,8 @@ export default function start(ctx) {
       const sh = shapeForPitch(voice, freq);
       const step = loopSeconds(v.spinRank) / m.steps.length;
       sound.play({ freq, amp: 0.4 * v.loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
-        dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise });
+        dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
+        vibrato: sh.vibrato, wah: sh.wah });
     }
 
     // ---- scheduler: notes due in the next 150 ms
@@ -88,20 +89,27 @@ export default function start(ctx) {
     }, 100);
 
     // ---- frames
+    let pausedTimer = 0;
     const offFrame = time.onFrame((t) => {
       active = activeVortices(data, ranks, t, s.maxVoices, trackById);
       const ids = new Set(active.map((v) => v.id));
       for (const id of phase.keys()) if (!ids.has(id)) phase.delete(id);
       if (time.playing && s.bed) {
         const c = bedByFrame[t] || 0, frameDur = 1 / Math.max(0.1, time.fps || 2);
-        // Convergence swells and brightens; divergence thins. Low C2 + G2 pad, re-struck each frame.
-        for (const semis of [-24, -17]) {
-          sound.play({ freq: noteHz(semis), amp: 0.05 + 0.08 * (c + 1) / 2, pan: 0, dur: frameDur * 1.3,
+        // Convergence swells and brightens; divergence thins. Low pad on the scale's root (C2) and the scale
+        // tone nearest G2, re-struck each frame.
+        const bed = tones();
+        for (const freq of [bed[0], snapToScale(noteHz(-17), bed)]) {
+          sound.play({ freq, amp: 0.03 + 0.15 * (c + 1) / 2, pan: 0, dur: frameDur * 1.3,
             harmonics: [1, 0.3, 0.15], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur },
             lowpass: 250 + 700 * (c + 1) / 2 });
         }
       }
-      if (!time.playing) describe(`${time.label()}: ${(data.frames[t] || []).length} vortices; ${bedText(t)}.`);
+      // Debounced so scrubbing does not flood the live region; one merged message after the host's "Paused at".
+      clearTimeout(pausedTimer);
+      if (!time.playing) pausedTimer = setTimeout(() => {
+        if (alive && !time.playing) describe(`Paused at ${time.label()}: ${(data.frames[t] || []).length} vortices; ${bedText(t)}.`);
+      }, 400);
       viewer.redraw();
     });
     const bedText = (t) => {
@@ -110,17 +118,15 @@ export default function start(ctx) {
     };
 
     // ---- controls
-    const playBtn = panel.button(time.playing ? 'Pause' : 'Play vortices', () => {
-      if (time.playing) { time.pause(); describe(`Paused at ${time.label()}`); } else { time.play(); describe('Vortex melodies playing'); }
-    });
-    const offState = time.onPlayState((p) => { playBtn.textContent = p ? 'Pause' : 'Play vortices'; });
     panel.checkbox('Vortex melodies', s.melodies, (v) => { s.melodies = v; }, { hint: 'Mute or unmute the melody layer.' });
     panel.checkbox('Divergence bed', s.bed, (v) => { s.bed = v; }, { hint: 'Soft low pad: swells where the rain converges.' });
     panel.slider('Max vortices heard', { min: 1, max: 10, step: 1, value: s.maxVoices, format: (v) => `${v} vortices`,
       hint: 'Only the loudest (strongest and largest) play at once.' }, (v) => { s.maxVoices = v; active = activeVortices(data, ranks, time.now(), v, trackById); });
     panel.select('Timbre', [['region', 'World-orchestra region at the center'], ['size', 'By size'], ['strength', 'By strength'], ['single', 'Single voice']],
-      (v) => { s.timbre = v; }, { value: s.timbre });
-    panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single });
+      (v) => { s.timbre = v; singleRow.hidden = v !== 'single'; }, { value: s.timbre });
+    const singleRow = panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single })
+      .closest('.control');
+    singleRow.hidden = s.timbre !== 'single';
     panel.select('Melody', [['size', 'By size (big = longer, lower)'], ['region', 'By region'], ['lifetime', 'By lifetime']],
       (v) => { s.melody = v; }, { value: s.melody });
     scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
@@ -164,24 +170,20 @@ export default function start(ctx) {
     const removeOverlay = viewer.addOverlay((g, vw) => {
       const W = vw.canvas.width, t = time.now(), sec = performance.now() / 1000;
       g.save();
-      if (s.arrows) {
-        g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 1;
-        for (let lat = 75; lat > -80; lat -= 7.5) for (let lon = -176; lon < 180; lon += 7.5) {
-          const f = flowAt(flow, lat, lon, t);
-          if (!f) continue;
-          const [x, y] = vw.toPixel(lat, lon), k = (W / 1024) * 0.35;
-          g.beginPath(); g.moveTo(x, y); g.lineTo(x + f.u * k, y - f.v * k); g.stroke();
-        }
-      }
+      if (s.arrows) drawFlowArrows(g, vw, flow, t, { heads: false });
       const heard = new Set(active.map((v) => v.id));
       for (const v of data.frames[t] || []) {
         const [x, y] = vw.toPixel(v.lat, v.lon);
         const rpx = Math.max(4, (v.r / 40030) * W / Math.max(0.2, Math.cos((v.lat * Math.PI) / 180)));
         const cw = trackById.get(v.id)?.direction === 'cw';
         const ang = (cw ? -1 : 1) * sec * (2 * Math.PI) / loopSeconds(ranks.spin(v.spin));
-        g.strokeStyle = cw ? '#ff4fd8' : '#4fff8a'; g.lineWidth = heard.has(v.id) ? 3 : 1.5;
+        const lw = heard.has(v.id) ? 3 : 1.5;
         g.globalAlpha = solo && solo.id !== v.id && solo.until > sec ? 0.3 : 1;
-        g.beginPath(); g.arc(x, y, rpx, -ang, -ang + Math.PI * 1.6); g.stroke();   // canvas y is down: negate for ccw
+        // Black outline under each ring keeps it visible on the light map.
+        for (const [style, w] of [['#000', lw + 2], [cw ? '#d01fa8' : '#0a8a3a', lw]]) {
+          g.strokeStyle = style; g.lineWidth = w;
+          g.beginPath(); g.arc(x, y, rpx, -ang, -ang + Math.PI * 1.6); g.stroke();
+        }   // canvas y is down: negate for ccw
       }
       g.restore();
     });
@@ -190,9 +192,9 @@ export default function start(ctx) {
     raf = requestAnimationFrame(spin);
 
     active = activeVortices(data, ranks, time.now(), s.maxVoices, trackById);
-    soundHint(panel, sound, 'press Play vortices. Without sound, vortices are still described.');
-    describe(`Vortex melodies ready: ${data.tracks.length} tracked vortices. Press Play vortices, or move over the map with the arrow keys to find and solo a vortex.`);
-    return () => { offFrame(); offHover(); offClick(); offState(); clearInterval(sched); removeOverlay(); cancelAnimationFrame(raf); };
+    soundHint(panel, sound, 'press Play. Without sound, vortices are still described.');
+    describe(`Vortex melodies ready: ${data.tracks.length} tracked vortices. Press Play, or move over the map with the arrow keys to find and solo a vortex.`);
+    return () => { offFrame(); offHover(); offClick(); clearInterval(sched); clearTimeout(pausedTimer); removeOverlay(); cancelAnimationFrame(raf); };
   }
 
   return () => { alive = false; setup?.(); };

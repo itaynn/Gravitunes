@@ -85,3 +85,29 @@ export async function loadFlow(dirUrl, names = null) {
   }));
   return { header, layers };
 }
+
+// The first layer whose name starts with `prefix` ("flow_", "divergence_"), or null.
+export function layerByPrefix(layers, prefix) {
+  return Object.entries(layers).find(([k]) => k.startsWith(prefix))?.[1] ?? null;
+}
+
+// Canvas overlay: a grid of flow arrows, dark with a light halo so they read on light and dark maps.
+export function drawFlowArrows(g, vw, flow, t, { color = 'rgba(0,0,0,0.6)', halo = 'rgba(255,255,255,0.6)', heads = true } = {}) {
+  const k = (vw.canvas.width / 1024) * 0.35;
+  const segs = [];
+  for (let lat = 75; lat > -80; lat -= 7.5) for (let lon = -176; lon < 180; lon += 7.5) {
+    const f = flowAt(flow, lat, lon, t);
+    if (!f) continue;
+    const [x, y] = vw.toPixel(lat, lon);
+    segs.push([x, y, x + f.u * k, y - f.v * k]);
+  }
+  g.save();
+  for (const [style, w] of [[halo, 3], [color, 1.2]]) {
+    g.strokeStyle = style; g.lineWidth = w;
+    for (const [x, y, x1, y1] of segs) {
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x1, y1); g.stroke();
+      if (heads) { g.beginPath(); g.arc(x1, y1, 1.2, 0, 7); g.stroke(); }
+    }
+  }
+  g.restore();
+}
