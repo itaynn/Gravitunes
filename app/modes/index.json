@@ -1,7 +1,6 @@
 {
   "modes": [
     {
-<<<<<<< ours
       "id": "layered-maps",
       "name": "Layered maps",
       "author": "moran",
@@ -87,7 +86,6 @@
       "href": "../../../sound-engine/playground.html"
     },
     {
-<<<<<<< ours
       "id": "timbre-atlas",
       "name": "Timbre atlas",
       "author": "moran",
