@@ -129,7 +129,7 @@
     initialized = true;
     playButton.disabled = false;
     playLabel.textContent = "Play sound";
-    setStatus("Frame ready · each vertical column is mapped to a smooth chord.");
+    setStatus("Ready. Press Play to hear the map from west to east: low notes are the south, high notes the north, louder means heavier rain.");
   }
 
   function updateProgress() {

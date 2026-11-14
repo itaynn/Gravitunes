@@ -1,12 +1,12 @@
 // Timbre atlas: hover (or arrow keys / touch) over the world map to hear that region's instrument play a short
 // idiomatic gesture. Voices blend near borders, as in world-orchestra. No data values are used.
-import { voiceAt, gestureNotes, gestureLength, liftToFloor } from './atlas.js';
+import { voiceAt, gestureNotes, gestureLength } from './atlas.js';
 import { playNotes } from '../../core/gestures.js';
 import { noteHz, noteName } from '../../core/scales.js';
 import { MAX_FUND_HZ } from '../../core/sound.js';
 import { loadEarth } from '../../core/data.js';
 import { formatLatLon, regionTint } from '../../core/geo.js';
-import { soundHint } from '../../core/ui.js';
+import { volumeSlider, soundHint } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { input, sound, panel, describe, viewer } = ctx;
@@ -27,9 +27,7 @@ export default function start(ctx) {
     // West to east, for the [ and ] keys.
     const order = [...centers].sort((a, b) => a.lon - b.lon || b.lat - a.lat);
 
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
+    volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     panel.checkbox('Play a short tune', s.phrase, (v) => { s.phrase = v; }, { hint: 'Off: one note.' });
     panel.slider('Base pitch', { min: -19, max: 0, step: 1, value: s.baseSemis, format: (v) => noteName(v),
       hint: 'Starting note of each tune, F2 to C4. Tunes stay between C2 and C5.' }, (v) => { s.baseSemis = v; });
@@ -53,7 +51,7 @@ export default function start(ctx) {
       lastKey = key; lastAt = now;
       info.textContent = text;
       if (!keyboard || force) describe(force ? `${formatLatLon(lat, lon)}. ${text}` : text);
-      const notes = liftToFloor(gestureNotes(voice, noteHz(s.baseSemis), { phrase: s.phrase }), noteHz(-24), MAX_FUND_HZ);
+      const notes = gestureNotes(voice, noteHz(s.baseSemis), { phrase: s.phrase, floorHz: noteHz(-24) });
       lastLen = gestureLength(notes);
       playNotes(sound, voice, notes, { amp: 0.4, pan: lon / 180 });
       viewer.redraw();

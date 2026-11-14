@@ -38,10 +38,11 @@ def one_line(d):
     return (m.group(0) if m else (d or '')).strip()
 
 
-def switcher_js(all_modes, mid):
-    """Globals read by app/core/switcher.js: the demo list (bundled files) and the current demo."""
+def switcher_js(all_modes, mid, only=None):
+    """Globals read by app/core/switcher.js: the demo list (bundled files) and the current demo.
+    main() rewrites it after the build with only= the files that really exist."""
     lst = [{'id': m['id'], 'name': m['name'], 'description': m.get('description', ''), 'file': f"{m['id']}.html"}
-           for m in order_modes(all_modes) if m['id'] not in SKIP]
+           for m in order_modes(all_modes) if m['id'] not in SKIP and (only is None or m['id'] in only)]
     return f'window.__GT_MODES__ = {json.dumps(lst)}; window.__GT_CURRENT__ = {json.dumps(mid)};'
 
 
@@ -319,7 +320,7 @@ Each demo is one self-contained file that works offline; every demo has a menu a
 </ul>
 <p class="note"><strong>On iPhone:</strong> WhatsApp's preview does not run the demo. Save the file
 (Share, Save to Files), then open it from the Files app so it opens in Safari. On a computer, open it in Chrome, Safari, Firefox or Edge.
-Tap "Start sound" first; check that the phone is not on silent. Grids are sampled every {every} hours or more to keep the files small;
+Tap "Start sound" first; check that the phone is not on silent. Grids are thinned out to keep the files small;
 recorded instrument samples are left out (the Tone lab uses their analysed tones instead).{skipped}</p>
 </body></html>
 '''
@@ -368,6 +369,14 @@ def main():
         built.append(m)
 
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
+    # Second pass: the switcher in each built page lists only demos whose files exist.
+    have = {m['id'] for m in existing}
+    for m in existing:
+        f = out / f"{m['id']}.html"
+        txt = f.read_text()
+        old, new = switcher_js(all_modes, m['id']), switcher_js(all_modes, m['id'], have)
+        if old != new and old in txt:
+            f.write_text(txt.replace(old, new))
     items = '\n'.join(
         f'<li class="card"><h2>{html.escape(m["name"])}</h2>'
         f'<p>{html.escape(one_line(m.get("description", "")))}</p>'
@@ -375,7 +384,7 @@ def main():
         f'<a href="{m["id"]}.html" download aria-label="Download {html.escape(m["name"])}">Download</a> '
         f'<span class="size">{(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB</span></p></li>'
         for m in existing)
-    (out / 'index.html').write_text(INDEX.format(items=items, every=a.every or DEFAULT_EVERY, skipped=''.join(
+    (out / 'index.html').write_text(INDEX.format(items=items, skipped=''.join(
         f' {html.escape(m["name"])} is only in the online version ({html.escape(SKIP[m["id"]])}).' for m in all_modes if m['id'] in SKIP)))
     print(f'index {out / "index.html"}  ({len(existing)} demos)')
 

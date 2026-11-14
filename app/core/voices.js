@@ -55,10 +55,14 @@ export function shapeForPitch(voice, freq, { cutoff = 1800, ceiling = 4000 } = {
 
 
 // A playable note for `voice` at `freq` (Hz): the voice's octave shift is applied, then the pitch is kept in
-// C2..C5 (snapped to `tones` when given, else clamped), then shaped for pitch. Returns { note, dur }.
+// C2..C5 by folding whole octaves (so nearby values keep distinct pitches), snapped to `tones` when given,
+// then shaped for pitch. Returns { note, dur }.
 export function voiceNote(voice, freq, { tones } = {}) {
   let f = freq * 2 ** (voice.octave || 0);
-  f = tones?.length ? snapToScale(f, tones) : Math.max(noteHz(-24), Math.min(noteHz(12), f));
+  const lo = noteHz(-24), hi = noteHz(12);
+  if (f > 0) { while (f < lo - 1e-6) f *= 2; while (f > hi + 1e-6) f /= 2; } else f = lo;
+  if (tones?.length) f = snapToScale(f, tones);
+  f = Math.max(lo, Math.min(hi, f));
   const { harmonics, partials, envelope, noise, vibrato, wah, dur } = shapeForPitch(voice, f);
   return { note: { freq: f, harmonics, partials, envelope, noise, vibrato, wah }, dur: dur ?? 0.4 };
 }

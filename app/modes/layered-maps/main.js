@@ -11,15 +11,18 @@ export default function start(ctx) {
   let alive = true, last = null, layers = null;
   const state = Object.fromEntries(LAYERS.map((l) => [l.id, 'on']));
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const lastFreq = {};   // layer id -> last played frequency, for playback
+  const clearLastFreq = () => { for (const k in lastFreq) delete lastFreq[k]; };
 
   for (const l of LAYERS) {
     panel.select(cap(l.name), [['on', 'On'], ['mute', 'Muted'], ['solo', 'Solo']], (v) => {
       state[l.id] = v;
+      clearLastFreq();   // a re-enabled layer sounds again during playback
       describe(`${cap(l.name)} ${v === 'on' ? 'on' : v === 'mute' ? 'muted' : 'solo'}`);
     }, { value: 'on' });
   }
   let scale = 'pentatonic-major';
-  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; } });
+  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; clearLastFreq(); } });
   panel.button('Describe this spot', () => {
     if (!last) describe('Move over the map or use the arrow keys first.');
     else if (!layers) describe('Still loading gas maps.');
@@ -48,7 +51,7 @@ export default function start(ctx) {
 
   // Hover is throttled (150 ms) so a fast sweep does not pile up chords.
   const ready = throttle(150);
-  const lastFreq = {};   // layer id -> last played frequency, for playback
+  const speak = throttle(5000);   // text summary during playback, at most every 5 s
   function probe({ lat, lon }, { announce = true, force = false, onlyChanged = false, prefix = '' } = {}) {
     last = { lat, lon };
     if (!layers) return;
@@ -65,7 +68,10 @@ export default function start(ctx) {
   const offHover = input.onHover((p) => probe(p));
   const offClick = input.onClick((p) => probe(p, { force: true }));
   const offFrame = time.onFrame(() => {
-    if (time.playing) { if (last) probe(last, { announce: false, onlyChanged: true }); return; }
+    if (time.playing) {
+      if (last) probe(last, { announce: speak(), onlyChanged: true, prefix: `${time.label()}: ` });
+      return;
+    }
     if (last && layers) probe(last, { force: true, prefix: `${time.label()}: ` });
     else describe(time.label());
   });

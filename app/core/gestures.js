@@ -12,7 +12,7 @@ export function degreeCents({ scale = [0], period = 1200 }, step) {
 
 // Notes for one gesture: [{ freq, t, dur, amp, glide?, vibrato? }]. phrase=false gives a single tonic note.
 // Everything (including glide targets and vibrato peaks) is shifted down by octaves until it is <= C5.
-export function gestureNotes(voice, baseHz, { phrase = true } = {}) {
+export function gestureNotes(voice, baseHz, { phrase = true, floorHz = 0 } = {}) {
   const g = voice.gesture || { scale: [0], steps: [0], gap: 0.3 };
   const steps = phrase ? g.steps : [0];
   const base = baseHz * 2 ** (voice.octave || 0);
@@ -41,10 +41,26 @@ export function gestureNotes(voice, baseHz, { phrase = true } = {}) {
     notes.push(n);
     t += gap;
   });
-  const top = (n) => Math.max(n.freq, n.glide?.to || 0) * 2 ** ((n.vibrato?.depth || 0) / 1200);
-  let peak = Math.max(...notes.map(top)), shift = 1;
+  let peak = Math.max(...notes.map(notePeak)), shift = 1;
   while (peak * shift > MAX_FUND_HZ + 1e-6) shift /= 2;
-  if (shift !== 1) for (const n of notes) { n.freq *= shift; if (n.glide) n.glide = { ...n.glide, to: n.glide.to * shift }; }
+  shiftNotes(notes, shift);
+  return floorHz ? liftToFloor(notes, floorHz, MAX_FUND_HZ) : notes;
+}
+
+// Highest and lowest pitch a note reaches (glide end and vibrato included).
+export const notePeak = (n) => Math.max(n.freq, n.glide?.to || 0) * 2 ** ((n.vibrato?.depth || 0) / 1200);
+export const noteLow = (n) => Math.min(n.freq, n.glide?.to ?? n.freq) * 2 ** (-(n.vibrato?.depth || 0) / 1200);
+
+// Multiply every note (and its glide target) by `factor`, in place.
+export function shiftNotes(notes, factor) {
+  if (factor !== 1) for (const n of notes) { n.freq *= factor; if (n.glide) n.glide = { ...n.glide, to: n.glide.to * factor }; }
+  return notes;
+}
+
+// Raise notes an octave at a time while the lowest is under floorHz and the highest stays <= ceilHz.
+export function liftToFloor(notes, floorHz, ceilHz = MAX_FUND_HZ) {
+  const lo = () => Math.min(...notes.map(noteLow)), hi = () => Math.max(...notes.map(notePeak));
+  while (notes.length && lo() < floorHz - 1e-6 && hi() * 2 <= ceilHz + 1e-6) shiftNotes(notes, 2);
   return notes;
 }
 

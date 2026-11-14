@@ -1,7 +1,6 @@
 // node app/tools/test-core.mjs  -- tests the pure parts of app/core (no browser needed).
 import assert from 'node:assert/strict';
 import { buildLut, decode } from '../core/colorbar.js';
-import { valueToFreq } from '../core/sound.js';
 
 // Synthetic color bar: 100x4, transparent margins, white -> purple from x=10..89 on row 2.
 const W = 100, H = 4, rgba = new Uint8ClampedArray(W * H * 4);
@@ -16,9 +15,6 @@ near(decode(lut, ...color(1)), 60);
 near(decode(lut, ...color(0.5)), 32.5);
 near(decode(lut, 30, 30, 30), 5);        // grey/black base map -> low
 near(decode(lut, 255, 255, 255), 5);     // white -> low
-assert.equal(valueToFreq(5, [5, 60]), 220);
-assert.equal(valueToFreq(60, [5, 60]), 220 * 8);
-assert.ok(valueToFreq(30, [5, 60]) > 220);
 console.log('core tests ok');
 
 // ---- grids: log10 transform, norm, formatting, tick-based colour bars
@@ -105,8 +101,10 @@ console.log('grid tests ok');
   const { throttle } = await import('../core/ui.js');
   const { noteHz, scaleFreqs } = await import('../core/scales.js');
   const v = { harmonics: [1, 0.5], octave: 1, dur: 0.3 };
-  const hi = voiceNote(v, noteHz(6));                      // shifted an octave up, clamped to C5
-  assert.ok(Math.abs(hi.note.freq - noteHz(12)) < 1e-9 && hi.dur === 0.3);
+  const hi = voiceNote(v, noteHz(6));                      // shifted an octave up, folded back an octave under C5
+  assert.ok(Math.abs(hi.note.freq - noteHz(6)) < 1e-9 && hi.dur === 0.3);
+  const lo = voiceNote({ harmonics: [1], octave: -1 }, noteHz(-17));   // G2 an octave down -> folded to G2, not C2
+  assert.ok(Math.abs(lo.note.freq - noteHz(-17)) < 1e-9);
   const tones = scaleFreqs('pentatonic-major', noteHz(-24), noteHz(12));
   assert.ok(tones.includes(voiceNote({ harmonics: [1] }, 300, { tones }).note.freq));
   assert.equal(pickVoice(['a', 'b', 'c'], 0), 'a');
@@ -136,4 +134,15 @@ console.log('grid tests ok');
     }
   }
   console.log('shared helper tests ok');
+}
+
+// ---- switching tuning families on the real engine (same order as sound.js useScale: clear scale, tuning, scale)
+{
+  const { createEngine } = await import('../../sound-engine/js/engine.js');
+  const { SCALES } = await import('../core/scales.js');
+  const e = createEngine({ scale: 'pentatonic-major' });
+  for (const id of ['slendro', 'pentatonic-major', 'pelog-lima', 'major']) {
+    e.setScale(null); await e.setTuning(SCALES[id].tuning); e.setScale(id);
+  }
+  console.log('tuning switch tests ok');
 }

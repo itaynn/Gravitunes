@@ -39,6 +39,7 @@ const CSS = `.gt-switcher{display:flex;flex-wrap:wrap;align-items:center;gap:.4e
 background:#1d2229;color:#f2f2f2;font:15px/1.4 system-ui,sans-serif;border-bottom:1px solid #2c333d;position:relative;z-index:50}
 .gt-switcher a{color:#ffd34d;font-weight:600}
 .gt-switcher button{font:inherit;padding:.25em .8em;border-radius:4px;background:#ffd34d;color:#000;border:0;font-weight:600;cursor:pointer}
+.gt-switcher button:disabled{opacity:.5;cursor:default}
 .gt-switcher select{font:inherit;padding:.25em .5em;border-radius:4px;background:#2b323b;color:#f2f2f2;border:1px solid #b8bec6;max-width:100%}
 .gt-switcher .gt-demo-desc{color:#b8bec6;font-size:.9em;flex:1 1 20ch}
 .gt-switcher :focus-visible{outline:3px solid #ffd34d;outline-offset:2px}
@@ -69,14 +70,18 @@ export async function mountSwitcher(root = document.getElementById('gt-switcher'
     sel.append(o);
   }
   if (!modes.some((m) => m.id === cur)) sel.prepend(new Option('Choose a demo...', '', true, true));
-  const showDesc = () => { desc.textContent = sel.selectedOptions[0]?.title || ''; };
+  const btn = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Go' });
+  // Go is disabled while the current demo (or the placeholder) is selected, so it never silently does nothing.
+  const showDesc = () => {
+    desc.textContent = sel.selectedOptions[0]?.title || '';
+    btn.disabled = !sel.value || !!sel.selectedOptions[0]?.defaultSelected;
+  };
   showDesc();
   // Choosing only previews the description; the Go button (or Enter on the closed select) opens it,
   // so keyboard and screen-reader users can browse the list without leaving the page.
   const go = () => { if (sel.value && !sel.selectedOptions[0]?.defaultSelected) location.href = sel.value; };
   sel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
   sel.addEventListener('change', showDesc);
-  const btn = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Go' });
   btn.addEventListener('click', go);
   root.replaceChildren(all, label, sel, btn, desc);
 }

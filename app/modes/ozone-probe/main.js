@@ -53,7 +53,7 @@ export default function start(ctx) {
     const harmonics = 1 + Math.round(rough01 * 6);
     sound.play({
       freq: quantize(n, [0, 1], scale, noteHz(-24), noteHz(12)).freq, harmonics, pan: lon / 180,
-      amplitude: 0.25, duration: 0.35, voice: 'probe',
+      amplitude: 0.25, duration: 0.35,
       // Patchy spots also get a breathy edge, so smooth and rough areas are easy to tell apart.
       ...(rough01 > 0.1 && { noise: { amount: rough01 * 0.3, attack: 0.01, decay: 0.25, cutoff: 2500 } }),
     });

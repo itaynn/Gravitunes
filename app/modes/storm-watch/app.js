@@ -1273,8 +1273,34 @@
     const next = sorted[at < 0 ? (step > 0 ? 0 : sorted.length - 1) : (at + step + sorted.length) % sorted.length];
     selectedStormId = next.id;
     renderFrame(currentFrameIndex);
-    status.textContent = `Storm ${next.id}, ${sorted.indexOf(next) + 1} of ${sorted.length}, area ${next.area.toLocaleString()} analysis pixels.`;
+    status.textContent = `Storm ${next.id}, ${sorted.indexOf(next) + 1} of ${sorted.length}, ${stormSize(next, sorted)}, ${stormPlace(next)}.`;
   });
+  // PageUp/PageDown (or , and .) step through time while keeping the selected storm.
+  canvas.addEventListener("keydown", (keyEvent) => {
+    const dt = { PageUp: -1, ",": -1, PageDown: 1, ".": 1 }[keyEvent.key];
+    if (!dt) return;
+    keyEvent.preventDefault();
+    const index = Math.max(0, Math.min(SNAPSHOT_COUNT - 1, currentFrameIndex + dt));
+    renderFrame(index);
+    const components = analyzedFrames[index]?.components ?? [];
+    const tracked = selectedStormId !== null
+      && components.find((c) => c.id === selectedStormId || c.lineageIds.includes(selectedStormId));
+    status.textContent = `${formatTime(index)}, ${index + 1} of ${SNAPSHOT_COUNT}. `
+      + (selectedStormId === null ? `${components.length} storms.`
+        : tracked ? `Storm ${selectedStormId} still tracked, ${stormPlace(tracked)}.` : `Storm ${selectedStormId} not detected now.`);
+  });
+  function stormSize(c, sorted) {
+    const rank = sorted.indexOf(c) / Math.max(1, sorted.length - 1);
+    return rank < 0.25 ? "large" : rank < 0.7 ? "medium" : "small";
+  }
+  // Rough place from the storm's centre on the equirectangular analysis grid.
+  function stormPlace(c) {
+    const lon = (c.x / ANALYSIS_WIDTH) * 360 - 180, lat = 90 - (c.y / ANALYSIS_HEIGHT) * 180;
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return "location unknown";
+    const ns = lat > 23 ? "northern" : lat < -23 ? "southern" : "tropical";
+    const region = lon < -100 || lon > 145 ? "Pacific" : lon < -20 ? "Atlantic and the Americas" : lon < 60 ? "Europe and Africa" : "Asia and the Indian Ocean";
+    return `over the ${ns} ${region}, near ${Math.abs(Math.round(lat))}°${lat >= 0 ? "N" : "S"} ${Math.abs(Math.round(lon))}°${lon >= 0 ? "E" : "W"}`;
+  }
   settingsPanel.addEventListener("toggle", () => {
     settingsPanel.querySelector(".settings-toggle").textContent = settingsPanel.open ? "−" : "+";
   });

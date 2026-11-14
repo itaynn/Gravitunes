@@ -425,6 +425,11 @@
       return;
     }
 
+    if (ball && simulation === "moving" && event.key.startsWith("Arrow")) {
+      event.preventDefault();
+      setStatus(`Ball rolling · ${describeSpot(ball.x, ball.y)}. Press Reset to place it again.`);
+      return;
+    }
     if (!ball || simulation === "moving") return;
     const step = event.shiftKey ? 40 : 16;
     const offsets = {

@@ -8,7 +8,7 @@ import { formatValue as fmtNum } from '../../core/grid.js';
 import { noteName } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
-import { soundHint, fold, throttle } from '../../core/ui.js';
+import { volumeSlider, soundHint, fold, throttle } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -91,9 +91,7 @@ export default function start(ctx) {
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A point plays when its value rises past this. Default: the dataset\'s 70th percentile.',
       format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
+    volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const dens = panel.slider('Density (max notes per frame)', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
     const stepH = dataset.stepHours || 1;

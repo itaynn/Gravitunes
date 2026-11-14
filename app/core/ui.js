@@ -71,28 +71,38 @@ export function soundHint(panel, sound, next) {
   return p;
 }
 
+// The shared Volume slider (0..1, read as percent); applies the initial value right away.
+export function volumeSlider(panel, sound, initial = 0.7, onChange = () => {}) {
+  const el = panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: initial, format: (v) => `${Math.round(v * 100)} percent` },
+    (v) => { sound.setVolume?.(v); onChange(v); });
+  sound.setVolume?.(initial);
+  return el;
+}
+
 // Polite live region; repeated calls within `minGap` ms are coalesced so screen readers keep up.
 // Urgent text goes to a second, fixed assertive region (created next to `region`): screen readers only honour
 // the aria-live value a region had when they first saw it, so one region cannot switch politeness.
 export function createDescribe(region, { minGap = 400 } = {}) {
-  let last = 0, timer = null, pending = '', target = region;
   region.setAttribute('aria-live', 'polite');
   const loud = document.createElement('div');
   loud.className = region.className; loud.setAttribute('aria-live', 'assertive'); loud.setAttribute('aria-atomic', 'true');
   region.after(loud);
-  function flush() {
-    timer = null; last = performance.now();
-    const el = target, other = el === region ? loud : region;
-    el.textContent = ''; other.textContent = '';
+  // One queue per region, so polite text never replaces queued urgent text (nor is promoted to urgent).
+  const queue = (el) => ({ el, last: 0, timer: null, pending: '' });
+  const polite = queue(region), urgent = queue(loud);
+  function flush(q) {
+    q.timer = null; q.last = performance.now();
+    const text = q.pending;
+    q.el.textContent = '';
     // Re-set on next frame so identical text is still announced.
-    requestAnimationFrame(() => { el.textContent = pending; });
+    requestAnimationFrame(() => { q.el.textContent = text; });
   }
-  return function describe(text, { urgent = false } = {}) {
-    pending = String(text);
-    target = urgent ? loud : region;
-    const wait = minGap - (performance.now() - last);
-    if (wait <= 0 && !timer) flush();
-    else if (!timer) timer = setTimeout(flush, Math.max(0, wait));
+  return function describe(text, { urgent: isUrgent = false } = {}) {
+    const q = isUrgent ? urgent : polite;
+    q.pending = String(text);
+    const wait = minGap - (performance.now() - q.last);
+    if (wait <= 0 && !q.timer) flush(q);
+    else if (!q.timer) q.timer = setTimeout(() => flush(q), Math.max(0, wait));
   };
 }
 

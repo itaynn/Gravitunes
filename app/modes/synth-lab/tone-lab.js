@@ -57,7 +57,9 @@ if (!sel.options.length) { sel.append(new Option('No instruments found', '')); s
 
 function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
 
+let chooseSeq = 0; // a later choice wins over a slow-loading earlier one
 async function choose(value) {
+  const token = ++chooseSeq;
   const [kind, id] = [value.slice(0, 1), value.slice(2)];
   if (kind === 'w') {
     const v = instruments[id];
@@ -69,9 +71,11 @@ async function choose(value) {
     about.textContent = `${p.name}: loading...`;
     try {
       const r = await sound.loadLibrary(id);
+      if (token !== chooseSeq) return;
       current = { label: p.name, voice: { ...r.def, dur: 0.8 }, name: r.name };
       about.textContent = `${p.name}: ${p.title}. ${r.sample ? 'Recording' : 'Tone from its analysed overtones'}, ${p.license}.`;
     } catch (e) {
+      if (token !== chooseSeq) return;
       about.textContent = `${p.name} could not be loaded (${e.message}).`;
     }
   }

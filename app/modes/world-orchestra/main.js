@@ -8,7 +8,7 @@ import { scaleControl } from '../../core/scale-control.js';
 
 import { loadEarth, valueHelpers } from '../../core/data.js';
 import { formatLatLon as fmt, regionTint } from '../../core/geo.js';
-import { soundHint, fold, throttle } from '../../core/ui.js';
+import { volumeSlider, soundHint, fold, throttle } from '../../core/ui.js';
 import { voiceNote as shapeNote } from '../../core/voices.js';
 
 export default function start(ctx) {
@@ -60,19 +60,19 @@ export default function start(ctx) {
       else { applySpeed(); time.play(); describe('Orchestra playing'); }
     }, { hint: 'Plays the hours in order. Cities whose value rises past the threshold play one note.' });
     const offState = time.onPlayState?.((p) => {
+      if (p) applySpeed();   // the host's own Play button respects Speed too
       playBtn.textContent = p ? 'Pause orchestra' : 'Play orchestra';
     });
     const applySpeed = () => time.setSpeed(Math.min(30, s.speed / (dataset.stepHours || 1)));
     panel.slider('Speed', { min: 1, max: 48, step: 1, value: s.speed, format: (v) => `${v} hours per second` },
       (v) => { s.speed = v; applySpeed(); });
+    applySpeed();
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     // Slider runs over norm 0..1 so log datasets get usable steps.
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A city plays when its value rises past this. Default: the dataset\'s 70th percentile.',
       format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
+    volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const maxN = panel.slider('Max notes per hour', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
     const stepH = dataset.stepHours || 1;
@@ -162,7 +162,8 @@ export default function start(ctx) {
       const v = dataset.valueAt(lat, lon, time.now());
       if (v == null) { describe(`${place}: ${inst}-inspired${blend}, no data`); return; }
       const { note, dur } = voiceNote(voice, v);
-      sound.play({ ...note, amp: 0.35, pan: lon / 180, dur });
+      // While playing, keep the probe note at a chord voice's level so the sum cannot clip.
+      sound.play({ ...note, amp: time.playing ? 0.35 / Math.sqrt(Math.max(1, s.maxNotes)) : 0.35, pan: lon / 180, dur });
       describe(`${place}: ${inst}-inspired${blend}, ${fmtV(v)}`);
     }
     const offHover = input.onHover((p) => probe(p));

@@ -29,11 +29,11 @@
 <body>
   <header>
     <h1>Gravitunes</h1>
-    <p>An Earth Information Jukebox: listen to NASA Earth visualizations. Pick a mode.</p>
+    <p>An Earth Information Jukebox: listen to NASA Earth visualizations. Pick a demo.</p>
   </header>
   <main>
-    <h2 class="visually-hidden">Modes</h2>
-    <ul id="modes" class="modes"><li>Loading modes...</li></ul>
+    <h2 class="visually-hidden">Demos</h2>
+    <ul id="modes" class="modes"><li>Loading demos...</li></ul>
   </main>
   <script type="module">
     const ul = document.getElementById('modes');
@@ -69,7 +69,7 @@
         return li;
       }));
     } catch (e) {
-      ul.innerHTML = '<li>Could not load modes/index.json. Run: python3 app/tools/build-modes-index.py</li>';
+      ul.innerHTML = '<li>Could not load the demo list (modes/index.json). Run: python3 app/tools/build-modes-index.py</li>';
     }
   </script>
 </body>

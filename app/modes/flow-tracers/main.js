@@ -7,7 +7,7 @@ import { scaleControl } from '../../core/scale-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
-import { soundHint, fold, timbreControl } from '../../core/ui.js';
+import { volumeSlider, soundHint, fold, timbreControl } from '../../core/ui.js';
 import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture } from './tracers.js';
 
 export default function start(ctx) {
@@ -91,10 +91,8 @@ export default function start(ctx) {
       { hint: 'A tracer that has been in dry air for a few frames jumps to a new rainy spot.' });
     panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     // Less-used settings in a collapsed "More settings" disclosure.
-    fold('More settings', [low, high, driftSl, respawnCb]);
-    panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
-      (v) => { s.volume = v; sound.setVolume?.(v); });
-    sound.setVolume?.(s.volume);
+    const more = fold('More settings', [low, high, driftSl, respawnCb]);
+    volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     panel.text('Motion is the apparent motion of the rain pattern (optical flow), not wind.');
 
     // ---- frames

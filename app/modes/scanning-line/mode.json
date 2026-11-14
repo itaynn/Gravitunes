@@ -1,7 +1,9 @@
 {
   "name": "Scanning line",
   "author": "itay",
-  "description": "A line sweeps across one global IMERG precipitation frame and plays it as 88 piano bands, low notes at the bottom of the map and high at the top; the strongest rain in each band sets that note's volume. From itay's scanning-line-demo branch.",
-  "datasets": ["4285"],
+  "description": "A line sweeps across one global IMERG precipitation frame from west to east and plays it as notes on a C major scale, low (C2) at the bottom of the map and high (C5) at the top; the heaviest rain in each band sets that note's volume. From itay's scanning-line-demo branch.",
+  "datasets": [
+    "4285"
+  ],
   "source": "itay, branch scanning-line-demo"
 }

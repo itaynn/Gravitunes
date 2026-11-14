@@ -18,17 +18,6 @@
 import { quantize, SCALES } from './scales.js';
 import { repoUrl } from './data.js';
 
-const PENTA = [0, 2, 4, 7, 9];  // major pentatonic, semitones
-
-// value in [lo, hi] -> frequency on a pentatonic scale over `octaves` octaves from `base` Hz.
-// Kept for compatibility; note the default base/octaves reach 1760 Hz. The adapter quantizes with scales.js.
-export function valueToFreq(value, [lo, hi], base = 220, octaves = 3) {
-  const f = Math.max(0, Math.min(1, (value - lo) / (hi - lo || 1)));
-  const step = Math.round(f * (PENTA.length * octaves));
-  const semis = 12 * Math.floor(step / PENTA.length) + PENTA[step % PENTA.length];
-  return base * 2 ** (semis / 12);
-}
-
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // Turn `harmonics: n` into an amplitude array (1/k^1.5 roll-off), keep arrays as given.
@@ -255,7 +244,7 @@ export async function createSound() {
       if (rest.voice && !builtIn) ev.lowpass = Math.min(lowpass > 0 ? lowpass : Infinity, 4500);
       if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(MAX_FUND_HZ, glide.to) };
       if (builtIn && vibrato) ev.vibrato = vibrato;
-      // The real engine maps value+range itself; the fallback uses valueToFreq.
+      // The real engine maps value+range itself; the fallback quantizes with scales.js.
       let h = null;
       try { h = engine.play(ev); } catch (e) { console.warn('[sound]', e.message); }
       const t0 = ev.t || 0, end = t0 + ev.dur;
@@ -295,11 +284,12 @@ export async function createSound() {
     async useScale(id) {
       const sc = SCALES[id];
       if (!sc) return false;
-      if (engine.setTuning) await this.setTuning(sc.tuning);
+      // Clear the scale first: the engine rebuilds the current scale on a new tuning and throws when the
+      // step counts differ (e.g. pentatonic-major on 5-step slendro).
+      if (engine.setTuning) { this.setScale(null); await this.setTuning(sc.tuning); }
       return this.setScale(id);
     },
     async setTuning(spec) { try { await engine.setTuning?.(spec); return !!engine.setTuning; } catch (e) { console.warn('[sound]', e.message); return false; } },
     setScale(spec) { try { engine.setScale?.(spec); return !!engine.setScale; } catch (e) { console.warn('[sound]', e.message); return false; } },
-    valueToFreq,
   };
 }
