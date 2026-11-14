@@ -97,8 +97,8 @@
             </summary>
             <div class="settings-grid">
               <label class="setting-control" for="minimum-area">
-                <span class="setting-heading"><span>Minimum storm area</span><output id="minimum-area-output">800 px</output></span>
-                <input id="minimum-area" data-setting="minimumArea" type="range" min="20" max="1600" step="20" value="800">
+                <span class="setting-heading"><span>Minimum storm area</span><output id="minimum-area-output">200 px</output></span>
+                <input id="minimum-area" data-setting="minimumArea" type="range" min="20" max="1600" step="20" value="200">
                 <span class="setting-scale"><span>SMALLER</span><span>LARGER</span></span>
               </label>
               <label class="setting-control" for="alpha-threshold">
@@ -152,7 +152,7 @@
                 <span class="setting-scale"><span>SHORT</span><span>LONG</span></span>
               </label>
             </div>
-            <p class="settings-note">Dark, saturated red and blue heatmap cores seed storm regions and anchor tracks; core proximity carries more weight than region-centroid motion, including through merges. Nearby cores are grouped by distance and color; precipitation pixels grow outward by spatial distance and similarity to each segment’s average color. Area is measured on the 900 × 450 analysis grid. Changes rebuild tracks across all snapshots. The 48-snapshot playback pass runs in 12.5 seconds.</p>
+            <p class="settings-note">The page loads compact polygons precomputed with Python/OpenCV: alpha-mask morphology, dark red/blue core detection, watershed separation, contour simplification, optical-flow mask warping, and overlap/core association. Polygon areas and motion distances use the 900 × 450 analysis grid. Changing a control persists it and switches to the interactive in-browser reanalysis; rerun the documented Python preprocessing command to regenerate the optical-flow polygons. The 48-snapshot playback pass runs in 12.5 seconds.</p>
           </details>
         </div>
 
@@ -162,7 +162,7 @@
             controls
             playsinline
             preload="metadata"
-            src="./data/nasa-svs/4285-imergert-current.mp4"
+            src="../data/nasa-svs/4285-imergert-current.mp4"
             aria-label="NASA global precipitation animation used as a motion reference"
           ></video>
         </details>
@@ -171,7 +171,7 @@
         <p class="source-caption">
           Inputs included locally:
           <a href="./data/snapshots/imergert_alpha.2026-11-07T00:00:00Z.png">48 NASA IMERG PNG snapshots · every 30 minutes</a>
-          · <a href="./data/nasa-svs/4285-imergert-current.mp4">NASA SVS 4285 animation</a>
+          · <a href="../data/nasa-svs/4285-imergert-current.mp4">NASA SVS 4285 animation</a>
           · <a href="https://svs.gsfc.nasa.gov/4285/" target="_blank" rel="noreferrer">NASA SVS credits ↗</a>
         </p>
       </section>

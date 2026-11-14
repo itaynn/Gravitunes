@@ -1,23 +1,46 @@
 # Storm Watch
 
-Storm Watch is a browser-based experiment that groups precipitation regions into storms and follows them through 48 bundled NASA IMERG snapshots.
+Storm Watch follows precipitation shapes through the 48 bundled half-hourly NASA IMERG snapshots for 2026-11-07. The browser loads compact, offline-generated polygons from `data/preprocessed-tracks.json`; it does not run inference or download a model.
 
-## Run locally
+## Rebuild the polygon tracks
 
-Serve the repository root with a local HTTP server, then open `/storm-tracker/`. The page loads the PNG snapshots and reference MP4 from this folder, so it is not intended to be opened as a `file://` URL. No build step or external runtime dependencies are required.
+From the repository root, use Python 3.10+:
 
-Tracker parameter changes are saved in the browser's local storage and restored the next time the page is opened in that browser.
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r storm-tracker/requirements.txt
+python storm-tracker/preprocess.py
+```
 
-## Segmentation and tracking
+The two runtime packages are NumPy and headless OpenCV; no neural-network runtime or model is required. The script analyzes all 48 bundled RGBA PNGs at 900 × 450 pixels and rewrites `storm-tracker/data/preprocessed-tracks.json`. Defaults are configurable, for example:
 
-Each 3600 × 1800 image is analyzed at 900 × 450 pixels. The alpha channel identifies precipitation pixels. Saturated red and blue/cyan heatmap colors are treated as storm-core hints; nearby core patches are grouped using their distance and average RGB color. A weighted region-growing pass then assigns precipitation pixels to those seeds using geodesic distance and similarity to each growing region's average color. If a separate precipitation area has no red/blue core hint, its strongest available core-color pixel becomes a fallback seed. Regions smaller than the configurable minimum area are ignored.
+```sh
+python storm-tracker/preprocess.py --minimum-area 200 --maximum-motion 64 --output storm-tracker/data/preprocessed-tracks.json
+```
 
-Across snapshots, storm regions are associated using dark, saturated red/blue core positions, motion-predicted mask overlap, area similarity, and average-color similarity. Core proximity is the strongest association signal; mask centroid motion does not drive the track velocity. When regions merge, separate core anchors are preserved and matched to the next frame's core patches where possible. The selected core is marked in the display. Horizontal matching, velocity, and predicted overlays wrap across the map's longitude seam. Merged sources are consumed by the merge so they cannot be matched again as independent missing storms. Split detection requires actual predicted mask overlap, not just nearby centroids. Merges retain their lineage, so selecting a member of a merged family keeps every separated part highlighted after a split. During short detection gaps, the selected mask is shown at its motion-predicted location for the configured memory duration; after that, the UI reports that the track is no longer detected.
+The explainable CV pipeline thresholds the precipitation alpha channel, closes tiny mask gaps, detects dark saturated red/blue local core peaks, watershed-splits connected masks using separated core seeds, attaches nearby non-core fragments only when distance and color agree, and simplifies the resulting contours. Frame association forward-warps masks with Farneback optical flow, then scores overlap, advected core distance, area, and color. Merges retain their source IDs as lineage anchors; separated children are assigned to those anchors where possible. The artifact contains polygon rings, track IDs, lineage, and core anchors rather than per-pixel label arrays.
 
-The method is an image-space heuristic, not a meteorological storm product: it does not use wind fields, precipitation intensity values, or a geospatial motion model. Thresholds are exposed for experimentation, and ambiguous storm boundaries may need tuning. Minimum area and all distances are measured on the 900 × 450 analysis grid.
+The page fetches this file by default. To run it, serve the repository root (the project already expects HTTP rather than `file://`):
 
-The 48-snapshot playback pass has a fixed total runtime of 12.5 seconds.
+```sh
+python3 -m http.server 8000
+```
+
+Open `http://localhost:8000/storm-tracker/`. Slider values continue to persist in browser local storage. Changing a tracker control starts the existing interactive in-browser reanalysis; to rebuild the offline optical-flow polygons with new settings, rerun `preprocess.py` with CLI options.
+
+## Reproducible benchmark
+
+Run:
+
+```sh
+python storm-tracker/benchmark.py
+```
+
+The benchmark compares connected-mask/core-nearest and core-watershed variants with and without optical flow, and evaluates core thresholds, area cutoffs, and motion settings. It writes `data/benchmark-results.json`, updates the selected polygon artifact, and creates `data/diagnostics/storm38-continuity.jpg`, a side-by-side snapshot/overlay montage spanning the earlier Storm 38 drift/merge period.
+
+Its pseudo-labels are deliberately image-derived: dark red/blue local maxima are core signals, and Farneback-advected maxima are temporal links. It reports core assignment coverage, separation of distant core peaks, false-merge rate, flow-linked identity continuity and merge-link continuity (with the complementary false-split rate). These values are tuning aids, **not meteorological ground truth**: peak thresholding and optical flow can mistake color texture, growth, or fading for a storm core or identity. The diagnostic montage should be visually checked alongside the scores.
 
 ## Inputs and attribution
 
-The project bundles the 48 half-hourly PNG snapshots for 2026-11-07 and the NASA SVS 4285 animation in `data/nasa-svs/4285-imergert-current.mp4`. The source is linked from the page at [NASA Scientific Visualization Studio: IMERG](https://svs.gsfc.nasa.gov/4285/).
+The project bundles the 48 half-hourly IMERG snapshots and NASA SVS 4285's reference MP4 in `data/`. The source page is [NASA Scientific Visualization Studio: IMERG](https://svs.gsfc.nasa.gov/4285/).

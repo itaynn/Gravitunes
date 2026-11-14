@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090d18">
+    <meta
+      name="description"
+      content="An interactive NASA precipitation experiment mapping red and blue precipitation colors to raised terrain."
+    >
+    <title>Rainfall, in motion — Earth Jukebox</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="masthead">
+        <a class="brand" href="./" aria-label="Earth Jukebox home">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span>EARTH JUKEBOX <span class="brand-divider">/</span> FIELD NOTES 01</span>
+        </a>
+        <nav class="masthead-links" aria-label="Related experiments">
+          <a
+            class="source-link"
+            href="https://svs.gsfc.nasa.gov/4285/"
+            target="_blank"
+            rel="noreferrer"
+          >NASA SVS 4285 <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span> A PLAYABLE WEATHER STUDY</p>
+          <h1 id="page-title">Rainfall,<br><em>in motion.</em></h1>
+        </div>
+        <p class="intro-copy">
+          Place a small world in the rain. It stays still until a colored
+          red and blue precipitation colors raise the surface, nudging the
+          ball downhill into a slow, lasting drift.
+        </p>
+      </section>
+
+      <section class="experience" aria-label="Interactive precipitation landscape">
+        <div class="stage-shell">
+          <div class="stage" id="stage">
+            <video
+              id="weather-video"
+              class="weather-video"
+              src="../data/nasa-svs/4285-imergert-current.mp4"
+              autoplay
+              muted
+              playsinline
+              loop
+              preload="metadata"
+              aria-label="NASA global precipitation visualization"
+            ></video>
+            <canvas
+              id="game-layer"
+              class="game-layer"
+              width="960"
+              height="540"
+              aria-label="Interactive precipitation map. Click or tap to place a stationary ball; precipitation edges set it in motion."
+              role="img"
+              tabindex="0"
+              aria-keyshortcuts="Enter ArrowUp ArrowDown ArrowLeft ArrowRight"
+            ></canvas>
+            <div class="stage-vignette" aria-hidden="true"></div>
+            <div class="stage-topline" aria-hidden="true">
+              <span class="stage-label"><span class="live-dot"></span> IMERG / NEAR REAL-TIME PRECIPITATION</span>
+              <span class="frame-label" id="frame-label">FIELD LOADING</span>
+            </div>
+            <div class="stage-prompt" id="stage-prompt">Click anywhere on the map to place your ball</div>
+            <div class="stage-bottomline" aria-hidden="true">
+              <span>NASA GLOBAL PRECIPITATION MEASUREMENT</span>
+              <span class="impact-key"><i class="key-low"></i> WEAK <i class="key-high"></i> STRONG</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-deck">
+          <div class="primary-controls">
+            <button class="button button-secondary" id="reset-button" type="button" disabled>
+              Reset
+            </button>
+            <button class="button button-video" id="video-button" type="button" disabled>
+              <span class="play-icon" aria-hidden="true">▶</span>
+              <span id="video-label">Loading video</span>
+            </button>
+          </div>
+
+          <div class="sliders" aria-label="Physics settings">
+            <label class="slider-control" for="impact-control">
+              <span class="slider-heading">
+                <span>Color impact</span>
+                <output id="impact-output" for="impact-control">1.0×</output>
+              </span>
+              <input id="impact-control" type="range" min="0.4" max="1.8" step="0.1" value="1">
+              <span class="slider-scale"><span>SOFT</span><span>STRONG</span></span>
+            </label>
+            <label class="slider-control" for="inertia-control">
+              <span class="slider-heading">
+                <span>Inertia</span>
+                <output id="inertia-output" for="inertia-control">30 s</output>
+              </span>
+              <input id="inertia-control" type="range" min="8" max="60" step="1" value="30">
+              <span class="slider-scale"><span>LESS</span><span>MORE</span></span>
+            </label>
+          </div>
+        </div>
+        <p class="interaction-status" id="interaction-status" role="status" aria-live="polite">
+          Loading the precipitation field…
+        </p>
+      </section>
+
+      <section class="notes" aria-label="About this experiment">
+        <article class="note-card">
+          <span class="note-index">01 / THE FIELD</span>
+          <h2>Color carries a pulse.</h2>
+          <p>Red and blue mark raised areas; black is flat. The negative height gradient points downhill, away from a colored peak, and sets the direction of each push.</p>
+        </article>
+        <article class="note-card">
+          <span class="note-index">02 / THE MOTION</span>
+          <h2>Stillness, then drift.</h2>
+          <p>The ball has no gravity or self-propelled movement. It stays put until the raised red/blue surface reaches it, then glides downhill with long-lasting inertia.</p>
+        </article>
+        <article class="note-card note-source">
+          <span class="note-index">03 / THE SOURCE</span>
+          <h2>One moving planet.</h2>
+          <p>Based on NASA's IMERG precipitation visualization. This prerecorded animation depicts rain and snowfall—not temperature.</p>
+          <a href="https://svs.gsfc.nasa.gov/4285/" target="_blank" rel="noreferrer">Explore the source & credits <span aria-hidden="true">↗</span></a>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <span>AN EXPERIMENT IN DATA, SOUND & MOTION</span>
+        <span>NASA SVS 4285 · IMERG</span>
+      </footer>
+    </main>
+  </body>
+</html>

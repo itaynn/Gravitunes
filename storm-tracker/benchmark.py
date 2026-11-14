@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -291,11 +290,21 @@ def main() -> None:
     }
     scenarios = [
         ("connected + core-nearest baseline", {"segmenter": "connected", "tracker": "core-nearest"}),
-        ("core watershed + core-nearest", {"segmenter": "watershed", "tracker": "core-nearest"}),
-        ("core watershed + optical flow", {"segmenter": "watershed", "tracker": "flow"}),
-        ("tuned watershed + optical flow", {
-            "segmenter": "watershed", "tracker": "flow",
-            "core_saturation": 90, "core_darkness": 65, "maximum_motion": 64,
+        ("core watershed + optical flow · 800 px cutoff", {
+            "segmenter": "watershed", "tracker": "flow", "minimum_area": 800,
+        }),
+        ("connected + optical flow · 200 px cutoff", {
+            "segmenter": "connected", "tracker": "flow", "minimum_area": 200,
+        }),
+        ("core watershed + core-nearest · 200 px cutoff", {
+            "segmenter": "watershed", "tracker": "core-nearest", "minimum_area": 200,
+        }),
+        ("core watershed + optical flow · 200 px cutoff", {
+            "segmenter": "watershed", "tracker": "flow", "minimum_area": 200,
+        }),
+        ("tuned watershed + optical flow · stronger cores", {
+            "segmenter": "watershed", "tracker": "flow", "minimum_area": 200,
+            "core_saturation": 100, "core_darkness": 140, "maximum_motion": 64,
         }),
     ]
     results = []

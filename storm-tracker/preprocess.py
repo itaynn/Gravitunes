@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--snapshots", type=Path, default=SNAPSHOT_DIR)
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--width", type=int, default=900, help="analysis width; height follows image aspect ratio")
-    parser.add_argument("--minimum-area", type=int, default=800, help="minimum grouped mask area in analysis pixels")
+    parser.add_argument("--minimum-area", type=int, default=200, help="minimum grouped mask area in analysis pixels")
     parser.add_argument("--alpha-threshold", type=int, default=16)
     parser.add_argument("--gap-radius", type=int, default=1, help="binary mask closing radius in analysis pixels")
     parser.add_argument("--core-saturation", type=int, default=100)

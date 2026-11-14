@@ -38,7 +38,7 @@
   const overlayContext = overlayCanvas.getContext("2d");
 
   const settings = {
-    minimumArea: 800,
+    minimumArea: 200,
     alphaThreshold: 16,
     gapRadius: 1,
     seedRedness: 140,
