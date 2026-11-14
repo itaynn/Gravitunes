@@ -1402,13 +1402,33 @@
     }
   }
 
+  // Smoothed precipitation at a point (bilinear on the blurred field, wrapping around the globe).
+  function blurAt(fx, fy, field = latestBlur) {
+    const x = fx - 0.5;
+    const y = clamp(fy - 0.5, 0, FH - 1);
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const tx = x - x0;
+    const ty = y - y0;
+    const xa = wrapX(x0);
+    const xb = wrapX(x0 + 1);
+    const yb = Math.min(FH - 1, y0 + 1);
+    return lerp(lerp(field[y0 * FW + xa], field[y0 * FW + xb], tx), lerp(field[yb * FW + xa], field[yb * FW + xb], tx), ty);
+  }
+
   function measurePoint(voice) {
     const u = cellSample(cellU, voice.fx, voice.fy);
     const v = cellSample(cellV, voice.fx, voice.fy);
     const s = cellSample(cellSpin, voice.fx, voice.fy);
     const near = maxNear(fieldI, voice.fx, voice.fy, 2);
-    voice.active = state.mode === "probes" ? true : near.value >= state.globals.threshold * 0.8;
-    voice.weight = 1;
+    // Presence: how much rain/snow color is right under the voice. As the color thins out toward
+    // the edge of a patch the voice fades with it, and it is silent where the map has no color.
+    const threshold = state.globals.threshold;
+    // The color right under it (raw), or its smoothed surroundings, so speckled patches don't stutter.
+    const local = Math.max(blurAt(voice.fx, voice.fy, fieldI), blurAt(voice.fx, voice.fy));
+    const p = clamp((local - threshold * 0.25) / (threshold * 0.75 + 0.15), 0, 1);
+    voice.presenceTarget = p * p * (3 - 2 * p);
+    voice.active = state.mode === "probes" ? true : near.value >= threshold * 0.8 || (voice.presence ?? 0) > 0.02;
     return {
       x: voice.fx / FW,
       y: 1 - voice.fy / (FH - 1),
@@ -1496,6 +1516,12 @@
   const isMuted = (voice) => state.mode !== "map" && state.solo > 0 && voice.slot !== state.solo - 1;
 
   function finishVoice(voice, inputs, dt) {
+    // Point voices fade (over ~0.3 s) with the color under them; bands and Storm Watch set weight themselves.
+    if (voice.presenceTarget !== undefined) {
+      if (voice.presence === undefined) voice.presence = voice.presenceTarget;
+      else voice.presence += (voice.presenceTarget - voice.presence) * (1 - Math.exp(-dt / 0.3));
+      voice.weight = voice.presence;
+    }
     // Smooth the snow share over ~1 s so crossing a rain/snow edge is a fade, not a jump.
     if (inputs.snow !== null) {
       if (voice.snowSmooth === null) voice.snowSmooth = inputs.snow;
@@ -3061,7 +3087,10 @@
       const tag = row.querySelector(".lab-voice-profile");
       tag.textContent = snowPercent < 5 ? "Rain" : snowPercent > 95 ? "Snow" : `Rain ${100 - snowPercent} · Snow ${snowPercent}`;
       tag.style.color = rgba(mixRgb(voice.snowShare), 1);
-      const playingText = voiceLines(voice).map((l) => l.text).join(" / ") || "…";
+      const faded = voice.presence !== undefined && voice.presence < 0.95
+        ? (voice.presence < 0.03 ? " · silent (no color here)" : ` · fading to ${Math.round(voice.presence * 100)}%`)
+        : "";
+      const playingText = (voiceLines(voice).map((l) => l.text).join(" / ") || "…") + faded;
       row.querySelector(".lab-voice-note").textContent = voice.active
         ? (voice.kind === "track" ? `Storm ${voice.trackId} · ${playingText}` : playingText)
         : "below color threshold";

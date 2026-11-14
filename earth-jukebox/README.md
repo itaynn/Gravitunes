@@ -40,6 +40,10 @@ Below the scan-line demo, `sonification.html#sound-lab` plays the moving SVS 428
   - Instruments: sustained ones are soft pad, choir, strings, organ, pure tone, flute, clarinet, cello, brass, synth lead, glass harmonica and wind. Struck ones are pluck, marimba, bell, glockenspiel, harp, vibraphone, kalimba, electric piano and music box.
   - Notes: *Flowing* is continuous. A sustained instrument holds one tone whose pitch, loudness and tone glide as the map moves. A struck instrument rings whenever the voice reaches a new note, and rings again as each note dies away. The other options strike on a tempo grid, from every 2 bars to sixteenths.
 - **Rain and snow sounds:** rain and snow each have their own profile, with their own key, scale, instrument and ranges. Every voice plays both, crossfaded by how much snow is around it, smoothed over about a second, so moving from rain into snow fades one sound into the other. The *Rain ↔ snow blend* control sets how gradual that fade is. On the map, a voice's marker morphs from a green circle (rain) to a cyan diamond (snow), matching the NASA legend colors. By default rain is an organ in C pentatonic, and snow is a higher glockenspiel in C Lydian.
+- **Fading with the color:** in the video modes, each voice's volume follows how much rain or snow color is right under it.
+  - Full color means full volume. As the color thins toward the edge of a patch, the voice fades (smoothed over about 0.3 s), and it goes silent where the map has no color. Its halo dims with it.
+  - The voices table shows "fading to 40%" or "silent (no color here)".
+  - The *Color threshold* control sets how much color counts as full.
 - **Seeing what you hear:**
   - Each voice is labeled with the notes and instrument it is playing, with percentages while rain and snow blend.
   - Its halo grows with its loudness, and a trail shows the path that made the melody.
