@@ -563,6 +563,8 @@ document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("clic
 loadPreset("organ", true);
 await applyTuning();
 loop();
+// Dev hook for tests/browser/realtime.html (same-origin iframe): read-only access to internals.
+window.__synthlab = { engine, held, live, startAudio, loadPreset };
 
 // Dev hook: playground.html#selftest exercises the page and logs "SELFTEST ok" or "SELFTEST fail: ...".
 if (location.hash === "#selftest") {

@@ -1,6 +1,6 @@
 // engine.js — Web Audio engine. OWNER: engine fork.
 // The engine works in Hz; tuning/scale (pure modules) turn steps and data values into Hz.
-import { resolveVoice, harmonicsToWave, validateVoiceDef, PRESETS } from "./voices.js";
+import { resolveVoice, validateVoiceDef, PRESETS } from "./voices.js";
 import { createTuning, resolveTuning } from "./tuning.js";
 import { createScale } from "./scale.js";
 import { normalizeEvent, normalizeScore, resolvePitch, directionTracker } from "./score.js";
@@ -139,12 +139,14 @@ export function createEngine(opts = {}) {
     if (panner) { panner.pan.value = effectivePan(pan, freq); envGain.connect(panner).connect(master); }
     else envGain.connect(master);
 
-    // Every source is { osc, gain, ratio }. `harm` is the harmonic (PeriodicWave) source or null;
-    // `parts[i]` follows voiceDef.partials[i] (null when that partial is above Nyquist).
+    // Every source is { osc, gain, ratio }. `harms[k]` is the sine for harmonic k+1 (or null), so a
+    // harmonic change is just a gain ramp on oscillators that keep running: no new oscillator has to
+    // match the phase of an old one (in real time the render thread runs ahead of currentTime, so a
+    // crossfade between a running and a newly started oscillator lands at a random phase and can
+    // cancel by 15+ dB). `parts[i]` follows voiceDef.partials[i] (null when above Nyquist).
     const live = new Set();     // sources whose oscillator has not ended yet
-    let harm = null, parts = [];
+    let harms = [], parts = [];
     let curFreq = freq;         // last frequency target (for sources added later by set)
-    let phaseFree = !ev.glide;  // the pitch never moved: a crossfade can start exactly in phase
     let endedNote = false;
     let handle = null;
 
@@ -164,14 +166,15 @@ export function createEngine(opts = {}) {
       if (handle && handle._endTime !== Infinity) o.stop(handle._endTime);
       return src;
     }
-    const harmSetup = (h) => (o) => { if (h.length === 1) o.type = "sine"; else o.setPeriodicWave(harmonicsToWave(c, h)); };
     const sineSetup = (o) => { o.type = "sine"; };
     const hasHarm = (v) => v.harmonics.some((x) => x !== 0);
     const audible = (p, f) => f * p.ratio < c.sampleRate / 2; // above Nyquist: skip, avoids aliasing
     /** Gain of a partial at time t; a partial with `decay` fades from the note start. */
     const partialLevel = (p, t) => (p.amp ?? 1) * (p.decay ? Math.exp(-Math.max(0, t - start) * 3 / p.decay) : 1);
 
-    if (hasHarm(voiceDef)) harm = makeSource(1, harmSetup(voiceDef.harmonics), start, 1);
+    /** Gain of harmonic k (0-based) at pitch f: its amplitude, or 0 at/above Nyquist (like a PeriodicWave). */
+    const harmLevel = (h, k, f) => (f * (k + 1) < c.sampleRate / 2 ? h[k] ?? 0 : 0);
+    harms = voiceDef.harmonics.map((a, k) => (harmLevel(voiceDef.harmonics, k, freq) ? makeSource(k + 1, sineSetup, start, a) : null));
     parts = voiceDef.partials.map((p) => {
       if (!audible(p, freq)) return null;
       const s = makeSource(p.ratio, sineSetup, start, p.amp ?? 1);
@@ -200,9 +203,8 @@ export function createEngine(opts = {}) {
 
     /**
      * Move the sounding note to timbre `nv` (a resolved VoiceDef), ramping over t0..t1.
-     * Harmonics: setPeriodicWave switches instantly and can click, so a new oscillator with the new
-     * wave crossfades with the old one (started a whole number of periods after the note start, so
-     * both are in phase, when the pitch never moved). Partials match by index: amps and ratios ramp,
+     * Harmonics: each running sine's gain ramps to its new amplitude (no oscillator is replaced, so
+     * nothing can cancel or restart). Partials match by index: amps and ratios ramp,
      * added ones fade in, removed ones fade out and stop. The level gain ramps to the new loudness
      * normalization, so the note stays as loud as before.
      */
@@ -214,21 +216,17 @@ export function createEngine(opts = {}) {
         rampTo(src.gain.gain, 0, from, from + fade);
         try { src.osc.stop(from + fade + 0.01); } catch { /* already stopped */ }
       };
-      const sameHarm = !!harm === hasHarm(nv) && nv.harmonics.length === voiceDef.harmonics.length
-        && nv.harmonics.every((x, i) => x === voiceDef.harmonics[i]);
-      if (!sameHarm) {
-        let ts = t0;
-        if (harm && phaseFree) {
-          const fe = freq * 2 ** (voiceDef.detune / 1200), n = Math.ceil((t0 - start) * fe - 1e-9);
-          ts = Math.max(t0, start + n / fe);
-        }
-        if (harm) fadeOut(harm, ts);
-        harm = null;
-        if (hasHarm(nv)) {
-          harm = makeSource(1, harmSetup(nv.harmonics), ts, 0);
-          rampTo(harm.gain.gain, 1, ts, ts + fade);
-        }
+      // A ramp already in progress is cancelled and held, so rapid updates retarget instead of
+      // stacking; a harmonic that was silent gets a new sine that fades in from 0.
+      const nh = [];
+      for (let k = 0; k < Math.max(harms.length, nv.harmonics.length); k++) {
+        const target = harmLevel(nv.harmonics, k, curFreq);
+        let src = harms[k];
+        if (!src && target) src = makeSource(k + 1, sineSetup, t0, 0);
+        if (src) rampTo(src.gain.gain, target, t0, t1);
+        nh.push(src ?? null);
       }
+      harms = nh;
       const next = [];
       for (let i = 0; i < Math.max(parts.length, nv.partials.length); i++) {
         const src = parts[i], p = nv.partials[i];
@@ -338,8 +336,9 @@ export function createEngine(opts = {}) {
             p = { ...p, direction: handle._value === undefined || p.value >= handle._value ? "up" : "down" };
           if (p.value !== undefined) handle._value = p.value;
           const f = resolvePitch(p, pc);
-          handle.freq = f; curFreq = f; phaseFree = false; repan = true;
+          handle.freq = f; curFreq = f; repan = true;
           for (const { osc, ratio } of live) rampTo(osc.frequency, f * ratio, t0, t1, true);
+          harms.forEach((src, k) => { if (src) rampTo(src.gain.gain, harmLevel(voiceDef.harmonics, k, f), t0, t1); });
         }
         if (repan && panner) rampTo(panner.pan, effectivePan(pan, handle.freq), t0, t1);
         return handle;
@@ -380,7 +379,7 @@ export function createEngine(opts = {}) {
       const end = Math.max(t, start) + release + 0.05;
       handle._endTime = end;
       for (const src of live) {
-        if (src !== harm && !parts.includes(src)) continue; // already fading out after a timbre change
+        if (!harms.includes(src) && !parts.includes(src)) continue; // already fading out after a timbre change
         try { src.osc.stop(end); } catch { /* already stopped */ }
       }
     }
