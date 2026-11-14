@@ -194,7 +194,7 @@ engine.play({ step: 5, dur: 1 });
 
 ## Scales and ragas
 
-A scale limits which steps `value` may use. Built-in: `chromatic`, `major`, `minor`, `ionian`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `aeolian`, `locrian`, `pentatonic-major`, `pentatonic-minor`, `harmonic-minor`, and the ragas `yaman`, `bhairav` (12-TET degrees) and `yaman-22`, `bhairav-22` (for `shruti22`). For gamelan: `slendro`, `slendro-nem`, `slendro-sanga`, `slendro-manyura` (for the `slendro` tuning; the pathets share all 5 notes and differ only in their emphasized tones, stored as `vadi`/`samvadi`) and `pelog`, `pelog-lima`, `pelog-nem` (tones 1 2 3 5 6), `pelog-barang` (tones 2 3 5 6 7) for the `pelog` tuning. A custom scale is an object:
+A scale limits which steps `value` may use. Built-in: `chromatic`, `major`, `minor`, `ionian`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `aeolian`, `locrian`, `pentatonic-major`, `pentatonic-minor`, `harmonic-minor`, and the ragas `yaman`, `bhairav` (12-TET degrees) and `yaman-22`, `bhairav-22` (for `shruti22`). For gamelan: `slendro`, `slendro-nem`, `slendro-sanga`, `slendro-manyura` (for the `slendro` tuning; the pathets share all 5 notes and differ only in their emphasized tones, stored as `vadi`/`samvadi`) and `pelog`, `pelog-lima`, `pelog-nem` (tones 1 2 3 5 6), `pelog-barang` (tones 2 3 5 6 7) for the `pelog` tuning. Gentle 12-TET scales that stay pleasant when notes overlap: `yo`, `hirajoshi`, `bhupali`, `durga`, `dorian-hexatonic`, `whole-tone` (the app's shared Scale menu uses these; `SCALE_DEFS` in `js/scale.js` exposes all degrees). A custom scale is an object:
 ```js
 engine.setScale({ name: "yaman", up: [0, 2, 4, 6, 9, 11], down: [0, 2, 4, 6, 7, 9, 11], period: 12, vadi: 4, samvadi: 11 });
 ```

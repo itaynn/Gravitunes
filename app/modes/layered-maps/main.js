@@ -1,14 +1,14 @@
 // Layered maps: ozone, CO and NOx at the same spot and hour, each gas its own voice and register.
 // The host loads one dataset (the map you see); the other gases are loaded with the same core loader.
+import { formatLatLon as where } from '../../core/geo.js';
 import { loadDataset } from '../../core/datasets.js';
+import { scaleControl } from '../../core/scale-control.js';
 import { LAYERS, notesFor, describeReadings, frameAtDate } from './layers.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe } = ctx;
   let alive = true, last = null, layers = null;
   const state = Object.fromEntries(LAYERS.map((l) => [l.id, 'on']));
-  const where = (lat, lon) =>
-    `${Math.abs(lat).toFixed(0)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(0)}°${lon >= 0 ? 'E' : 'W'}`;
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
   for (const l of LAYERS) {
@@ -17,6 +17,8 @@ export default function start(ctx) {
       describe(`${cap(l.name)} ${v === 'on' ? 'on' : v === 'mute' ? 'muted' : 'solo'}`);
     }, { value: 'on' });
   }
+  let scale = 'pentatonic-major';
+  scaleControl(panel, { value: scale, describe, onChange: (v) => { scale = v; } });
   panel.button('Describe this spot', () => last && probe(last, { announce: true }));
 
   (async () => {
@@ -43,7 +45,7 @@ export default function start(ctx) {
     last = { lat, lon };
     if (!layers) return;
     const r = readingsAt(lat, lon);
-    for (const n of notesFor(r, state, lon / 180)) sound.play(n);
+    for (const n of notesFor(r, state, lon / 180, scale)) sound.play(n);
     if (announce) describe(`${cap(describeReadings(r, (x) => x.ds.format(x.value)))}, near ${where(lat, lon)}`);
   }
 

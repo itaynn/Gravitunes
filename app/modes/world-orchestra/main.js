@@ -3,13 +3,12 @@
 // borders). Pitch <- value (quantized to a scale, low-to-mid register), loudness <- value, pan <- longitude.
 import { distKm, voiceAt, shapeForPitch, selectTriggers, percentileOf } from './orchestra.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
-import { SCALES, quantize, noteHz, noteName } from '../../core/scales.js';
+import { quantize, noteHz, noteName } from '../../core/scales.js';
+import { scaleControl } from '../../core/scale-control.js';
 
-const getJson = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Could not load ${url}`);
-  return r.json();
-};
+import { loadEarth, valueHelpers } from '../../core/data.js';
+import { formatLatLon as fmt } from '../../core/geo.js';
+import { soundHint } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -18,7 +17,7 @@ export default function start(ctx) {
   let setup = null;
   (async () => {
     const [cj, mj, ij] = await Promise.all([
-      getJson('/data/earth/cities.json'), getJson('/data/earth/musical-centers.json'), getJson('/data/earth/instruments.json'),
+      loadEarth('cities'), loadEarth('musical-centers'), loadEarth('instruments'),
     ]);
     if (!alive) return;
     setup = run(cj, mj.centers, ij.instruments);
@@ -28,9 +27,7 @@ export default function start(ctx) {
     const [lo, hi] = dataset.range;
     const units = dataset.units;
     // 0..1 over the range (log space for log datasets); value formatting like "0.013 ppbv".
-    const norm = dataset.norm || ((v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))));
-    const denorm = dataset.denorm || ((x) => lo + x * (hi - lo));
-    const fmtV = (v) => (dataset.format ? dataset.format(v) : `${Math.round(v * 10) / 10} ${units}`);
+    const { norm, denorm, fmtV } = valueHelpers(dataset);
     const f = cj.fields;
     const cities = cj.cities.map((r) => Object.fromEntries(f.map((k, i) => [k, r[i]])));
     const BLEND_KM = 900;
@@ -64,8 +61,7 @@ export default function start(ctx) {
     const applySpeed = () => time.setSpeed(Math.min(30, s.speed / (dataset.stepHours || 1)));
     panel.slider('Speed', { min: 1, max: 48, step: 1, value: s.speed, format: (v) => `${v} hours per second` },
       (v) => { s.speed = v; applySpeed(); });
-    panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; },
-      { value: s.scale, hint: 'Slendro and pelog are Javanese gamelan tunings (not 12-tone).' });
+    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
     // Slider runs over norm 0..1 so log datasets get usable steps.
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A city plays when its value rises past this. Default: the dataset\'s 70th percentile.',
@@ -153,7 +149,6 @@ export default function start(ctx) {
 
     // ---- hover probe
     let lastHover = 0;
-    const fmt = (lat, lon) => `${Math.abs(lat).toFixed(0)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(0)}°${lon >= 0 ? 'E' : 'W'}`;
     function probe({ lat, lon }, force = false) {
       const now = performance.now();
       if (!force && now - lastHover < 150) return;
@@ -223,7 +218,7 @@ export default function start(ctx) {
     }
 
     prev = valuesAt(time.now()); prevT = time.now();
-    if (!sound.started) panel.text('Press "Start sound" to hear the orchestra. Without sound, activity is still announced.');
+    soundHint(panel, sound, 'press Play orchestra. Without sound, activity is still announced.');
     describe(`World orchestra ready: ${cities.length} cities, ${centers.length} musical centers. Threshold ${fmtV(s.threshold)}. Press Play orchestra, or explore the map with the arrow keys.`);
 
     return () => {

@@ -40,7 +40,17 @@ const DEFS = {
   "pelog-lima": { up: [0, 1, 2, 4, 5], vadi: 0, samvadi: 4, period: 7 },      // tones 1 2 3 5 6; 1 and 5
   "pelog-nem": { up: [0, 1, 2, 4, 5], vadi: 5, samvadi: 1, period: 7 },       // tones 1 2 3 5 6; 6 and 2
   "pelog-barang": { up: [1, 2, 4, 5, 6], vadi: 5, samvadi: 1, period: 7 },    // tones 2 3 5 6 7; 6 and 2
+  // Gentle scales that still sound good when random notes overlap (few or no semitones).
+  yo: { up: [0, 2, 5, 7, 9], period: 12 },                                     // Japanese yo (min. 3rd-free)
+  hirajoshi: { up: [0, 2, 3, 7, 8], period: 12 },                              // Japanese koto tuning
+  bhupali: { up: [0, 2, 4, 7, 9], vadi: 4, samvadi: 9, period: 12 },           // S R G P D
+  durga: { up: [0, 2, 5, 7, 9], vadi: 5, samvadi: 0, period: 12 },             // S R M P D
+  "dorian-hexatonic": { up: [0, 2, 3, 5, 7, 9], period: 12 },                  // Dorian without the 7th: drone-friendly
+  "whole-tone": { up: [0, 2, 4, 6, 8, 10], period: 12 },
 };
+
+/** Degrees of the built-in scales (read-only; used by the app to show the same scales). */
+export const SCALE_DEFS = DEFS;
 
 /**
  * Built-in scales. 12-TET: "chromatic", "major", "minor", "ionian", "dorian", "phrygian", "lydian",

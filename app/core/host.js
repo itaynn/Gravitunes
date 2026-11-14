@@ -4,6 +4,7 @@ import { createViewer, createInput } from './viewer.js';
 import { createTime } from './time.js';
 import { createPanel, createDescribe } from './ui.js';
 import { createSound } from './sound.js';
+import './switcher.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);

@@ -1,5 +1,5 @@
 // Layered maps: pure mapping logic (runs in node too). Each gas is a layer with its own voice and register.
-import { noteHz } from '../../core/scales.js';
+import { noteHz, scaleFreqs } from '../../core/scales.js';
 
 // Registers in semitones from C4, all inside C2..C5. CO low, ozone middle, NOx upper.
 export const LAYERS = [
@@ -22,7 +22,13 @@ export function pitchSemis(x, low, high) {
   return notes[Math.round(f * (notes.length - 1))];
 }
 
-export const layerFreq = (layer, x) => noteHz(pitchSemis(x, layer.low, layer.high));
+// 0..1 -> frequency in the layer's register on `scale` (major pentatonic gives the same notes as pitchSemis).
+export function layerFreq(layer, x, scale = 'pentatonic-major') {
+  if (scale === 'pentatonic-major') return noteHz(pitchSemis(x, layer.low, layer.high));
+  const fs = scaleFreqs(scale, noteHz(layer.low), noteHz(layer.high));
+  if (!fs.length) return noteHz(layer.low);
+  return fs[Math.round(Math.max(0, Math.min(1, x ?? 0)) * (fs.length - 1))];
+}
 
 // state: { [id]: 'on' | 'mute' | 'solo' } -> Set of audible ids. Any solo wins over everything else.
 export function audible(layers, state) {
@@ -40,10 +46,10 @@ export function frameAtDate(count, timeOf, date) {
 }
 
 // readings: [{ layer, value, norm }] -> notes to play (muted and no-data layers skipped).
-export function notesFor(readings, state, pan = 0) {
+export function notesFor(readings, state, pan = 0, scale = 'pentatonic-major') {
   const on = audible(readings.map((r) => r.layer), state);
   return readings.filter((r) => r.value != null && on.has(r.layer.id)).map(({ layer, norm }) => ({
-    freq: layerFreq(layer, norm), harmonics: layer.harmonics, envelope: layer.envelope,
+    freq: layerFreq(layer, norm, scale), harmonics: layer.harmonics, envelope: layer.envelope,
     amp: layer.amp, t: layer.delay, dur: 0.45, pan,
   }));
 }

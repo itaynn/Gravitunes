@@ -183,7 +183,12 @@ export async function createSound() {
   let engine = null, name = 'built-in';
   try {
     const mod = await import('/sound-engine/js/index.js');
-    engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major' }); name = 'sound-engine';
+    // Explicit bases (repo-absolute): the engine's import.meta.url defaults fail when modules are blob: URLs
+    // (standalone builds), and the standalone fetch() override serves these paths from its bundle.
+    const at = (p) => new URL(p, location.href).href;
+    engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major',
+      libraryBase: at('/sound-engine/library/presets/'), sampleBase: at('/data/earth/instruments/') });
+    name = 'sound-engine';
   } catch (e) {
     console.info('[sound] sound-engine not available, using built-in synth:', e.message);
     engine = fallbackEngine();
@@ -232,6 +237,16 @@ export async function createSound() {
       return h;
     },
     stopAll() { try { engine.stopAll(); } catch {} },
+    // A recorded instrument from sound-engine/library: { name, def, sample }. With the engine, play it with
+    // { voice: name } (uses the recording when downloaded, else its analysed overtones); the built-in synth
+    // only gets def (overtones and envelope) to pass inline.
+    async loadLibrary(id) {
+      if (engine.loadLibrary) return engine.loadLibrary(id, { name: `library-${id}` });
+      const r = await fetch(new URL(`/sound-engine/library/presets/${encodeURIComponent(id)}.json`, location.href));
+      if (!r.ok) throw new Error(`no library preset ${id}`);
+      const { source, sample, id: _i, title, kind, ...def } = await r.json();
+      return { name: null, def, sample: false };
+    },
     // Output: 'stereo' (app default) | 'mono'; balance -1..1 shifts everything; width 0..1 spreads by pitch.
     setOutput(m) { try { engine.setOutput?.(m === 'mono' ? 'mono' : 'stereo'); } catch (e) { console.warn('[sound]', e.message); } },
     setBalance(x) { try { engine.setBalance?.(clamp(+x || 0, -1, 1)); } catch (e) { console.warn('[sound]', e.message); } },

@@ -5,29 +5,27 @@ import { SOURCES, PARAMS, PRESETS, cloneMapping, presetOf, encodeMapping, decode
   renderNote, describeNote, makePoints } from './mapping.js';
 import { selectTriggers, percentileOf } from '../../core/triggers.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
-import { SCALES, noteName } from '../../core/scales.js';
+import { noteName } from '../../core/scales.js';
+import { scaleControl } from '../../core/scale-control.js';
+import { loadEarth, valueHelpers } from '../../core/data.js';
+import { soundHint } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, cleanup = null;
-  fetch('/data/earth/instruments.json').then((r) => {
-    if (!r.ok) throw new Error('Could not load instruments.json');
-    return r.json();
-  }).then((ij) => { if (alive) cleanup = run(ij.instruments); })
+  loadEarth('instruments').then((ij) => { if (alive) cleanup = run(ij.instruments); })
     .catch((e) => { console.error(e); describe(`Mapping lab could not load its voices: ${e.message}`); });
 
   function run(instruments) {
     const [lo, hi] = dataset.range;
     const units = dataset.units;
-    const norm = dataset.norm || ((v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))));
-    const denorm = dataset.denorm || ((x) => lo + x * (hi - lo));
-    const fmtV = (v) => (dataset.format ? dataset.format(v) : `${Math.round(v * 10) / 10} ${units}`);
+    const { norm, denorm, fmtV } = valueHelpers(dataset);
     const points = makePoints();
     const url = new URLSearchParams(location.search);
 
     const s = {
       mapping: decodeMapping(url.get('map')) || cloneMapping(PRESETS.classic.mapping),
-      scale: SCALES[url.get('scale')] ? url.get('scale') : 'pentatonic-major',
+      scale: 'pentatonic-major',   // set by the shared Scale menu (?scale= or the remembered choice)
       speed: 6, maxNotes: 6, cooldown: 6, volume: 0.7,
       lowSemis: -24, highSemis: 12,            // C2 .. C5
       threshold: null,
@@ -89,8 +87,8 @@ export default function start(ctx) {
       return on.length ? on.map((p) => `${s.mapping[p].src} to ${p}${s.mapping[p].flip ? ' flipped' : ''}`).join(', ') : 'nothing mapped';
     };
 
-    panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; saveUrl(); },
-      { value: s.scale, hint: 'Pitch is quantized to this scale, between the lowest and highest note.' });
+    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; saveUrl(); },
+      hint: 'Pitch is quantized to this scale, between the lowest and highest note.' });
     // Slider runs over norm 0..1 so log datasets get usable steps.
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A point plays when its value rises past this. Default: the dataset\'s 70th percentile.',
@@ -184,7 +182,7 @@ export default function start(ctx) {
 
     prev = valuesAt(time.now()); prevT = time.now();
     saveUrl();
-    if (!sound.started) panel.text('Press "Start sound" to hear notes. Without sound, mappings are still announced.');
+    soundHint(panel, sound, 'press Play. Without sound, mappings are still announced.');
     describe(`Mapping lab ready: ${points.length} points. Mapping: ${summary()}. Threshold ${fmtV(s.threshold)}. Press Play, or explore the map with the arrow keys.`);
 
     return () => { offFrame(); offHover(); offClick(); offState?.(); clearInterval(sumTimer); removeOverlay(); cancelAnimationFrame(raf); };

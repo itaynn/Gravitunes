@@ -24,7 +24,35 @@ DIST = ROOT / 'dist'
 MODES = ROOT / 'app' / 'modes'
 SKIP = {'storm-watch': '48 full-size PNG frames (~25 MB) plus 2.3 MB of tracks; too big for one file'}
 DEFAULT_EVERY = 3  # a mode can override with "standalone": {"every": N} in mode.json
-DROP_SOURCES = ('.mp4',)  # precipitation-ball: keep the 2.8 MB webm, drop the 30 MB mp4
+DROP_SOURCES = ('.mp4',)
+FIRST = ['synth-lab', 'timbre-atlas']  # gallery order, as in app/core/switcher.js orderModes()
+
+
+def order_modes(modes):
+    rank = lambda m: FIRST.index(m['id']) if m['id'] in FIRST else len(FIRST)
+    return sorted(modes, key=rank)  # stable: the rest keep index.json order
+
+
+def one_line(d):
+    m = re.match(r'^.*?[.!?](\s|$)', d or '')
+    return (m.group(0) if m else (d or '')).strip()
+
+
+def switcher_js(all_modes, mid):
+    """Globals read by app/core/switcher.js: the demo list (bundled files) and the current demo."""
+    lst = [{'id': m['id'], 'name': m['name'], 'description': m.get('description', ''), 'file': f"{m['id']}.html"}
+           for m in order_modes(all_modes) if m['id'] not in SKIP]
+    return f'window.__GT_MODES__ = {json.dumps(lst)}; window.__GT_CURRENT__ = {json.dumps(mid)};'
+
+
+def extra_files(m):
+    """mode.json "standalone": {"files": [repo globs]} -> virtual files (JSON/text only)."""
+    out = {}
+    for pat in ((m.get('standalone') or {}).get('files') or []):
+        for p in sorted(ROOT.glob(pat)):
+            if p.is_file():
+                out[key_of(p)] = {'text': p.read_text(), 'type': mimetypes.guess_type(str(p))[0] or 'text/plain'}
+    return out  # precipitation-ball: keep the 2.8 MB webm, drop the 30 MB mp4
 
 
 def data_root(arg):
@@ -85,7 +113,7 @@ def collect_modules(entry, patches=None):
 
         def sub(m):
             line = src[src.rfind('\n', 0, m.start()) + 1:m.start()].lstrip()
-            if not is_local(m.group(3)) or line.startswith(('*', '//', '/*')) or '{' in line[-12:]:
+            if not is_local(m.group(3)) or line.startswith(('*', '//', '/*')) or line.rstrip().endswith('{'):
                 return m.group(0)  # JSDoc type imports and comments are not real imports
             dep = repo_path(m.group(3), p.parent)
             if not dep.is_file():
@@ -209,7 +237,7 @@ def grid_files(data, ds, every):
     return out
 
 
-def build_host_mode(m, data, every, link_map):
+def build_host_mode(m, data, every, link_map, all_modes):
     mid = m['id']
     datasets = m.get('datasets')
     ids = [str(d) for d in datasets] if isinstance(datasets, list) else ['5152']
@@ -238,36 +266,44 @@ def build_host_mode(m, data, every, link_map):
     ]}
     page, entry = inline_html(ROOT / 'app' / 'mode.html', link_map)
     mods = collect_modules(entry, patches)
-    page = page.replace('<a href="index.html">Back to all modes</a>', '<a href="index.html">Back to all demos</a>')
-    rt = runtime(files, mods, key_of(entry), extra_js=f'window.__GT_MODE__ = {json.dumps(mid)};')
+    rt = runtime(files, mods, key_of(entry), extra_js=f'window.__GT_MODE__ = {json.dumps(mid)}; ' + switcher_js(all_modes, mid))
     return page.replace('</body>', rt + '\n</body>')
 
 
-def build_page_mode(m, link_map):
+def build_page_mode(m, link_map, all_modes):
     page = repo_path(m['href'], MODES / m['id'])
     text, entry = inline_html(page, link_map, DROP_SOURCES)
     if entry:
         mods = collect_modules(entry)
-        text = text.replace('</body>', runtime({}, mods, key_of(entry)) + '\n</body>')
+        text = text.replace('</body>', runtime(extra_files(m), mods, key_of(entry), switcher_js(all_modes, m['id'])) + '\n</body>')
     return text
 
 
 INDEX = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gravitunes demos</title>
-<style>body{{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;background:#fff;color:#111}}
-li{{margin:.6rem 0}} .note{{background:#f3f0ff;padding:.8rem 1rem;border-radius:.5rem}}
-@media (prefers-color-scheme: dark){{body{{background:#111;color:#eee}} a{{color:#a9f}} .note{{background:#2a2440}}}}</style>
+<style>:root{{--bg:#111418;--fg:#f2f2f2;--muted:#b8bec6;--accent:#ffd34d;--panel:#1d2229;color-scheme:dark}}
+body{{font:17px/1.5 system-ui,sans-serif;max-width:60rem;margin:0 auto;padding:24px 16px 48px;background:var(--bg);color:var(--fg)}}
+h1{{margin:.2em 0}} a{{color:var(--accent)}} .lead{{color:var(--muted);max-width:60ch}}
+.demos{{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}}
+.card{{background:var(--panel);border:1px solid #2c333d;border-radius:10px;padding:14px 18px;display:flex;flex-direction:column}}
+.card h2{{font-size:1.15rem;margin:0 0 .3em}} .card h2 a{{color:var(--fg);text-decoration:none}} .card p{{margin:.2em 0;flex:1}}
+.links{{display:flex;gap:12px;align-items:center;flex:0 !important;margin-top:.6em !important}}
+.open{{background:var(--accent);color:#000;font-weight:600;padding:.25em .9em;border-radius:6px;text-decoration:none}}
+.size{{color:var(--muted);font-size:.85em;margin-left:auto}}
+.note{{background:var(--panel);padding:.8rem 1rem;border-radius:.5rem;color:var(--muted)}}
+:focus-visible{{outline:3px solid var(--accent);outline-offset:3px}}</style>
 </head><body>
 <h1>Gravitunes demos</h1>
-<p>NASA Earth data you can hear. Each demo is one self-contained file that works offline.</p>
-<p class="note"><strong>On iPhone:</strong> WhatsApp's preview does not run the demo. Save the file
-(Share, Save to Files), then open it from the Files app so it opens in Safari. On a computer, open it in Chrome, Safari, Firefox or Edge.
-Tap "Start sound" first; check that the phone is not on silent.</p>
-<ul>
+<p class="lead">NASA Earth data you can hear. Start with the Tone lab to hear the instruments, then the Timbre atlas, then the data demos.
+Each demo is one self-contained file that works offline; every demo has a menu at the top to switch to the others.</p>
+<ul class="demos">
 {items}
 </ul>
-<p>Grids are sampled every {every} hours (some demos more sparsely) to keep the files small.</p>
+<p class="note"><strong>On iPhone:</strong> WhatsApp's preview does not run the demo. Save the file
+(Share, Save to Files), then open it from the Files app so it opens in Safari. On a computer, open it in Chrome, Safari, Firefox or Edge.
+Tap "Start sound" first; check that the phone is not on silent. Grids are sampled every {every} hours (some demos more sparsely) to keep the files small;
+recorded instrument samples are left out (the Tone lab uses their analysed tones instead).</p>
 </body></html>
 '''
 
@@ -301,7 +337,7 @@ def main():
             print(f'skip  {mid}: {SKIP[mid]}')
             continue
         try:
-            page = build_page_mode(m, link_map) if m.get('href') else build_host_mode(m, data, a.every or (m.get('standalone') or {}).get('every') or DEFAULT_EVERY, link_map)
+            page = build_page_mode(m, link_map, all_modes) if m.get('href') else build_host_mode(m, data, a.every or (m.get('standalone') or {}).get('every') or DEFAULT_EVERY, link_map, all_modes)
         except Exception as e:  # keep going; report
             print(f'FAIL  {mid}: {e}')
             continue
@@ -314,10 +350,14 @@ def main():
         print(f'built {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}  {size:.1f} MB' + ('  (over 10 MB!)' if size > 10 else ''))
         built.append(m)
 
-    existing = [m for m in all_modes if (out / f"{m['id']}.html").is_file()]
-    items = '\n'.join(f'<li><a href="{m["id"]}.html">{html.escape(m["name"])}</a> '
-                      f'({(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB): {html.escape(m.get("description", ""))}</li>'
-                      for m in existing)
+    existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
+    items = '\n'.join(
+        f'<li class="card"><h2><a href="{m["id"]}.html">{html.escape(m["name"])}</a></h2>'
+        f'<p>{html.escape(one_line(m.get("description", "")))}</p>'
+        f'<p class="links"><a class="open" href="{m["id"]}.html" aria-label="Open {html.escape(m["name"])}">Open</a> '
+        f'<a href="{m["id"]}.html" download aria-label="Download {html.escape(m["name"])}">Download</a> '
+        f'<span class="size">{(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB</span></p></li>'
+        for m in existing)
     (out / 'index.html').write_text(INDEX.format(items=items, every=a.every or DEFAULT_EVERY))
     print(f'index {out / "index.html"}  ({len(existing)} demos)')
 

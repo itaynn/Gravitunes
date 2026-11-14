@@ -60,6 +60,14 @@ export function createPanel(root) {
   return api;
 }
 
+// The same "start sound first" hint in every mode: `Press "Start sound", then <next>`.
+export function soundHint(panel, sound, next) {
+  if (sound.started) return null;
+  const p = panel.text(`Press "Start sound", then ${next}`);
+  p.classList.add('hint');
+  return p;
+}
+
 // Polite live region; repeated calls within `minGap` ms are coalesced so screen readers keep up.
 export function createDescribe(region, { minGap = 400 } = {}) {
   let last = 0, timer = null, pending = '';

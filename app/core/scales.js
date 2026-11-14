@@ -1,14 +1,40 @@
 // Scales as cents within a period, and value -> quantized frequency. Pure, runs in node too.
-// Gamelan values match the sound engine's SLENDRO_CENTS / PELOG_CENTS (representative, not one set).
+// Degrees come from the sound engine's built-in scales (SCALE_DEFS) and gamelan cents from its tunings,
+// so the app and the engine always agree.
+import { SCALE_DEFS } from '../../sound-engine/js/scale.js';
+import { SLENDRO_CENTS, PELOG_CENTS } from '../../sound-engine/js/tuning.js';
 
-export const SCALES = {
-  'pentatonic-major': { label: 'Pentatonic (major)', cents: [0, 200, 400, 700, 900], period: 1200 },
-  'pentatonic-minor': { label: 'Pentatonic (minor)', cents: [0, 300, 500, 700, 1000], period: 1200 },
-  major: { label: 'Major', cents: [0, 200, 400, 500, 700, 900, 1100], period: 1200 },
-  dorian: { label: 'Dorian', cents: [0, 200, 300, 500, 700, 900, 1000], period: 1200 },
-  slendro: { label: 'Slendro (Javanese gamelan, 5 tones)', cents: [0, 238, 476, 715, 958], period: 1210 },
-  pelog: { label: 'Pelog (Javanese gamelan, 7 tones)', cents: [0, 125, 265, 545, 680, 795, 950], period: 1220 },
+const TUNING_CENTS = {
+  '12tet': { cents: [...Array(12).keys()].map((k) => k * 100), period: 1200 },
+  slendro: { cents: [0, ...SLENDRO_CENTS.slice(0, -1)], period: SLENDRO_CENTS.at(-1) },
+  pelog: { cents: [0, ...PELOG_CENTS.slice(0, -1)], period: PELOG_CENTS.at(-1) },
 };
+
+// id -> [plain label, engine tuning]. PLEASANT: the scales offered in every mode's Scale menu; all of them
+// still sound fine when random notes overlap (pentatonic or hexatonic, few semitones).
+const META = {
+  'pentatonic-major': ['Major pentatonic', '12tet'],
+  'pentatonic-minor': ['Minor pentatonic', '12tet'],
+  yo: ['Japanese yo', '12tet'],
+  hirajoshi: ['Japanese hirajoshi', '12tet'],
+  bhupali: ['Raga Bhupali (Indian)', '12tet'],
+  durga: ['Raga Durga (Indian)', '12tet'],
+  slendro: ['Slendro (Javanese gamelan, 5 tones)', 'slendro'],
+  'pelog-lima': ['Pelog lima (Javanese gamelan, 5 of 7 tones)', 'pelog'],
+  'dorian-hexatonic': ['Dorian hexatonic (good over a drone)', '12tet'],
+  'whole-tone': ['Whole tone (dreamy)', '12tet'],
+  major: ['Major', '12tet'],
+  dorian: ['Dorian', '12tet'],
+  pelog: ['Pelog (Javanese gamelan, all 7 tones)', 'pelog'],
+};
+export const PLEASANT = ['pentatonic-major', 'pentatonic-minor', 'yo', 'hirajoshi', 'bhupali', 'durga',
+  'slendro', 'pelog-lima', 'dorian-hexatonic', 'whole-tone'];
+
+function build(id) {
+  const [label, tuning] = META[id], t = TUNING_CENTS[tuning];
+  return { label, tuning, cents: SCALE_DEFS[id].up.map((d) => t.cents[d]), period: t.period };
+}
+export const SCALES = Object.fromEntries(Object.keys(META).map((id) => [id, build(id)]));
 
 export const C4 = 261.6256;
 export const noteHz = (semisFromC4) => C4 * 2 ** (semisFromC4 / 12);

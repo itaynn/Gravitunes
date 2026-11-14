@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tone lab - Gravitunes</title>
+  <link rel="stylesheet" href="../../core/style.css">
+  <style>
+    .tone { max-width: 40rem; }
+    .tone .play { display: flex; flex-wrap: wrap; gap: 8px; margin: .6em 0; }
+    .tone .play button { flex: 1 1 8em; }
+    .tone #about { min-height: 3em; }
+  </style>
+</head>
+<body>
+  <nav id="gt-switcher" aria-label="Demos"><a href="../../">All demos</a></nav>
+  <header>
+    <h1 id="mode-title">Tone lab</h1>
+    <p id="mode-desc">Hear how each instrument sounds before you hear the data. Pick an instrument, then play a note, a scale, a chord or its typical phrase.</p>
+  </header>
+  <main>
+    <aside class="tone" aria-label="Tone lab controls">
+      <button id="start-sound" type="button" class="primary">Start sound</button>
+      <div class="control">
+        <label for="instrument">Instrument</label>
+        <select id="instrument" aria-describedby="about"><option>Loading...</option></select>
+      </div>
+      <p id="about" class="hint"></p>
+      <div class="control">
+        <label for="pitch">Pitch</label>
+        <input id="pitch" type="range" min="-24" max="12" step="1" value="-12" aria-describedby="pitch-hint">
+        <p id="pitch-hint" class="hint">From low C2 to C5. Scales and chords start here and never go above C5.</p>
+      </div>
+      <div id="tone-scale"></div>
+      <div class="play" role="group" aria-label="Play">
+        <button type="button" id="play-note">Note</button>
+        <button type="button" id="play-scale">Scale</button>
+        <button type="button" id="play-chord">Chord</button>
+        <button type="button" id="play-phrase">Phrase</button>
+      </div>
+      <p class="hint keys">Keys (outside the lists): N note, S scale, C chord, P phrase, Up/Down arrow change the pitch.</p>
+      <p id="status" role="status" class="hint"></p>
+      <p class="hint">World instruments are hand-synthesized impressions of each tradition, the same voices as on the Timbre atlas map. Recorded instruments use open-licensed recordings when they are downloaded, else a tone built from their analysed overtones.
+        <a href="../../../sound-engine/playground.html">Full synth playground</a> (sliders for harmonics, tunings and scales).</p>
+    </aside>
+  </main>
+  <div id="live" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="tone-lab.js"></script>
+</body>
+</html>

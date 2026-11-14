@@ -1,20 +1,16 @@
 // Timbre atlas: hover (or arrow keys / touch) over the world map to hear that region's instrument play a short
 // idiomatic gesture. Voices blend near borders, as in world-orchestra. No data values are used.
 import { voiceAt, distKm, gestureNotes, gestureLength } from './atlas.js';
-import { shapeForPitch } from '../../core/voices.js';
+import { playNotes } from '../../core/gestures.js';
 import { noteHz, noteName } from '../../core/scales.js';
-
-const getJson = async (url) => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Could not load ${url}`);
-  return r.json();
-};
+import { loadEarth } from '../../core/data.js';
+import { soundHint } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
   (async () => {
-    const [mj, ij] = await Promise.all([getJson('/data/earth/musical-centers.json'), getJson('/data/earth/instruments.json')]);
+    const [mj, ij] = await Promise.all([loadEarth('musical-centers'), loadEarth('instruments')]);
     if (alive) setup = run(mj.centers, ij.instruments);
   })().catch((e) => { console.error(e); describe(`Timbre atlas could not load its data: ${e.message}`); });
 
@@ -48,12 +44,7 @@ export default function start(ctx) {
       describe(text);
       const notes = gestureNotes(voice, noteHz(s.baseSemis), { phrase: s.phrase });
       lastLen = gestureLength(notes);
-      for (const n of notes) {
-        const sh = shapeForPitch(voice, n.freq);
-        sound.play({ freq: n.freq, t: n.t, dur: n.dur, amp: 0.4 * n.amp, pan: lon / 180,
-          harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
-          glide: n.glide, vibrato: n.vibrato, wah: n.wah && sh.wah });
-      }
+      playNotes(sound, voice, notes, { amp: 0.4, pan: lon / 180 });
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
@@ -83,7 +74,7 @@ export default function start(ctx) {
       g.restore();
     });
     viewer.redraw();
-    if (!sound.started) panel.text('Press "Start sound" first, then move over the map.');
+    soundHint(panel, sound, 'move over the map.');
     describe(`Timbre atlas: ${centers.length} regions. Move the mouse, touch, or use the arrow keys on the map to hear each region's instrument.`);
     return () => { offHover(); offClick(); removeOverlay(); };
   }

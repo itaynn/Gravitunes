@@ -44,12 +44,13 @@
       return e;
     };
     try {
+      const { orderModes, modeHref } = await import('./core/switcher.js');
       const { modes } = await (await fetch('modes/index.json')).json();
-      ul.replaceChildren(...modes.map((m) => {
+      ul.replaceChildren(...orderModes(modes).map((m) => {
         const li = el('li', 'card');
         const h = el('h3');
         const a = el('a', null, m.name);
-        a.href = m.href ? new URL(m.href, new URL(`modes/${m.id}/`, location.href)).href : `mode.html?mode=${encodeURIComponent(m.id)}`;
+        a.href = modeHref(m, new URL('./', location.href));
         h.append(a);
         li.append(h);
         if (m.author) li.append(el('p', 'author', `By ${m.author}`));
