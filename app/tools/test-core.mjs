@@ -20,3 +20,62 @@ assert.equal(valueToFreq(5, [5, 60]), 220);
 assert.equal(valueToFreq(60, [5, 60]), 220 * 8);
 assert.ok(valueToFreq(30, [5, 60]) > 220);
 console.log('core tests ok');
+
+// ---- grids: log10 transform, norm, formatting, tick-based colour bars
+import { parseGrid, makeNorm, formatValue } from '../core/grid.js';
+import { tickValue } from '../core/colorbar.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const lg = parseGrid({ dims: [2, 1], frames: 1, scale: 0.5, offset: -3, transform: 'log10' }, new Uint8Array([0, 8]));
+near(lg.valueAt(0, -90, 0), 0.001, 1e-9);
+near(lg.valueAt(0, 90, 0), 10, 1e-9);
+const nlog = makeNorm([0.001, 22], 'log10');
+near(nlog.norm(0.001), 0, 1e-9); near(nlog.norm(22), 1, 1e-9);
+near(nlog.norm(0.01), 1 / Math.log10(22000), 1e-9);
+near(nlog.denorm(nlog.norm(0.3)), 0.3, 1e-9);
+near(makeNorm([5, 60]).norm(32.5), 0.5, 1e-9);
+assert.equal(formatValue(0.0134), '0.013'); assert.equal(formatValue(14.2), '14');
+assert.equal(formatValue(2.63), '2.6'); assert.equal(formatValue(412.7), '413');
+near(tickValue(358, [[68, 0.001], [176, 0.01], [279, 0.1], [358, 1]], 'log'), 1, 1e-9);
+near(tickValue(318.5, [[279, 0.1], [358, 1]], 'log'), Math.sqrt(0.1), 1e-9);
+near(tickValue(129.5, [[67, 40], [192, 100]]), 70, 1e-9);
+
+// Real exports (worktree data/, GRID_ROOT, or the main checkout); skipped when absent.
+const here = dirname(fileURLToPath(import.meta.url));
+const roots = [process.env.GRID_ROOT, join(here, '../../data/nasa-svs'),
+  '/Users/moranshapira/projects/personal/Gravitunes/data/nasa-svs'].filter(Boolean);
+function loadGrid(id) {
+  for (const r of roots) {
+    const h = join(r, id, 'web', `${id}_256x128.json`), b = join(r, id, 'web', `${id}_256x128.bin`);
+    if (existsSync(h) && existsSync(b)) return parseGrid(JSON.parse(readFileSync(h, 'utf8')), new Uint8Array(readFileSync(b)));
+  }
+  return null;
+}
+const meanOver = (g, lat, lon) => { let s = 0, n = 0; for (let t = 0; t < g.frames; t++) { const v = g.valueAt(lat, lon, t); if (v != null) { s += v; n++; } } return s / n; };
+const BEIJING = [39.9, 116.4], SPAC = [-40, -130];
+const g52 = loadGrid('5152'), g53 = loadGrid('5153'), g54 = loadGrid('5154');
+if (!g52 || !g53 || !g54) console.log('skip real grid tests: exports not found');
+else {
+  const o3 = meanOver(g52, 0, -150);
+  assert.ok(o3 > 5 && o3 < 60, `ozone ${o3}`);
+  assert.equal(g53.transform, 'linear');
+  const co = meanOver(g53, ...BEIJING);
+  assert.ok(co > 200 && co <= 500, `Beijing CO ${co}`);
+  assert.equal(g54.transform, 'log10');
+  const nox = meanOver(g54, ...BEIJING), noxSea = meanOver(g54, ...SPAC);
+  assert.ok(nox > 5 && nox <= 22.01, `Beijing NOx ${nox}`);
+  assert.ok(noxSea > 0.001 && noxSea < 0.02, `South Pacific NOx ${noxSea}`);
+  const p50 = g54.percentile(0.5);
+  assert.ok(p50 > 0.001 && p50 < 1, `NOx median ${p50}`);
+  // norm(): log space spreads NOx usefully; linear would squash the sea to ~0.
+  const nn = makeNorm(g54.header.range, 'log10').norm, nl = makeNorm(g54.header.range).norm;
+  assert.ok(nn(noxSea) > 0.05 && nn(noxSea) < 0.4, `norm sea ${nn(noxSea)}`);
+  assert.ok(nn(nox) > 0.85 && nn(nox) <= 1, `norm Beijing ${nn(nox)}`);
+  assert.ok(nl(noxSea) < 0.001);
+  const nc = makeNorm(g53.header.range).norm(co);
+  assert.ok(nc > 0.3 && nc <= 1, `norm CO ${nc}`);
+  console.log(`real grids: Beijing CO ${formatValue(co)}, Beijing NOx ${formatValue(nox)}, S Pacific NOx ${formatValue(noxSea)}, NOx median ${formatValue(p50)}`);
+}
+console.log('grid tests ok');

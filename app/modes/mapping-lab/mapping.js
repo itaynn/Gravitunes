@@ -68,15 +68,17 @@ export function decodeMapping(str) {
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-// Source values (0..1) for one point. change: rise per frame, full scale at 10% of the range.
-export function sourceValues({ lat, lon, value, prev }, [lo, hi]) {
+// Source values (0..1) for one point. change: rise per frame, full scale at 10% of the (normalized) range.
+// norm (optional, e.g. ctx.dataset.norm): value -> 0..1, log space for log datasets. Default: linear over range.
+export function sourceValues({ lat, lon, value, prev }, [lo, hi], norm) {
   const span = hi - lo || 1;
+  const n = norm || ((v) => clamp01((v - lo) / span));
   const delta = value != null && prev != null ? value - prev : 0;
   return {
     lon: clamp01((lon + 180) / 360),
     lat: clamp01((lat + 90) / 180),
-    value: value == null ? 0.5 : clamp01((value - lo) / span),
-    change: clamp01(delta / (0.1 * span)),
+    value: value == null ? 0.5 : n(value),
+    change: value != null && prev != null ? clamp01((n(value) - n(prev)) / 0.1) : 0,
     delta,
   };
 }
@@ -114,8 +116,8 @@ export const freqName = (f) => noteName(Math.round(12 * Math.log2(f / C4)));
 // Note for one point: ready-to-play sound.play() options plus spoken labels per parameter.
 // opts: { range, scale, lowSemis, highSemis, instruments, dur }
 export function renderNote(mapping, point, opts) {
-  const { range, scale = 'pentatonic-major', lowSemis = -24, highSemis = 12, instruments, dur = 0.5 } = opts;
-  const src = sourceValues(point, range);
+  const { range, norm, scale = 'pentatonic-major', lowSemis = -24, highSemis = 12, instruments, dur = 0.5 } = opts;
+  const src = sourceValues(point, range, norm);
   const c = controls(mapping, src);
   const lowHz = noteHz(Math.max(-24, lowSemis)), highHz = noteHz(Math.min(12, highSemis));
   const freq = quantize(c.pitch, [0, 1], scale, lowHz, highHz).freq;
@@ -161,12 +163,13 @@ const fmtLat = (lat) => `${Math.abs(Math.round(lat))}°${lat >= 0 ? 'N' : 'S'}`;
 const fmtLon = (lon) => `${Math.abs(Math.round(lon))}°${lon >= 0 ? 'E' : 'W'}`;
 
 // "value 45 → pitch D3, latitude 30°N → depth dark" for the mapped parameters.
-export function describeNote(mapping, point, labels, units = '', delta = 0) {
+// fmt (optional): number formatter, e.g. v => "0.013".
+export function describeNote(mapping, point, labels, units = '', delta = 0, fmt = (v) => Math.round(v * 10) / 10) {
   const srcText = {
     lon: `longitude ${fmtLon(point.lon)}`,
     lat: `latitude ${fmtLat(point.lat)}`,
-    value: `value ${point.value == null ? 'no data' : Math.round(point.value * 10) / 10}${units ? ` ${units}` : ''}`,
-    change: `change ${delta >= 0 ? '+' : ''}${Math.round(delta * 10) / 10}`,
+    value: `value ${point.value == null ? 'no data' : fmt(point.value)}${units ? ` ${units}` : ''}`,
+    change: `change ${delta >= 0 ? '+' : ''}${fmt(delta)}`,
   };
   const parts = Object.keys(PARAMS).filter((p) => mapping[p]?.src && mapping[p].src !== 'off')
     .map((p) => `${srcText[mapping[p].src]} → ${PARAMS[p].label.split(' (')[0].toLowerCase()} ${labels[p]}${mapping[p].flip ? ' (flipped)' : ''}`);

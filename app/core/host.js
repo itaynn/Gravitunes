@@ -55,7 +55,7 @@ async function main() {
     status(`Could not load the dataset (${e.message}). Run: sh app/tools/fetch-sample.sh`);
     throw e;
   }
-  $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.range[0]} to ${dataset.range[1]})`;
+  $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.format(dataset.range[0], false)} to ${dataset.format(dataset.range[1], false)}${dataset.transform === 'log10' ? ', log scale' : ''})`;
   $('#colorbar').src = dataset.colorbarUrl;
 
   const viewer = createViewer($('#map'));

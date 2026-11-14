@@ -4,6 +4,7 @@
 import { SOURCES, PARAMS, PRESETS, cloneMapping, presetOf, encodeMapping, decodeMapping,
   renderNote, describeNote, makePoints } from './mapping.js';
 import { selectTriggers, percentileOf } from '../../core/triggers.js';
+import { formatValue as fmtNum } from '../../core/grid.js';
 import { SCALES, noteName } from '../../core/scales.js';
 
 export default function start(ctx) {
@@ -18,6 +19,9 @@ export default function start(ctx) {
   function run(instruments) {
     const [lo, hi] = dataset.range;
     const units = dataset.units;
+    const norm = dataset.norm || ((v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))));
+    const denorm = dataset.denorm || ((x) => lo + x * (hi - lo));
+    const fmtV = (v) => (dataset.format ? dataset.format(v) : `${Math.round(v * 10) / 10} ${units}`);
     const points = makePoints();
     const url = new URLSearchParams(location.search);
 
@@ -30,7 +34,7 @@ export default function start(ctx) {
     };
     const valuesAt = (t) => points.map((p) => dataset.valueAt(p.lat, p.lon, t));
     s.threshold = dataset.percentile?.(0.7) ?? percentileOf(valuesAt(time.now()), 0.7) ?? lo + 0.7 * (hi - lo);
-    s.threshold = Math.round(s.threshold * 10) / 10;
+    s.threshold = Number(fmtNum(s.threshold));
     if (url.has('thr') && Number.isFinite(+url.get('thr'))) s.threshold = +url.get('thr');
 
     function saveUrl() {
@@ -87,10 +91,10 @@ export default function start(ctx) {
 
     panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; saveUrl(); },
       { value: s.scale, hint: 'Pitch is quantized to this scale, between the lowest and highest note.' });
-    const thrStep = Math.max(0.1, Math.round((hi - lo) / 100 * 10) / 10);
-    panel.slider('Threshold', { min: lo, max: hi, step: thrStep, value: s.threshold,
+    // Slider runs over norm 0..1 so log datasets get usable steps.
+    panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A point plays when its value rises past this. Default: the dataset\'s 70th percentile.',
-      format: (v) => `${v} ${units}` }, (v) => { s.threshold = v; });
+      format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
     panel.slider('Density (max notes per frame)', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
     panel.slider('Point cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
@@ -105,7 +109,7 @@ export default function start(ctx) {
     panel.text('Voices are hand-synthesized impressions (organ, bell-like gamelan, flute), not recordings.');
 
     // ---- notes
-    const noteOpts = (dur) => ({ range: [lo, hi], scale: s.scale, lowSemis: s.lowSemis, highSemis: s.highSemis, instruments, dur });
+    const noteOpts = (dur) => ({ range: [lo, hi], norm, scale: s.scale, lowSemis: s.lowSemis, highSemis: s.highSemis, instruments, dur });
     let prev = null, prevT = null, notes = 0;
     const lastPlayed = new Array(points.length).fill(null);
     const flashes = new Map();
@@ -130,12 +134,12 @@ export default function start(ctx) {
       prev = cur; prevT = t;
       if (!time.playing) {
         const n = cur.filter((v) => v != null && v >= s.threshold).length;
-        describe(`${time.label()}: ${n} of ${points.length} points above ${s.threshold} ${units}`);
+        describe(`${time.label()}: ${n} of ${points.length} points above ${fmtV(s.threshold)}`);
       }
     });
     const sumTimer = setInterval(() => {
       if (!time.playing) return;
-      describe(notes ? `${time.label()}: ${notes} notes in the last 5 seconds.` : `${time.label()}: quiet, nothing crossed ${s.threshold} ${units}.`);
+      describe(notes ? `${time.label()}: ${notes} notes in the last 5 seconds.` : `${time.label()}: quiet, nothing crossed ${fmtV(s.threshold)}.`);
       notes = 0;
     }, 5000);
 
@@ -150,8 +154,8 @@ export default function start(ctx) {
       const point = { lat, lon, value, prev: before };
       const { play, labels, src } = renderNote(s.mapping, point, noteOpts(0.5));
       if (value != null) sound.play({ ...play, amp: Math.min(0.45, play.amp + 0.05) });
-      describe(value == null ? `No data here. ${describeNote(s.mapping, point, labels, units, src.delta)}`
-        : describeNote(s.mapping, point, labels, units, src.delta));
+      describe(value == null ? `No data here. ${describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false)))}`
+        : describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false))));
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
@@ -181,7 +185,7 @@ export default function start(ctx) {
     prev = valuesAt(time.now()); prevT = time.now();
     saveUrl();
     if (!sound.started) panel.text('Press "Start sound" to hear notes. Without sound, mappings are still announced.');
-    describe(`Mapping lab ready: ${points.length} points. Mapping: ${summary()}. Threshold ${s.threshold} ${units}. Press Play, or explore the map with the arrow keys.`);
+    describe(`Mapping lab ready: ${points.length} points. Mapping: ${summary()}. Threshold ${fmtV(s.threshold)}. Press Play, or explore the map with the arrow keys.`);
 
     return () => { offFrame(); offHover(); offClick(); offState?.(); clearInterval(sumTimer); removeOverlay(); cancelAnimationFrame(raf); };
   }

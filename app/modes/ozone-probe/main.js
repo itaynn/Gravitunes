@@ -2,7 +2,9 @@
 // pitch <- value, harmonics <- roughness (spread) of the neighborhood, pan <- longitude.
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe } = ctx;
-  const [lo, hi] = dataset.range;
+  // norm: 0..1 over the range (log space for log datasets such as NOx).
+  const norm = dataset.norm || ((v) => Math.max(0, Math.min(1, (v - dataset.range[0]) / (dataset.range[1] - dataset.range[0] || 1))));
+  const fmtV = dataset.format || ((v) => `${Math.round(v)} ${dataset.units}`);
   let radius = 2;            // neighborhood radius in degrees
   let speak = true;
   let last = null;           // last probed position
@@ -20,7 +22,7 @@ export default function start(ctx) {
     const vals = [];
     for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
       const v = dataset.valueAt(lat + dy * radius, lon + dx * radius, t);
-      if (v != null) vals.push(v);
+      if (v != null) vals.push(norm(v));
     }
     return vals;
   }
@@ -37,15 +39,16 @@ export default function start(ctx) {
       return;
     }
     const around = neighborhood(lat, lon, t);
-    const spread = around.length ? Math.max(...around, v) - Math.min(...around, v) : 0;
-    const harmonics = 1 + Math.round(Math.min(1, spread / ((hi - lo) / 3)) * 6);
+    const n = norm(v);
+    const spread = around.length ? Math.max(...around, n) - Math.min(...around, n) : 0;
+    const harmonics = 1 + Math.round(Math.min(1, spread * 3) * 6);
     sound.play({
-      value: v, range: dataset.range, harmonics, pan: lon / 180,
+      value: n, range: [0, 1], harmonics, pan: lon / 180,
       amplitude: 0.25, duration: 0.35, voice: 'probe',
     });
     if (announce) {
       const rough = harmonics > 4 ? ', rough' : harmonics > 2 ? ', varied' : '';
-      describe(`Ozone ${Math.round(v)} ${dataset.units} near ${fmt(lat, lon)}${rough}`);
+      describe(`${fmtV(v)} near ${fmt(lat, lon)}${rough}`);
     }
   }
 

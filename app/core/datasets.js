@@ -6,7 +6,7 @@
 // are the grid's times[] (hourly for 5152). Images come from the frames.json manifest when present
 // (nearest earlier image for each hour); with no images, the grid itself is painted with the color bar.
 import { buildLut, decode } from './colorbar.js';
-import { parseGrid, frameForHour } from './grid.js';
+import { parseGrid, frameForHour, makeNorm, formatValue } from './grid.js';
 
 export const DATASETS = {
   5152: {
@@ -89,12 +89,14 @@ async function tryGrid(def) {
 }
 
 // Color for a value from descriptor stops [[v,[r,g,b]],...] (used to paint grids without images).
-function stopColor(stops, v) {
+// log: interpolate between stops in log10 space (for log colour bars).
+export function stopColor(stops, v, log = false) {
   if (v <= stops[0][0]) return stops[0][1];
+  const T = log ? (x) => Math.log10(Math.max(x, 1e-30)) : (x) => x;
   for (let i = 1; i < stops.length; i++) {
     const [v1, c1] = stops[i];
     if (v <= v1) {
-      const [v0, c0] = stops[i - 1], f = (v - v0) / (v1 - v0 || 1);
+      const [v0, c0] = stops[i - 1], f = (T(v) - T(v0)) / (T(v1) - T(v0) || 1);
       return c0.map((c, k) => c + f * (c1[k] - c));
     }
   }
@@ -124,9 +126,12 @@ export async function loadDataset(id) {
   const colorbarUrl = def.dir + def.colorbar.file;
   if (!grid) {
     const cb = pixels(await loadImage(colorbarUrl));
-    const { row, x0, x1 } = def.colorbar;
-    lut = buildLut(cb.data, cb.width, cb.height, { row, x0, x1: x1 != null ? x1 - 1 : undefined, range: def.range });
+    const { row, x0, x1, ticks, scale } = def.colorbar;
+    lut = buildLut(cb.data, cb.width, cb.height, { row, x0, x1: x1 != null ? x1 - 1 : undefined, range: def.range, ticks, scale });
   }
+  // Log datasets: grid header transform, descriptor grid.transform, or a log colour bar.
+  const transform = grid?.header?.transform || def.grid?.transform || (def.colorbar.scale === 'log' ? 'log10' : 'linear');
+  const { norm, denorm } = makeNorm(def.range, transform);
   const stops = def.colorbar.stops || [[def.range[0], [255, 255, 255]], [def.range[1], [65, 32, 192]]];
 
   const cache = new Map();     // image index or 'g'+t -> { im, data }
@@ -140,7 +145,7 @@ export async function loadDataset(id) {
     for (let i = 0; i < n; i++) {
       const b = grid.bytes[t * n + i];
       if (b === grid.nodata) { img.data[i * 4 + 3] = 0; continue; }
-      const [r, gg, bb] = stopColor(stops, grid.offset + b * grid.scale);
+      const [r, gg, bb] = stopColor(stops, grid.fromByte(b), transform === 'log10');
       img.data.set([r, gg, bb, 255], i * 4);
     }
     g.putImageData(img, 0, 0);
@@ -192,6 +197,10 @@ export async function loadDataset(id) {
     id: def.id, title: def.title, units: def.units, range: def.range, source: def.source,
     frames: images, count, colorbarUrl, usingGrid: !!grid, stepHours: grid ? (count > 1 ? hourOf(1) - hourOf(0) : stepH) || stepH : (images.length > 1 ? images[1].hour - images[0].hour : stepH) || stepH,
     timeOf, load, valueAt, image: () => cache.get('cur')?.im,
+    // transform: 'linear' | 'log10'. norm(v) -> 0..1 over range (log space for log datasets); denorm inverts.
+    transform, norm, denorm,
+    // "14 ppbv", "0.013 ppbv"
+    format: (v, withUnits = true) => (v == null ? 'no data' : formatValue(v) + (withUnits && def.units ? ` ${def.units}` : '')),
     // Value at fraction p of all grid values (null without a grid).
     percentile: (p) => grid ? (pcache[p] ??= grid.percentile(p)) : null,
   };

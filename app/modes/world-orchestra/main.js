@@ -2,6 +2,7 @@
 // between two hours, it plays one note in the voice of its nearest "musical center" (blended near
 // borders). Pitch <- value (quantized to a scale, low-to-mid register), loudness <- value, pan <- longitude.
 import { distKm, voiceAt, shapeForPitch, selectTriggers, percentileOf } from './orchestra.js';
+import { formatValue as fmtNum } from '../../core/grid.js';
 import { SCALES, quantize, noteHz, noteName } from '../../core/scales.js';
 
 const getJson = async (url) => {
@@ -26,6 +27,10 @@ export default function start(ctx) {
   function run(cj, centers, instruments) {
     const [lo, hi] = dataset.range;
     const units = dataset.units;
+    // 0..1 over the range (log space for log datasets); value formatting like "0.013 ppbv".
+    const norm = dataset.norm || ((v) => Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))));
+    const denorm = dataset.denorm || ((x) => lo + x * (hi - lo));
+    const fmtV = (v) => (dataset.format ? dataset.format(v) : `${Math.round(v * 10) / 10} ${units}`);
     const f = cj.fields;
     const cities = cj.cities.map((r) => Object.fromEntries(f.map((k, i) => [k, r[i]])));
     const BLEND_KM = 900;
@@ -46,7 +51,7 @@ export default function start(ctx) {
 
     const valuesAt = (t) => cities.map((c) => dataset.valueAt(c.lat, c.lon, t));
     s.threshold = dataset.percentile?.(0.7) ?? percentileOf(valuesAt(time.now()), 0.7) ?? lo + 0.7 * (hi - lo);
-    s.threshold = Math.round(s.threshold * 10) / 10;
+    s.threshold = Number(fmtNum(s.threshold));
 
     // ---- controls
     const playBtn = panel.button(time.playing ? 'Pause orchestra' : 'Play orchestra', () => {
@@ -61,10 +66,10 @@ export default function start(ctx) {
       (v) => { s.speed = v; applySpeed(); });
     panel.select('Scale', Object.entries(SCALES).map(([k, v]) => [k, v.label]), (v) => { s.scale = v; },
       { value: s.scale, hint: 'Slendro and pelog are Javanese gamelan tunings (not 12-tone).' });
-    const thrStep = Math.max(0.1, Math.round((hi - lo) / 100 * 10) / 10);
-    panel.slider('Threshold', { min: lo, max: hi, step: thrStep, value: s.threshold,
+    // Slider runs over norm 0..1 so log datasets get usable steps.
+    panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A city plays when its value rises past this. Default: the dataset\'s 70th percentile.',
-      format: (v) => `${v} ${units}` }, (v) => { s.threshold = v; });
+      format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
     panel.slider('Max notes per hour', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
     panel.slider('City cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
@@ -101,12 +106,11 @@ export default function start(ctx) {
     function playCity(i, value, k, n, frameDur) {
       const { voice } = cityVoice[i];
       const lowHz = noteHz(s.lowSemis), highHz = noteHz(s.highSemis);
-      let freq = quantize(value, [lo, hi], s.scale, lowHz, highHz).freq * 2 ** (voice.octave || 0);
+      let freq = quantize(norm(value), [0, 1], s.scale, lowHz, highHz).freq * 2 ** (voice.octave || 0);
       freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
       const shaped = shapeForPitch(voice, freq);
-      const norm = Math.max(0, Math.min(1, (value - lo) / (hi - lo || 1)));
       sound.play({
-        freq, amp: (0.15 + 0.45 * norm) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
+        freq, amp: (0.15 + 0.45 * norm(value)) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
         dur: Math.min(shaped.dur ?? 0.4, Math.max(0.15, frameDur * 1.5)), t: (k * frameDur * 0.8) / Math.max(1, n),
         harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise,
       });
@@ -131,7 +135,7 @@ export default function start(ctx) {
       prev = cur; prevT = t;
       if (!time.playing) {
         const n = cur.filter((v) => v != null && v >= s.threshold).length;
-        describe(`${time.label()}: ${n} of ${cities.length} cities above ${s.threshold} ${units}`);
+        describe(`${time.label()}: ${n} of ${cities.length} cities above ${fmtV(s.threshold)}`);
       }
     });
 
@@ -143,7 +147,7 @@ export default function start(ctx) {
       const span = hours <= 1 ? 'this hour' : `in the last ${hours} hours`;
       describe(summary.notes
         ? `${time.label()}. Playing: ${regions.join(', ')}; ${summary.notes} notes ${span}.`
-        : `${time.label()}. Quiet: no city crossed ${s.threshold} ${units} ${span}.`);
+        : `${time.label()}. Quiet: no city crossed ${fmtV(s.threshold)} ${span}.`);
       summary = { regions: new Map(), notes: 0, frames: 0 };
     }, 5000);
 
@@ -162,12 +166,12 @@ export default function start(ctx) {
       const blend = secondary && secondary.instrument !== primary.instrument ? ` blending with ${instLabel(secondary.instrument)}` : '';
       const v = dataset.valueAt(lat, lon, time.now());
       if (v == null) { describe(`${place}: ${inst}-inspired${blend}, no data`); return; }
-      let freq = quantize(v, [lo, hi], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq * 2 ** (voice.octave || 0);
+      let freq = quantize(norm(v), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq * 2 ** (voice.octave || 0);
       freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
       const shaped = shapeForPitch(voice, freq);
       sound.play({ freq, amp: 0.35, pan: lon / 180, dur: shaped.dur ?? 0.4,
         harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise });
-      describe(`${place}: ${inst}-inspired${blend}, ${Math.round(v)} ${units}`);
+      describe(`${place}: ${inst}-inspired${blend}, ${fmtV(v)}`);
     }
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
@@ -220,7 +224,7 @@ export default function start(ctx) {
 
     prev = valuesAt(time.now()); prevT = time.now();
     if (!sound.started) panel.text('Press "Start sound" to hear the orchestra. Without sound, activity is still announced.');
-    describe(`World orchestra ready: ${cities.length} cities, ${centers.length} musical centers. Threshold ${s.threshold} ${units}. Press Play orchestra, or explore the map with the arrow keys.`);
+    describe(`World orchestra ready: ${cities.length} cities, ${centers.length} musical centers. Threshold ${fmtV(s.threshold)}. Press Play orchestra, or explore the map with the arrow keys.`);
 
     return () => {
       offFrame(); offHover(); offClick(); offState?.(); clearInterval(sumTimer); removeOverlay();
