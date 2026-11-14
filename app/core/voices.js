@@ -1,5 +1,7 @@
 // Instrument voices (data/earth/instruments.json shape): crossfade and pitch-safe shaping. Pure, runs in node too.
 
+import { noteHz, snapToScale } from './scales.js';
+
 const lerp = (a, b, w) => a * w + b * (1 - w);
 
 // Crossfade two instrument presets: w = weight of `a`.
@@ -51,3 +53,17 @@ export function shapeForPitch(voice, freq, { cutoff = 1800, ceiling = 4000 } = {
   return { ...voice, harmonics: harmonics.some((h) => h > 0) ? harmonics : [1], partials, noise, ...(wah ? { wah } : {}) };
 }
 
+
+// A playable note for `voice` at `freq` (Hz): the voice's octave shift is applied, then the pitch is kept in
+// C2..C5 (snapped to `tones` when given, else clamped), then shaped for pitch. Returns { note, dur }.
+export function voiceNote(voice, freq, { tones } = {}) {
+  let f = freq * 2 ** (voice.octave || 0);
+  f = tones?.length ? snapToScale(f, tones) : Math.max(noteHz(-24), Math.min(noteHz(12), f));
+  const { harmonics, partials, envelope, noise, vibrato, wah, dur } = shapeForPitch(voice, f);
+  return { note: { freq: f, harmonics, partials, envelope, noise, vibrato, wah }, dur: dur ?? 0.4 };
+}
+
+// Instrument id chosen by a 0..1 rank (e.g. size or speed) over the list `ids`.
+export function pickVoice(ids, rank) {
+  return ids[Math.max(0, Math.min(ids.length - 1, Math.floor(rank * ids.length)))];
+}

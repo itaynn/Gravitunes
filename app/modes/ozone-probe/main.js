@@ -1,7 +1,7 @@
 // Ozone probe: the ppbv under the cursor plays a pentatonic note.
 import { formatLatLon as fmt } from '../../core/geo.js';
 import { valueHelpers } from '../../core/data.js';
-import { soundHint } from '../../core/ui.js';
+import { soundHint, throttle } from '../../core/ui.js';
 import { quantize, noteHz } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 
@@ -20,7 +20,7 @@ export default function start(ctx) {
     hint: 'Wider neighborhoods make rough areas sound brighter (more harmonics).',
     format: (v) => `${v} degrees`,
   }, (v) => { radius = v; });
-  scaleControl(panel, { value: scale, describe, onChange: (v) => { scale = v; } });
+  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; } });
   panel.checkbox('Speak values', speak, (v) => { speak = v; });
   panel.button('Describe this spot', () => (last ? probe(last, { announce: true, force: true })
     : describe('Move over the map or use the arrow keys first.')));
@@ -35,13 +35,11 @@ export default function start(ctx) {
     return vals;
   }
 
-  let lastAt = 0;
+  const ready = throttle(150);
   function probe({ lat, lon }, { announce = speak, force = false, prefix = '' } = {}) {
     last = { lat, lon };
     // Hover and arrow keys are throttled (150 ms) so notes and announcements do not pile up.
-    const now = performance.now();
-    if (!force && now - lastAt < 150) return;
-    lastAt = now;
+    if (!ready(force)) return;
     const t = time.now();
     const v = dataset.valueAt(lat, lon, t);
     if (v == null) {

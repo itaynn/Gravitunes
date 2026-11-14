@@ -3,6 +3,7 @@
 import { formatLatLon as where } from '../../core/geo.js';
 import { loadDataset } from '../../core/datasets.js';
 import { scaleControl } from '../../core/scale-control.js';
+import { throttle } from '../../core/ui.js';
 import { LAYERS, notesFor, describeReadings, frameAtDate } from './layers.js';
 
 export default function start(ctx) {
@@ -18,7 +19,7 @@ export default function start(ctx) {
     }, { value: 'on' });
   }
   let scale = 'pentatonic-major';
-  scaleControl(panel, { value: scale, describe, onChange: (v) => { scale = v; } });
+  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; } });
   panel.button('Describe this spot', () => {
     if (!last) describe('Move over the map or use the arrow keys first.');
     else if (!layers) describe('Still loading gas maps.');
@@ -46,14 +47,12 @@ export default function start(ctx) {
   }
 
   // Hover is throttled (150 ms) so a fast sweep does not pile up chords.
-  let lastAt = 0;
+  const ready = throttle(150);
   const lastFreq = {};   // layer id -> last played frequency, for playback
   function probe({ lat, lon }, { announce = true, force = false, onlyChanged = false, prefix = '' } = {}) {
     last = { lat, lon };
     if (!layers) return;
-    const now = performance.now();
-    if (!force && !onlyChanged && now - lastAt < 150) return;
-    lastAt = now;
+    if (!ready(force || onlyChanged)) return;
     const r = readingsAt(lat, lon);
     for (const n of notesFor(r, state, lon / 180, scale)) {
       if (onlyChanged && lastFreq[n.id] === n.freq) continue;

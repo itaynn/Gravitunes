@@ -98,3 +98,42 @@ console.log('grid tests ok');
   }
   console.log('basemap tests ok');
 }
+
+// ---- shared helpers: voiceNote, pickVoice, throttle; scaleControl follows the chosen scale on `sound`
+{
+  const { voiceNote, pickVoice } = await import('../core/voices.js');
+  const { throttle } = await import('../core/ui.js');
+  const { noteHz, scaleFreqs } = await import('../core/scales.js');
+  const v = { harmonics: [1, 0.5], octave: 1, dur: 0.3 };
+  const hi = voiceNote(v, noteHz(6));                      // shifted an octave up, clamped to C5
+  assert.ok(Math.abs(hi.note.freq - noteHz(12)) < 1e-9 && hi.dur === 0.3);
+  const tones = scaleFreqs('pentatonic-major', noteHz(-24), noteHz(12));
+  assert.ok(tones.includes(voiceNote({ harmonics: [1] }, 300, { tones }).note.freq));
+  assert.equal(pickVoice(['a', 'b', 'c'], 0), 'a');
+  assert.equal(pickVoice(['a', 'b', 'c'], 1), 'c');
+  let t = 0; const ready = throttle(150, () => t);
+  assert.ok(ready()); t = 100; assert.ok(!ready()); assert.ok(ready(true)); t = 260; assert.ok(ready());
+
+  globalThis.location = new URL('http://x/mode.html?mode=a');
+  globalThis.history = { state: null, replaceState() {} };
+  const { scaleControl } = await import('../core/scale-control.js');
+  const used = [];
+  const sound = { useScale: async (id) => { used.push(id); } };
+  let onSel;
+  const panel = { select: (l, o, cb) => { onSel = cb; return {}; } };
+  scaleControl(panel, { value: 'pentatonic-minor', sound });
+  onSel('pentatonic-major');
+  assert.deepEqual(used, ['pentatonic-minor', 'pentatonic-major']);
+
+  // Every mode that shows the Scale menu hands it `sound`, so value-only notes follow the chosen scale.
+  const { readdirSync } = await import('node:fs');
+  const modesDir = new URL('../modes/', import.meta.url);
+  for (const m of readdirSync(modesDir)) {
+    const p = new URL(`${m}/main.js`, modesDir);
+    if (!existsSync(p)) continue;
+    for (const call of readFileSync(p, 'utf8').match(/scaleControl\(panel, \{[^}]*\}/g) || []) {
+      assert.match(call, /\bsound\b/, `${m}: scaleControl without sound`);
+    }
+  }
+  console.log('shared helper tests ok');
+}

@@ -8,16 +8,7 @@ import { formatValue as fmtNum } from '../../core/grid.js';
 import { noteName } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
-import { soundHint } from '../../core/ui.js';
-
-// Move already-created panel controls into a collapsed <details> group.
-function fold(summary, controls) {
-  const rows = controls.map((c) => c.closest('.control') || c);
-  const d = document.createElement('details');
-  const sm = document.createElement('summary'); sm.textContent = summary;
-  rows[0].before(d); d.append(sm, ...rows);
-  return d;
-}
+import { soundHint, fold, throttle } from '../../core/ui.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -94,7 +85,7 @@ export default function start(ctx) {
       return on.length ? on.map((p) => `${s.mapping[p].src} to ${p}${s.mapping[p].flip ? ' flipped' : ''}`).join(', ') : 'nothing mapped';
     };
 
-    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; saveUrl(); },
+    scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; saveUrl(); },
       hint: 'Pitch is quantized to this scale, between the lowest and highest note.' });
     // Slider runs over norm 0..1 so log datasets get usable steps.
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
@@ -153,11 +144,9 @@ export default function start(ctx) {
     }, 5000);
 
     // ---- hover / arrow keys: play one point with the current mapping and say how it was mapped
-    let lastHover = 0;
+    const ready = throttle(150);
     function probe({ lat, lon }, force = false) {
-      const now = performance.now();
-      if (!force && now - lastHover < 150) return;
-      lastHover = now;
+      if (!ready(force)) return;
       const t = time.now();
       const value = dataset.valueAt(lat, lon, t), before = t > 0 ? dataset.valueAt(lat, lon, t - 1) : null;
       const point = { lat, lon, value, prev: before };

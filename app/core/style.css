@@ -7,6 +7,10 @@ a { color: var(--accent); }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
 @media (max-width: 800px) { .layout { grid-template-columns: minmax(0, 1fr); } }
 select { max-width: 100%; }
+select, input { font: inherit; }
+aside details { margin: .8em 0; border-top: 1px solid #3a424c; padding-top: .4em; }
+aside summary { cursor: pointer; font-weight: 600; padding: .3em 0; }
+aside details[open] > summary { margin-bottom: .2em; }
 canvas#map { width: 100%; aspect-ratio: 2 / 1; display: block; background: #000; cursor: crosshair; border-radius: 4px; }
 .colorbar { max-width: 320px; width: 100%; background: #fff; margin-top: 8px; }
 aside { background: var(--panel); padding: 12px 16px; border-radius: 6px; align-self: start; }

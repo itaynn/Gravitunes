@@ -95,3 +95,38 @@ export function createDescribe(region, { minGap = 400 } = {}) {
     else if (!timer) timer = setTimeout(flush, Math.max(0, wait));
   };
 }
+
+// Move already-created panel controls (or their rows) into a collapsed <details> group placed where the first one was.
+export function fold(summary, controls, { open = false } = {}) {
+  const rows = controls.map((c) => c.closest?.('.control') || c);
+  const d = document.createElement('details');
+  d.open = open;
+  const sm = document.createElement('summary'); sm.textContent = summary;
+  rows[0].before(d); d.append(sm, ...rows);
+  return d;
+}
+
+// Hover throttle: ready(force) is true at most once every `ms` milliseconds (always when force is set),
+// so fast sweeps do not pile up notes and announcements.
+export function throttle(ms = 150, now = () => performance.now()) {
+  let last = -Infinity;
+  return (force = false) => {
+    const t = now();
+    if (!force && t - last < ms) return false;
+    last = t;
+    return true;
+  };
+}
+
+// The shared "Timbre" menu plus a "Single voice" menu shown only when 'single' is chosen.
+// options: [[id, label], ...]; instruments: id -> { label }. onChange({ timbre, single }) runs on every change.
+export function timbreControl(panel, { options, value, single, instruments, onChange }) {
+  const state = { timbre: value, single: single ?? Object.keys(instruments)[0] };
+  const timbre = panel.select('Timbre', options, (v) => { state.timbre = v; row.hidden = v !== 'single'; onChange?.({ ...state }); },
+    { value: state.timbre });
+  const singleSel = panel.select('Single voice', Object.keys(instruments).map((k) => [k, instruments[k]?.label || k]),
+    (v) => { state.single = v; onChange?.({ ...state }); }, { value: state.single });
+  const row = singleSel.closest('.control');
+  row.hidden = state.timbre !== 'single';
+  return { timbre, single: singleSel };
+}

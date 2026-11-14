@@ -40,7 +40,10 @@ async function main() {
 
   // Dataset picker (?dataset=<id>): lists known descriptors; changing it reloads the mode.
   const current = pickDataset(meta);
-  listDatasets().then((list) => {
+  // mode.json "data": false: the mode ignores the dataset, so its picker, title, colour bar and timeline are hidden.
+  const noData = meta.data === false;
+  if (noData) for (const sel of ['#dataset-picker', '#dataset-title', '#colorbar', '#time-heading', '#time-label']) $(sel).hidden = true;
+  if (!noData) listDatasets().then((list) => {
     if (!list.some((d) => d.id === current)) list.push({ id: current, title: current });
     const dp = createPanel($('#dataset-picker'));
     dp.select('Dataset', list.map((d) => [d.id, `${d.title} (${d.id})`]), (id) => {
@@ -60,7 +63,7 @@ async function main() {
   }
   $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.format(dataset.range[0], false)} to ${dataset.format(dataset.range[1], false)}${dataset.transform === 'log10' ? ', log scale' : ''})`;
   $('#colorbar').onerror = () => { $('#colorbar').hidden = true; };
-  $('#colorbar').src = dataset.colorbarUrl;
+  if (!noData) $('#colorbar').src = dataset.colorbarUrl;
 
   const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0' });
   const input = createInput(viewer);
@@ -81,8 +84,9 @@ async function main() {
   const timeText = $('#time-label');
   time.onFrame((t) => { slider.update(t); timeText.textContent = time.label(t); });
   timeText.textContent = time.label(0);
+  if (noData) for (const c of [playBtn, slider]) c.closest('.control').hidden = true;
   tl.checkbox('Coastlines and borders', viewer.basemap, (on) => viewer.setBasemap(on),
-    { hint: 'Natural Earth outlines drawn faintly over the map (visual only). ?basemap=0 starts with them off.' });
+    { hint: 'Natural Earth outlines drawn faintly over the map (visual only).' });
 
   const ctx = { dataset, viewer, time, input, panel, describe, sound, meta };
   const mod = await import(new URL('main.js', base));

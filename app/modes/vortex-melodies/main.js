@@ -4,10 +4,10 @@
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
-import { shapeForPitch } from '../../core/voices.js';
+import { shapeForPitch, pickVoice } from '../../core/voices.js';
 import { voiceAt, distKm } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
-import { soundHint } from '../../core/ui.js';
+import { soundHint, throttle, timbreControl } from '../../core/ui.js';
 import { motifFreq, MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes } from './vortex.js';
 
 export default function start(ctx) {
@@ -49,7 +49,7 @@ export default function start(ctx) {
       const region = voiceAt(v.lat, v.lon, centers, instruments, 900);
       if (s.timbre === 'region') return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary };
       const pickBy = s.timbre === 'size' ? v.sizeRank : s.timbre === 'strength' ? ranks.strength(v.circ * v.r) : null;
-      const id = pickBy == null ? s.single : instIds[Math.min(instIds.length - 1, Math.floor(pickBy * instIds.length))];
+      const id = pickBy == null ? s.single : pickVoice(instIds, pickBy);
       return { voice: instruments[id], name: instLabel(id), center: region.primary };
     }
     function motifOf(v, center) {
@@ -122,14 +122,11 @@ export default function start(ctx) {
     panel.checkbox('Divergence bed', s.bed, (v) => { s.bed = v; }, { hint: 'Soft low pad: swells where the rain converges.' });
     panel.slider('Max vortices heard', { min: 1, max: 10, step: 1, value: s.maxVoices, format: (v) => `${v} vortices`,
       hint: 'Only the loudest (strongest and largest) play at once.' }, (v) => { s.maxVoices = v; active = activeVortices(data, ranks, time.now(), v, trackById); });
-    panel.select('Timbre', [['region', 'World-orchestra region at the center'], ['size', 'By size'], ['strength', 'By strength'], ['single', 'Single voice']],
-      (v) => { s.timbre = v; singleRow.hidden = v !== 'single'; }, { value: s.timbre });
-    const singleRow = panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single })
-      .closest('.control');
-    singleRow.hidden = s.timbre !== 'single';
+    timbreControl(panel, { options: [['region', 'World-orchestra region at the center'], ['size', 'By size'], ['strength', 'By strength'], ['single', 'Single voice']],
+      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
     panel.select('Melody', [['size', 'By size (big = longer, lower)'], ['region', 'By region'], ['lifetime', 'By lifetime']],
       (v) => { s.melody = v; }, { value: s.melody });
-    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
+    scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
       (v) => { s.volume = v; sound.setVolume?.(v); });
@@ -137,11 +134,11 @@ export default function start(ctx) {
     panel.text(`Spin rates are underestimated by the analysis smoothing, so loop speed follows each vortex's rank (faster or slower than the others), not its measured rate. Vortices seen in fewer than ${data.min_track_frames} frames are left out.`);
 
     // ---- hover / keys: solo the vortex under the cursor and describe it
-    let lastHover = 0, lastId = null;
+    let lastId = null;
+    const ready = throttle(200);
     function probe({ lat, lon }, force = false) {
+      if (!ready(force)) return;
       const now = performance.now();
-      if (!force && now - lastHover < 200) return;
-      lastHover = now;
       const t = time.now();
       const all = activeVortices(data, ranks, t, Infinity, trackById);
       let best = null, bestD = Infinity;

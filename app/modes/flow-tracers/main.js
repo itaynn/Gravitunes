@@ -2,12 +2,12 @@
 // analysis/scripts/flow-tracers/build.py) and sing as they go. Pitch <- value under the tracer (scale-quantized,
 // low register), loudness <- value, pan <- longitude, brightness <- tracer speed, timbre <- world-orchestra region.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, noteName, scaleFreqs, snapToScale } from '../../core/scales.js';
+import { quantize, noteHz, noteName, scaleFreqs } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
-import { shapeForPitch } from '../../core/voices.js';
+import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
-import { soundHint } from '../../core/ui.js';
+import { soundHint, fold, timbreControl } from '../../core/ui.js';
 import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture } from './tracers.js';
 
 export default function start(ctx) {
@@ -51,7 +51,7 @@ export default function start(ctx) {
     function voiceFor(tr) {
       if (s.timbre === 'single') return { voice: instruments[s.single], name: instLabel(s.single) };
       if (s.timbre === 'speed') {
-        const id = instIds[Math.min(instIds.length - 1, Math.floor(speedBrightness(tr.speed || 0) * instIds.length))];
+        const id = pickVoice(instIds, speedBrightness(tr.speed || 0));
         return { voice: instruments[id], name: instLabel(id) };
       }
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
@@ -61,8 +61,8 @@ export default function start(ctx) {
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
       const { voice } = voiceFor(tr);
       // The voice's octave shift, snapped back into the chosen scale within C2..C5.
-      const freq = snapToScale(noteFor(tr.value) * 2 ** (voice.octave || 0), scaleFreqs(s.scale, noteHz(-24), noteHz(12)));
-      const sh = shapeForPitch(voice, freq);
+      const sh = voiceNote(voice, noteFor(tr.value), { tones: scaleFreqs(s.scale, noteHz(-24), noteHz(12)) }).note;
+      const freq = sh.freq;
       // Sustained lines: a pad envelope and a glide from the previous frame's pitch, so each tracer is one
       // continuous note instead of a re-attack per frame (plucked voices would stutter otherwise).
       const envelope = sustained ? { attack: dur * 0.3, decay: 0.1, sustain: 0.9, release: dur * 0.3 } : sh.envelope;
@@ -78,12 +78,9 @@ export default function start(ctx) {
       (v) => { s.count = v; rescatter(); });
     panel.slider('Max voices', { min: 1, max: 12, step: 1, value: s.maxVoices, format: (v) => `${v} voices`,
       hint: 'Only the loudest tracers (most rain) sing at once.' }, (v) => { s.maxVoices = v; });
-    panel.select('Timbre', [['region', 'World-orchestra region it passes'], ['single', 'Single voice'], ['speed', 'By speed']],
-      (v) => { s.timbre = v; singleRow.hidden = v !== 'single'; }, { value: s.timbre });
-    const singleSel = panel.select('Single voice', instIds.map((k) => [k, instLabel(k)]), (v) => { s.single = v; }, { value: s.single });
-    const singleRow = singleSel.closest('.control');
-    singleRow.hidden = s.timbre !== 'single';
-    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
+    timbreControl(panel, { options: [['region', 'World-orchestra region it passes'], ['single', 'Single voice'], ['speed', 'By speed']],
+      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
+    scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: noteName },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
     const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: noteName,
@@ -94,10 +91,7 @@ export default function start(ctx) {
       { hint: 'A tracer that has been in dry air for a few frames jumps to a new rainy spot.' });
     panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     // Less-used settings in a collapsed "More settings" disclosure.
-    const more = document.createElement('details');
-    const sum = document.createElement('summary'); sum.textContent = 'More settings'; more.append(sum);
-    low.closest('.control').before(more);
-    for (const c of [low, high, driftSl, respawnCb]) more.append(c.closest('.control'));
+    fold('More settings', [low, high, driftSl, respawnCb]);
     panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: s.volume, format: (v) => `${Math.round(v * 100)} percent` },
       (v) => { s.volume = v; sound.setVolume?.(v); });
     sound.setVolume?.(s.volume);

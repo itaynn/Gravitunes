@@ -1,23 +1,15 @@
 // World orchestra: ~280 cities are listening points. When a city's value rises past the threshold
 // between two hours, it plays one note in the voice of its nearest "musical center" (blended near
 // borders). Pitch <- value (quantized to a scale, low-to-mid register), loudness <- value, pan <- longitude.
-import { distKm, voiceAt, shapeForPitch, selectTriggers, percentileOf } from './orchestra.js';
+import { distKm, voiceAt, selectTriggers, percentileOf } from './orchestra.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
 import { quantize, noteHz, noteName } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 
 import { loadEarth, valueHelpers } from '../../core/data.js';
 import { formatLatLon as fmt, regionTint } from '../../core/geo.js';
-import { soundHint } from '../../core/ui.js';
-
-// Move already-created panel controls into a collapsed <details> group.
-function fold(summary, controls) {
-  const rows = controls.map((c) => c.closest('.control') || c);
-  const d = document.createElement('details');
-  const sm = document.createElement('summary'); sm.textContent = summary;
-  rows[0].before(d); d.append(sm, ...rows);
-  return d;
-}
+import { soundHint, fold, throttle } from '../../core/ui.js';
+import { voiceNote as shapeNote } from '../../core/voices.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -73,7 +65,7 @@ export default function start(ctx) {
     const applySpeed = () => time.setSpeed(Math.min(30, s.speed / (dataset.stepHours || 1)));
     panel.slider('Speed', { min: 1, max: 48, step: 1, value: s.speed, format: (v) => `${v} hours per second` },
       (v) => { s.speed = v; applySpeed(); });
-    scaleControl(panel, { value: s.scale, describe, onChange: (v) => { s.scale = v; } });
+    scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     // Slider runs over norm 0..1 so log datasets get usable steps.
     panel.slider('Threshold', { min: 0, max: 1, step: 0.01, value: norm(s.threshold),
       hint: 'A city plays when its value rises past this. Default: the dataset\'s 70th percentile.',
@@ -114,12 +106,8 @@ export default function start(ctx) {
 
     // ---- notes
     // value -> scale note in the chosen range, shifted by the voice's octave, clamped to C2..C5, shaped for pitch.
-    function voiceNote(voice, value) {
-      let freq = quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq * 2 ** (voice.octave || 0);
-      freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
-      const { harmonics, partials, envelope, noise, vibrato, wah, dur } = shapeForPitch(voice, freq);
-      return { note: { freq, harmonics, partials, envelope, noise, vibrato, wah }, dur: dur ?? 0.4 };
-    }
+    const voiceNote = (voice, value) =>
+      shapeNote(voice, quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq);
     function playCity(i, value, k, n, frameDur) {
       const { note, dur } = voiceNote(cityVoice[i].voice, value);
       sound.play({ ...note, amp: (0.15 + 0.45 * norm(value)) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
@@ -162,11 +150,9 @@ export default function start(ctx) {
     }, 5000);
 
     // ---- hover probe
-    let lastHover = 0;
+    const ready = throttle(150);
     function probe({ lat, lon }, force = false) {
-      const now = performance.now();
-      if (!force && now - lastHover < 150) return;
-      lastHover = now;
+      if (!ready(force)) return;
       let best = null, bestKm = Infinity;
       cities.forEach((c) => { const d = distKm(lat, lon, c.lat, c.lon); if (d < bestKm) { bestKm = d; best = c; } });
       const place = bestKm < 1200 ? `${best.name} region` : `Near ${fmt(lat, lon)}`;
