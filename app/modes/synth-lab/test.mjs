@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { toneNotes } from './tones.js';
+import { toneNotes, chordSteps } from './tones.js';
 import { noteHz, PLEASANT, SCALES } from '../../core/scales.js';
 for (const id of PLEASANT) assert.ok(SCALES[id].cents.length >= 5 && SCALES[id].label, id);
 import { MAX_FUND_HZ } from '../../core/sound.js';
@@ -29,6 +29,9 @@ for (const id of PLEASANT) for (const semis of [-24, 0, 12]) for (const n of ton
   assert.ok(n.freq >= 60 && n.freq <= MAX_FUND_HZ + 1e-6, `${id} ${n.freq}`);
 }
 assert.equal(toneNotes({}, noteHz(-12), 'scale', 'slendro').length, 6);
+// Chords are root, a third and a fifth in every scale (C-E-G in major pentatonic, not C-E-A).
+assert.deepEqual(chordSteps(SCALES['pentatonic-major'].cents), [0, 2, 3]);
+for (const id of PLEASANT) assert.equal(toneNotes({}, noteHz(-12), 'chord', id).length, 3, id);
 
 // Gallery / switcher order: tone lab, timbre atlas, then the rest in index order.
 const { modes } = JSON.parse(readFileSync(join(root, 'app/modes/index.json'), 'utf8'));

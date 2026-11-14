@@ -1,6 +1,7 @@
 // ctx.sound adapter. Uses the real engine (/sound-engine/js/index.js) when it exists,
 // otherwise a small built-in Web Audio synth with the same play() shape. Value-only notes map to C2..C5 on
-// major pentatonic in both. Also: setOutput/setBalance/setWidth (stereo default), setScale/setTuning (engine only).
+// the current scale (major pentatonic until setScale) in both. Also: setOutput/setBalance/setWidth (stereo default),
+// setScale/setTuning (the built-in synth follows setScale with app/core/scales.js ids).
 // Browsers only allow audio after a user gesture: call start() from a click/keypress.
 //
 // play(opts): pitch from freq | value+range (pentatonic); amplitude/amp, duration/dur, pan, t (s from now),
@@ -14,9 +15,13 @@
 // lowpass (Hz, needs freq): per-note low-pass. The engine has no per-note filter yet, so the adapter
 // approximates it by attenuating harmonics/partials with a 2nd-order (12 dB/oct) response (applyLowpass).
 
+import { quantize, SCALES } from './scales.js';
+import { repoUrl } from './data.js';
+
 const PENTA = [0, 2, 4, 7, 9];  // major pentatonic, semitones
 
 // value in [lo, hi] -> frequency on a pentatonic scale over `octaves` octaves from `base` Hz.
+// Kept for compatibility; note the default base/octaves reach 1760 Hz. The adapter quantizes with scales.js.
 export function valueToFreq(value, [lo, hi], base = 220, octaves = 3) {
   const f = Math.max(0, Math.min(1, (value - lo) / (hi - lo || 1)));
   const step = Math.round(f * (PENTA.length * octaves));
@@ -73,7 +78,15 @@ const C2_HZ = 65.4064;
 
 function fallbackEngine() {
   let ac = null, master = null, bal = null;
-  let output = 'stereo', balance = 0, width = 0;
+  let output = 'stereo', balance = 0, width = 0, scaleId = 'pentatonic-major';
+  const live = new Set();   // sounding notes: { oscs, out }
+  const silence = (note, now) => {
+    note.out.gain.cancelScheduledValues(now);
+    note.out.gain.setValueAtTime(note.out.gain.value, now);
+    note.out.gain.linearRampToValueAtTime(0, now + 0.02);
+    for (const { o } of note.oscs) { try { o.stop(now + 0.03); } catch {} }
+    live.delete(note);
+  };
   return {
     name: 'built-in',
     get output() { return output; }, get balance() { return balance; }, get width() { return width; },
@@ -95,7 +108,7 @@ function fallbackEngine() {
     },
     play({ freq, value, range = [0, 1], dur = 0.3, amp = 0.2, pan = 0, t: dt = 0, harmonics = 1, partials, envelope, glide, vibrato } = {}) {
       if (!ac) return { stop() {}, set() {} };
-      const f0 = freq ?? valueToFreq(value ?? 0, range, C2_HZ, 3);   // C2..C5, like the engine
+      const f0 = freq ?? quantize(value ?? 0, range, scaleId, C2_HZ, MAX_FUND_HZ).freq;   // C2..C5, like the engine
       const env = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...(envelope || {}) };
       const t = ac.currentTime + Math.max(0, dt), out = ac.createGain(), panner = ac.createStereoPanner();
       panner.pan.value = output === 'mono' ? 0 : clamp(pan + width * clamp(Math.log2(f0 / 261.6256) / 2, -1, 1), -1, 1);
@@ -119,6 +132,7 @@ function fallbackEngine() {
         lfo.connect(lfoGain); lfo.start(t); lfo.stop(end + 0.1);
       }
       const add = (mult, a, decay, k) => {
+        a *= capGain(f0 * mult);   // no overtone above ~5 kHz, also for value-only notes
         if (f0 * mult > ac.sampleRate / 2 || !a) return;
         const o = ac.createOscillator(), gg = ac.createGain();
         o.frequency.value = f0 * mult; gg.gain.value = a;
@@ -133,8 +147,11 @@ function fallbackEngine() {
       };
       hs.forEach((a, k) => add(k + 1, a, 0, k));
       ps.forEach((p) => add(p.ratio, p.amp ?? 1, p.decay, -1));
+      const note = { oscs, out };
+      live.add(note);
+      if (oscs.length) oscs[0].o.onended = () => live.delete(note);
       return {
-        stop() { oscs.forEach(({ o }) => { try { o.stop(); } catch {} }); },
+        stop() { silence(note, ac.currentTime); },   // short fade, no click
         // Live changes (subset of the engine's handle.set): freq and harmonics, ramped.
         set({ freq: nf, harmonics: nh } = {}, ramp = 0.05) {
           const now = ac.currentTime, r = Math.max(0.005, ramp);
@@ -145,17 +162,20 @@ function fallbackEngine() {
         },
       };
     },
-    stopAll() {},
+    stopAll() {
+      if (!ac) return;
+      const now = ac.currentTime;
+      [...live].forEach((n) => silence(n, now));
+    },
+    setScale(spec) { if (typeof spec === 'string' && SCALES[spec]) scaleId = spec; },
   };
 }
 
 // Short filtered noise burst (breath, bow or pick), routed into the engine's master.
 function playNoise(ac, dest, { amount = 0.2, attack = 0.01, decay = 0.15, cutoff = 2000 } = {}, { amp, pan, t: dt = 0, dur }) {
   if (!ac || !dest || !(amount > 0)) return;
-  const len = Math.ceil(ac.sampleRate * Math.min(2, attack + decay + (dur || 0) * 0.5 + 0.1));
-  const buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-  const src = ac.createBufferSource(); src.buffer = buf;
+  const len = Math.min(2, attack + decay + (dur || 0) * 0.5 + 0.1);
+  const src = ac.createBufferSource(); src.buffer = noiseBuffer(ac);
   const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = cutoff; bp.Q.value = 0.8;
   const g = ac.createGain(), p = ac.createStereoPanner(), t = ac.currentTime + Math.max(0, dt);
   p.pan.value = clamp(pan ?? 0, -1, 1);
@@ -163,7 +183,20 @@ function playNoise(ac, dest, { amount = 0.2, attack = 0.01, decay = 0.15, cutoff
   g.gain.linearRampToValueAtTime(amount * (amp ?? 0.3), t + Math.max(0.002, attack));
   g.gain.setTargetAtTime(0.0001, t + attack, Math.max(0.01, decay) / 3);
   src.connect(bp).connect(g).connect(p).connect(dest);
-  src.start(t); src.stop(t + len / ac.sampleRate);
+  src.start(t, Math.random() * (NOISE_S - len), len);
+}
+
+// One shared 2.5 s white-noise buffer per AudioContext (no new buffer per note, so no GC pauses).
+const NOISE_S = 2.5, noiseBufs = new WeakMap();
+function noiseBuffer(ac) {
+  let b = noiseBufs.get(ac);
+  if (!b) {
+    b = ac.createBuffer(1, Math.ceil(ac.sampleRate * NOISE_S), ac.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    noiseBufs.set(ac, b);
+  }
+  return b;
 }
 
 // Drive a periodic change on a sounding note with handle.set ramps: make(i) gives the i-th target.
@@ -182,15 +215,15 @@ function modulate(h, startS, endS, rate, make) {
 export async function createSound() {
   let engine = null, name = 'built-in';
   try {
-    const mod = await import('/sound-engine/js/index.js');
-    // Explicit bases (repo-absolute): the engine's import.meta.url defaults fail when modules are blob: URLs
-    // (standalone builds), and the standalone fetch() override serves these paths from its bundle.
-    const at = (p) => new URL(p, location.href).href;
+    const mod = await import('../../sound-engine/js/index.js');
+    // Explicit bases: the engine's import.meta.url defaults fail when modules are blob: URLs (standalone
+    // builds); repoUrl handles that and sub-path hosting. The C5 / 5 kHz comfort caps live in the engine too.
     engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major',
-      libraryBase: at('/sound-engine/library/presets/'), sampleBase: at('/data/earth/instruments/') });
+      maxNoteFreq: MAX_FUND_HZ, noteLimit: 'clamp', maxFreq: PARTIAL_CAP_HZ,
+      libraryBase: repoUrl('sound-engine/library/presets/'), sampleBase: repoUrl('data/earth/instruments/') });
     name = 'sound-engine';
   } catch (e) {
-    console.info('[sound] sound-engine not available, using built-in synth:', e.message);
+    console.warn('[sound] sound-engine not available, using the simple built-in synth:', e.message);
     engine = fallbackEngine();
   }
   let started = false, volume = 0.8;
@@ -205,7 +238,8 @@ export async function createSound() {
     play(opts = {}) {
       if (!started) return null;
       let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, glide, vibrato, wah, ...rest } = opts;
-      if (lowpass > 0 && rest.freq > 0) {
+      const builtIn = name === 'built-in';
+      if (lowpass > 0 && rest.freq > 0 && !rest.voice) {
         ({ harmonics, partials, noise } = { harmonics: harmonics ?? 1, partials, noise,
           ...applyLowpass({ harmonics: harmonics ?? 1, partials, noise }, rest.freq, lowpass) });
       }
@@ -217,7 +251,8 @@ export async function createSound() {
       if (ev.dur == null) ev.dur = 0.3;
       if (ev.pan != null) ev.pan = clamp(ev.pan, -1, 1);
       if (ev.amp != null) ev.amp = clamp(ev.amp, 0, 1);
-      const builtIn = name === 'built-in';
+      // Preset/recorded voices keep their own timbre: cap them with the engine's per-note low-pass instead.
+      if (rest.voice && !builtIn) ev.lowpass = Math.min(lowpass > 0 ? lowpass : Infinity, 4500);
       if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(MAX_FUND_HZ, glide.to) };
       if (builtIn && vibrato) ev.vibrato = vibrato;
       // The real engine maps value+range itself; the fallback uses valueToFreq.
@@ -242,7 +277,7 @@ export async function createSound() {
     // only gets def (overtones and envelope) to pass inline.
     async loadLibrary(id) {
       if (engine.loadLibrary) return engine.loadLibrary(id, { name: `library-${id}` });
-      const r = await fetch(new URL(`/sound-engine/library/presets/${encodeURIComponent(id)}.json`, location.href));
+      const r = await fetch(repoUrl(`sound-engine/library/presets/${encodeURIComponent(id)}.json`));
       if (!r.ok) throw new Error(`no library preset ${id}`);
       const { source, sample, id: _i, title, kind, ...def } = await r.json();
       return { name: null, def, sample: false };
@@ -254,8 +289,15 @@ export async function createSound() {
     get output() { return engine.output ?? 'stereo'; },
     get balance() { return engine.balance ?? 0; },
     get width() { return engine.width ?? 0; },
-    // Tuning/scale for value-only notes (engine maps value -> C2..C5 on the scale). The built-in synth ignores
-    // these and uses major pentatonic. Modes that pass freq (quantized in app/core/scales.js) don't need them.
+    // Tuning/scale for value-only notes (maps value -> C2..C5 on the scale). The built-in synth follows setScale
+    // with app/core/scales.js ids. Modes that pass freq (quantized in app/core/scales.js) don't need them.
+    // useScale(id): sets the engine tuning first (gamelan scales need it), then the scale.
+    async useScale(id) {
+      const sc = SCALES[id];
+      if (!sc) return false;
+      if (engine.setTuning) await this.setTuning(sc.tuning);
+      return this.setScale(id);
+    },
     async setTuning(spec) { try { await engine.setTuning?.(spec); return !!engine.setTuning; } catch (e) { console.warn('[sound]', e.message); return false; } },
     setScale(spec) { try { engine.setScale?.(spec); return !!engine.setScale; } catch (e) { console.warn('[sound]', e.message); return false; } },
     valueToFreq,

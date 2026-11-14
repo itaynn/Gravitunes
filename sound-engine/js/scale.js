@@ -45,6 +45,7 @@ const DEFS = {
   hirajoshi: { up: [0, 2, 3, 7, 8], period: 12 },                              // Japanese koto tuning
   bhupali: { up: [0, 2, 4, 7, 9], vadi: 4, samvadi: 9, period: 12 },           // S R G P D
   durga: { up: [0, 2, 5, 7, 9], vadi: 5, samvadi: 0, period: 12 },             // S R M P D
+  malkauns: { up: [0, 3, 5, 8, 10], vadi: 5, samvadi: 0, period: 12 },        // S g M d n (late night)
   "dorian-hexatonic": { up: [0, 2, 3, 5, 7, 9], period: 12 },                  // Dorian without the 7th: drone-friendly
   "whole-tone": { up: [0, 2, 4, 6, 8, 10], period: 12 },
 };

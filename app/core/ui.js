@@ -23,7 +23,10 @@ export function createPanel(root) {
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = label; b.addEventListener('click', onClick);
       const row = document.createElement('div'); row.className = 'control'; row.append(b);
-      if (hint) { const h = document.createElement('p'); h.className = 'hint'; h.textContent = hint; row.append(h); }
+      if (hint) {
+        const h = document.createElement('p'); h.className = 'hint'; h.id = id('h'); h.textContent = hint;
+        b.setAttribute('aria-describedby', h.id); row.append(h);
+      }
       root.append(row); rows.push(row);
       return b;
     },
@@ -69,17 +72,24 @@ export function soundHint(panel, sound, next) {
 }
 
 // Polite live region; repeated calls within `minGap` ms are coalesced so screen readers keep up.
+// Urgent text goes to a second, fixed assertive region (created next to `region`): screen readers only honour
+// the aria-live value a region had when they first saw it, so one region cannot switch politeness.
 export function createDescribe(region, { minGap = 400 } = {}) {
-  let last = 0, timer = null, pending = '';
+  let last = 0, timer = null, pending = '', target = region;
+  region.setAttribute('aria-live', 'polite');
+  const loud = document.createElement('div');
+  loud.className = region.className; loud.setAttribute('aria-live', 'assertive'); loud.setAttribute('aria-atomic', 'true');
+  region.after(loud);
   function flush() {
     timer = null; last = performance.now();
-    region.textContent = '';
+    const el = target, other = el === region ? loud : region;
+    el.textContent = ''; other.textContent = '';
     // Re-set on next frame so identical text is still announced.
-    requestAnimationFrame(() => { region.textContent = pending; });
+    requestAnimationFrame(() => { el.textContent = pending; });
   }
   return function describe(text, { urgent = false } = {}) {
     pending = String(text);
-    region.setAttribute('aria-live', urgent ? 'assertive' : 'polite');
+    target = urgent ? loud : region;
     const wait = minGap - (performance.now() - last);
     if (wait <= 0 && !timer) flush();
     else if (!timer) timer = setTimeout(flush, Math.max(0, wait));

@@ -6,8 +6,16 @@ export async function getJson(url) {
   return r.json();
 }
 
-// Repo data files (data/earth/*.json); absolute paths work served from the repo root and in standalone builds.
-export const loadEarth = (name) => getJson(`/data/earth/${name}.json`);
+// URL of a repo file (path from the repo root, no leading slash). Resolved from this module, so it also works
+// when the site is served from a sub-path (e.g. GitHub Pages /Gravitunes/). Standalone builds load modules as
+// blob: URLs; there the root-absolute path is used and their fetch() override serves it from the bundle.
+export function repoUrl(path) {
+  const here = import.meta.url;
+  return here.startsWith('blob:') ? new URL('/' + path, location.href).href : new URL('../../' + path, here).href;
+}
+
+// Repo data files (data/earth/*.json).
+export const loadEarth = (name) => getJson(repoUrl(`data/earth/${name}.json`));
 
 // 0..1 over the dataset range (log space for log datasets), its inverse, and "12.3 ppbv" formatting.
 export function valueHelpers(dataset) {

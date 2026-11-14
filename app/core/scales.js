@@ -17,8 +17,10 @@ const META = {
   'pentatonic-minor': ['Minor pentatonic', '12tet'],
   yo: ['Japanese yo', '12tet'],
   hirajoshi: ['Japanese hirajoshi', '12tet'],
-  bhupali: ['Raga Bhupali (Indian)', '12tet'],
-  durga: ['Raga Durga (Indian)', '12tet'],
+  // bhupali / durga have the same notes as major pentatonic / yo: kept for old links, not in the menu.
+  bhupali: ['Raga Bhupali (Indian, same notes as major pentatonic)', '12tet'],
+  durga: ['Raga Durga (Indian, same notes as Japanese yo)', '12tet'],
+  malkauns: ['Raga Malkauns (Indian, late night)', '12tet'],
   slendro: ['Slendro (Javanese gamelan, 5 tones)', 'slendro'],
   'pelog-lima': ['Pelog lima (Javanese gamelan, 5 of 7 tones)', 'pelog'],
   'dorian-hexatonic': ['Dorian hexatonic (good over a drone)', '12tet'],
@@ -27,7 +29,7 @@ const META = {
   dorian: ['Dorian', '12tet'],
   pelog: ['Pelog (Javanese gamelan, all 7 tones)', 'pelog'],
 };
-export const PLEASANT = ['pentatonic-major', 'pentatonic-minor', 'yo', 'hirajoshi', 'bhupali', 'durga',
+export const PLEASANT = ['pentatonic-major', 'pentatonic-minor', 'yo', 'hirajoshi', 'malkauns',
   'slendro', 'pelog-lima', 'dorian-hexatonic', 'whole-tone'];
 
 function build(id) {

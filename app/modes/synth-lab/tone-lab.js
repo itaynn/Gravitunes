@@ -3,9 +3,9 @@
 import { createSound } from '../../core/sound.js';
 import { createDescribe, createPanel } from '../../core/ui.js';
 import { scaleControl } from '../../core/scale-control.js';
-import { loadEarth, getJson } from '../../core/data.js';
+import { loadEarth, getJson, repoUrl } from '../../core/data.js';
 import { playNotes } from '../../core/gestures.js';
-import { noteHz, noteName } from '../../core/scales.js';
+import { noteHz, noteName, C4 } from '../../core/scales.js';
 import { toneNotes } from './tones.js';
 import '../../core/switcher.js';
 
@@ -15,14 +15,18 @@ const status = (t) => { $('#status').textContent = t; };
 const sel = $('#instrument'), pitch = $('#pitch'), about = $('#about');
 
 const sound = await createSound();
-let scale = 'pentatonic-major';
-scaleControl(createPanel($('#tone-scale')), { value: scale, describe, onChange: (v) => { scale = v; },
+let scale = null;   // null: the instrument's own scale
+scaleControl(createPanel($('#tone-scale')), { value: 'pentatonic-major', own: 'Instrument\'s own', describe,
+  onChange: (v) => { scale = v; },
   hint: 'Used by Scale and Chord. Phrase plays the instrument\'s own typical notes.' });
 let instruments = {}, library = [], current = null;   // current: { label, voice, name? }
 
 const syncPitch = () => pitch.setAttribute('aria-valuetext', noteName(+pitch.value));
 syncPitch();
 pitch.addEventListener('input', syncPitch);
+// Moving the slider (mouse or its own arrow keys) plays the new note, like the global Up/Down keys.
+let pitchTimer = null;
+pitch.addEventListener('change', () => { clearTimeout(pitchTimer); pitchTimer = setTimeout(() => play('note'), 150); });
 
 $('#start-sound').addEventListener('click', async () => {
   await sound.start();
@@ -30,14 +34,14 @@ $('#start-sound').addEventListener('click', async () => {
   b.textContent = 'Sound on'; b.disabled = true;
   describe('Sound started. Choose an instrument, then press Note, Scale, Chord or Phrase.');
   play('note');
-  sel.focus();
+  $('#play-note').focus();
 });
 
 try {
   ({ instruments } = await loadEarth('instruments'));
 } catch (e) { console.warn(e); }
 try {
-  library = await getJson('/sound-engine/library/presets/index.json');
+  library = await getJson(repoUrl('sound-engine/library/presets/index.json'));
 } catch (e) { console.warn(e); }
 
 sel.replaceChildren();
@@ -71,14 +75,20 @@ async function choose(value) {
       about.textContent = `${p.name} could not be loaded (${e.message}).`;
     }
   }
+  // Recorded instruments have no typical phrase: Phrase would only repeat Note.
+  const hasPhrase = !!current?.voice?.gesture;
+  $('#play-phrase').disabled = !hasPhrase;
+  if (current && !hasPhrase) about.textContent += ' No typical phrase for this instrument.';
 }
-sel.addEventListener('change', () => choose(sel.value));
+sel.addEventListener('change', async () => { await choose(sel.value); describe(about.textContent); });
 if (sel.value) await choose(sel.value);
 
 const KIND_TEXT = { note: 'one note', scale: 'a scale', chord: 'a chord', phrase: 'its phrase' };
+const nameOf = (hz) => noteName(Math.round(12 * Math.log2(hz / C4)));
 function play(kind) {
-  if (!current) return;
   if (!sound.started) { describe('Press "Start sound" first.'); return; }
+  if (!current) { describe('This instrument is still loading or could not be loaded.'); return; }
+  if (kind === 'phrase' && !current.voice.gesture) { describe('No typical phrase for this instrument. Try Note, Scale or Chord.'); return; }
   const notes = toneNotes(current.voice, noteHz(+pitch.value), kind, scale);
   sound.stopAll();
   if (current.name) {
@@ -86,14 +96,18 @@ function play(kind) {
   } else {
     playNotes(sound, current.voice, notes, { amp: 0.4 });
   }
-  describe(`${cap(current.label)}: ${KIND_TEXT[kind]} from ${noteName(+pitch.value)}`);
+  // Scales and chords that would pass C5 start an octave lower: announce the note actually played.
+  describe(`${cap(current.label)}: ${KIND_TEXT[kind]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}`);
 }
 for (const k of Object.keys(KIND_TEXT)) $(`#play-${k}`).addEventListener('click', () => play(k));
 
 document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey || /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target.tagName, text = /^(INPUT|TEXTAREA)$/.test(tag) && e.target.type !== 'range';
   const k = { n: 'note', s: 'scale', c: 'chord', p: 'phrase' }[e.key.toLowerCase()];
-  if (k) { e.preventDefault(); play(k); return; }
+  // Letter keys work everywhere except text fields (also on the lists); arrows only outside form controls.
+  if (k && !text) { e.preventDefault(); play(k); return; }
+  if (/^(SELECT|INPUT|TEXTAREA)$/.test(tag)) return;
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     e.preventDefault();
     pitch.value = Math.max(-24, Math.min(12, +pitch.value + (e.key === 'ArrowUp' ? 1 : -1)));

@@ -22,15 +22,23 @@ function remember(id) {
 }
 
 // panel: a createPanel(); onChange(id) is called at once with the starting scale and on every change.
-// Returns the <select>.
-export function scaleControl(panel, { value = 'pentatonic-major', onChange, describe, hint } = {}) {
-  const start = initialScale(value);
-  const ids = PLEASANT.includes(start) ? PLEASANT : [start, ...PLEASANT];
-  const sel = panel.select('Scale', ids.map((id) => [id, SCALES[id].label]), (id) => {
-    remember(id);
-    onChange?.(id);
-    describe?.(`Scale: ${SCALES[id].label}`);
+// sound (optional): a createSound(); value-only notes then follow the menu (tuning first, then scale).
+// own (optional): a label for an extra first option, value '' (onChange gets null), e.g. "Instrument's own";
+// it is the default unless ?scale= or a remembered choice says otherwise. Returns the <select>.
+export function scaleControl(panel, { value = 'pentatonic-major', onChange, describe, hint, sound, own } = {}) {
+  const start = own ? initialScale('') : initialScale(value);
+  const ids = !start || PLEASANT.includes(start) ? PLEASANT : [start, ...PLEASANT];
+  const opts = ids.map((id) => [id, SCALES[id].label]);
+  if (own) opts.unshift(['', own]);
+  const apply = (id) => {
+    if (id && sound?.useScale) sound.useScale(id).catch?.((e) => console.warn('[scale]', e.message));
+    onChange?.(id || null);
+  };
+  const sel = panel.select('Scale', opts, (id) => {
+    if (id) remember(id);
+    apply(id);
+    describe?.(`Scale: ${id ? SCALES[id].label : own}`);
   }, { value: start, hint: hint || 'Notes are picked from this scale. All of these sound calm when notes overlap.' });
-  onChange?.(start);
+  apply(start);
   return sel;
 }
