@@ -4,7 +4,7 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 
 ## In main
 - App: gallery, core (viewer, timeline, input, panel, sound adapter with frequency caps), dataset picker
-- Modes: ozone-probe, world-orchestra, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
+- Modes: ozone-probe, world-orchestra, timbre-atlas, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
 - Sound engine (scales, tunings, Scala, voices, live edits, mono/stereo)
 - Data tools: ozone (5152), CO (5153), NOx (5154) value grids
 - Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)
@@ -16,7 +16,6 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 | Sound library + engine | library manifest/fetch/analysis → presets; engine: rolloff, 5 kHz cap, per-note low-pass, C3 pads, glide fix, live bridge test, gamelan cents |
 | Standalone demos | build-standalone.py → git-ignored dist/*.html (one file per demo, WhatsApp-sized) |
 | Flow tracers + vortex melodies | two demos on 4285 using flow analysis |
-| Timbre atlas | hover-the-map demo of each region's instrument; make voices distinct per culture (shared with world-orchestra) |
 
 ## Next
 2. Layered maps (hear several gases together)

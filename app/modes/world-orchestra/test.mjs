@@ -33,7 +33,7 @@ assert.equal(blendWeight(500, 900, 800), 0.75);
 const far = voiceAt(28.61, 77.21, centers, instruments, 800);
 assert.equal(far.weight, 1); assert.equal(far.secondary, null);
 const mix = blendVoices(instruments.organ, instruments.gamelan, 0.25);
-assert.ok(Math.abs(mix.envelope.attack - (0.06 * 0.25 + 0.003 * 0.75)) < 1e-9);
+assert.ok(Math.abs(mix.envelope.attack - (instruments.organ.envelope.attack * 0.25 + instruments.gamelan.envelope.attack * 0.75)) < 1e-9);
 assert.ok(Math.abs(mix.harmonics[0] - 1) < 1e-9 && Math.abs(mix.harmonics[1] - 0.7 * 0.25) < 1e-9);
 assert.equal(mix.partials.length, 4);
 assert.ok(Math.abs(mix.partials[0].amp - 0.6 * 0.75) < 1e-9);

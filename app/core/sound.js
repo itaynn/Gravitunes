@@ -7,6 +7,10 @@
 // voice (engine preset name), harmonics (number of harmonics, or an amplitude array),
 // partials [{ratio, amp, decay}], envelope {attack, decay, sustain, release},
 // noise {amount 0..1, attack, decay, cutoff Hz} (breath/pick noise, added by the adapter for both engines),
+// glide {to Hz, time, at} (pitch slide; engine-native, emulated in the built-in synth),
+// vibrato {rate Hz, depth cents, delay s} and wah {rate Hz, harmonics} (alternates the timbre to `harmonics` and
+// back, a formant-like sweep): the engine has neither yet, so the adapter drives them with handle.set() ramps;
+// the built-in synth uses an LFO on detune for vibrato and the same set() path for wah.
 // lowpass (Hz, needs freq): per-note low-pass. The engine has no per-note filter yet, so the adapter
 // approximates it by attenuating harmonics/partials with a 2nd-order (12 dB/oct) response (applyLowpass).
 
@@ -89,7 +93,7 @@ function fallbackEngine() {
       }
       await ac.resume();
     },
-    play({ freq, value, range = [0, 1], dur = 0.3, amp = 0.2, pan = 0, t: dt = 0, harmonics = 1, partials, envelope } = {}) {
+    play({ freq, value, range = [0, 1], dur = 0.3, amp = 0.2, pan = 0, t: dt = 0, harmonics = 1, partials, envelope, glide, vibrato } = {}) {
       if (!ac) return { stop() {}, set() {} };
       const f0 = freq ?? valueToFreq(value ?? 0, range, C2_HZ, 3);   // C2..C5, like the engine
       const env = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...(envelope || {}) };
@@ -105,17 +109,41 @@ function fallbackEngine() {
       g.setTargetAtTime(sus, t + env.attack, Math.max(0.01, env.decay) / 3);
       g.cancelScheduledValues(relAt); g.setTargetAtTime(0.0001, relAt, Math.max(0.01, env.release) / 4);
       out.connect(panner).connect(master);
-      const oscs = [];
-      const add = (f, a, decay) => {
-        if (f > ac.sampleRate / 2 || !a) return;
+      const oscs = [];   // { o, gg, mult, k }  (k = harmonic index, -1 for partials)
+      let lfoGain = null;
+      if (vibrato?.rate > 0 && vibrato.depth > 0) {
+        const lfo = ac.createOscillator(); lfo.frequency.value = vibrato.rate;
+        lfoGain = ac.createGain(); lfoGain.gain.setValueAtTime(0, t);
+        const d0 = t + Math.max(0, vibrato.delay ?? 0.2);
+        lfoGain.gain.setValueAtTime(0, d0); lfoGain.gain.linearRampToValueAtTime(vibrato.depth, d0 + 0.25);
+        lfo.connect(lfoGain); lfo.start(t); lfo.stop(end + 0.1);
+      }
+      const add = (mult, a, decay, k) => {
+        if (f0 * mult > ac.sampleRate / 2 || !a) return;
         const o = ac.createOscillator(), gg = ac.createGain();
-        o.frequency.value = f; gg.gain.value = a;
+        o.frequency.value = f0 * mult; gg.gain.value = a;
         if (decay) gg.gain.setTargetAtTime(0.0001, t, decay / 3);
-        o.connect(gg).connect(out); o.start(t); o.stop(end + 0.1); oscs.push(o);
+        if (glide?.to > 0) {
+          const at = t + Math.max(0, glide.at ?? 0);
+          o.frequency.setValueAtTime(f0 * mult, at);
+          o.frequency.exponentialRampToValueAtTime(glide.to * mult, at + Math.max(0.01, glide.time ?? 0.1));
+        }
+        lfoGain?.connect(o.detune);
+        o.connect(gg).connect(out); o.start(t); o.stop(end + 0.1); oscs.push({ o, gg, mult, k });
       };
-      hs.forEach((a, k) => add(f0 * (k + 1), a));
-      ps.forEach((p) => add(f0 * p.ratio, p.amp ?? 1, p.decay));
-      return { stop() { oscs.forEach((o) => { try { o.stop(); } catch {} }); }, set() {} };
+      hs.forEach((a, k) => add(k + 1, a, 0, k));
+      ps.forEach((p) => add(p.ratio, p.amp ?? 1, p.decay, -1));
+      return {
+        stop() { oscs.forEach(({ o }) => { try { o.stop(); } catch {} }); },
+        // Live changes (subset of the engine's handle.set): freq and harmonics, ramped.
+        set({ freq: nf, harmonics: nh } = {}, ramp = 0.05) {
+          const now = ac.currentTime, r = Math.max(0.005, ramp);
+          for (const { o, gg, mult, k } of oscs) {
+            if (nf > 0) { o.frequency.setValueAtTime(o.frequency.value, now); o.frequency.linearRampToValueAtTime(nf * mult, now + r); }
+            if (nh && k >= 0) { gg.gain.setValueAtTime(gg.gain.value, now); gg.gain.linearRampToValueAtTime(harmonicArray(nh)[k] ?? 0, now + r); }
+          }
+        },
+      };
     },
     stopAll() {},
   };
@@ -138,6 +166,19 @@ function playNoise(ac, dest, { amount = 0.2, attack = 0.01, decay = 0.15, cutoff
   src.start(t); src.stop(t + len / ac.sampleRate);
 }
 
+// Drive a periodic change on a sounding note with handle.set ramps: make(i) gives the i-th target.
+function modulate(h, startS, endS, rate, make) {
+  if (!h?.set || !(rate > 0)) return;
+  const half = 1 / (2 * rate), t0 = performance.now();
+  let i = 0;
+  const tick = () => {
+    if (performance.now() - t0 > endS * 1000) return;
+    try { h.set(make(i++), half); } catch { return; }
+    setTimeout(tick, half * 1000);
+  };
+  setTimeout(tick, Math.max(0, startS) * 1000);
+}
+
 export async function createSound() {
   let engine = null, name = 'built-in';
   try {
@@ -158,7 +199,7 @@ export async function createSound() {
     },
     play(opts = {}) {
       if (!started) return null;
-      let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, ...rest } = opts;
+      let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, glide, vibrato, wah, ...rest } = opts;
       if (lowpass > 0 && rest.freq > 0) {
         ({ harmonics, partials, noise } = { harmonics: harmonics ?? 1, partials, noise,
           ...applyLowpass({ harmonics: harmonics ?? 1, partials, noise }, rest.freq, lowpass) });
@@ -171,9 +212,22 @@ export async function createSound() {
       if (ev.dur == null) ev.dur = 0.3;
       if (ev.pan != null) ev.pan = clamp(ev.pan, -1, 1);
       if (ev.amp != null) ev.amp = clamp(ev.amp, 0, 1);
+      const builtIn = name === 'built-in';
+      if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(MAX_FUND_HZ, glide.to) };
+      if (builtIn && vibrato) ev.vibrato = vibrato;
       // The real engine maps value+range itself; the fallback uses valueToFreq.
       let h = null;
       try { h = engine.play(ev); } catch (e) { console.warn('[sound]', e.message); }
+      const t0 = ev.t || 0, end = t0 + ev.dur;
+      if (h && vibrato?.rate > 0 && vibrato.depth > 0 && !builtIn && ev.freq > 0) {
+        const c = ev.glide?.to || ev.freq;
+        modulate(h, t0 + (vibrato.delay ?? 0.2), end, vibrato.rate,
+          (i) => ({ freq: Math.min(MAX_FUND_HZ, c * 2 ** (((i % 2) ? -1 : 1) * vibrato.depth / 1200)) }));
+      }
+      if (h && wah?.rate > 0 && wah.harmonics && ev.freq > 0) {
+        const alt = capTimbre({ freq: ev.glide?.to || ev.freq, harmonics: wah.harmonics }).harmonics, base = ev.harmonics || [1];
+        modulate(h, t0 + 0.1, end, wah.rate, (i) => ({ harmonics: i % 2 ? base : alt }));
+      }
       if (noise) try { playNoise(engine.context, engine.master, noise, ev); } catch {}
       return h;
     },

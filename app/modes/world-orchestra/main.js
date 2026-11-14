@@ -112,7 +112,7 @@ export default function start(ctx) {
       sound.play({
         freq, amp: (0.15 + 0.45 * norm(value)) / Math.sqrt(Math.max(1, n)), pan: cities[i].lon / 180,
         dur: Math.min(shaped.dur ?? 0.4, Math.max(0.15, frameDur * 1.5)), t: (k * frameDur * 0.8) / Math.max(1, n),
-        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise,
+        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise, vibrato: shaped.vibrato, wah: shaped.wah,
       });
     }
 
@@ -170,7 +170,7 @@ export default function start(ctx) {
       freq = Math.max(noteHz(-24), Math.min(noteHz(12), freq));
       const shaped = shapeForPitch(voice, freq);
       sound.play({ freq, amp: 0.35, pan: lon / 180, dur: shaped.dur ?? 0.4,
-        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise });
+        harmonics: shaped.harmonics, partials: shaped.partials, envelope: shaped.envelope, noise: shaped.noise, vibrato: shaped.vibrato, wah: shaped.wah });
       describe(`${place}: ${inst}-inspired${blend}, ${fmtV(v)}`);
     }
     const offHover = input.onHover((p) => probe(p));
