@@ -1,0 +1,6 @@
+{
+  "name": "Template: hover and beep",
+  "author": "",
+  "description": "Hover the map; the value under the cursor plays a note.",
+  "datasets": "any"
+}

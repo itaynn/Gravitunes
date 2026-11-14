@@ -1,0 +1,7 @@
+{
+  "name": "Synth lab",
+  "author": "moran",
+  "description": "Play with the sound engine: timbre, tunings, scales; play a scale up/down, as a chord, or one note.",
+  "datasets": "none",
+  "href": "../../../sound-engine/playground.html"
+}
