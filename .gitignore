@@ -227,3 +227,6 @@ data/*
 !data/nasa-svs/
 data/nasa-svs/*
 !data/nasa-svs/4285/
+!data/earth/
+data/earth/*
+!data/earth/*.json

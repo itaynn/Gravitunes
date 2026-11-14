@@ -1,0 +1,26 @@
+{
+  "note": "Musical centers for the world-orchestra mode. Each city takes the voice of its nearest center; near a border two voices blend. Locations are symbolic, not claims about where an instrument is from exclusively.",
+  "centers": [
+    { "id": "germany", "label": "Central Europe", "region": "Central Europe", "lat": 51.34, "lon": 12.37, "instrument": "organ" },
+    { "id": "ireland", "label": "Ireland and Britain", "region": "Northwest Europe", "lat": 53.35, "lon": -6.26, "instrument": "celticharp" },
+    { "id": "greece", "label": "Mediterranean", "region": "Southern Europe", "lat": 37.98, "lon": 23.73, "instrument": "bouzouki" },
+    { "id": "russia", "label": "Russia and Eastern Europe", "region": "Eastern Europe", "lat": 55.75, "lon": 37.62, "instrument": "balalaika" },
+    { "id": "caucasus", "label": "Caucasus", "region": "Caucasus", "lat": 40.18, "lon": 44.51, "instrument": "duduk" },
+    { "id": "middle-east", "label": "Middle East and North Africa", "region": "Middle East", "lat": 30.0, "lon": 38.0, "instrument": "oud" },
+    { "id": "india", "label": "South Asia", "region": "South Asia", "lat": 25.32, "lon": 82.97, "instrument": "sitar" },
+    { "id": "china", "label": "China", "region": "East Asia", "lat": 34.34, "lon": 108.94, "instrument": "guzheng" },
+    { "id": "japan", "label": "Japan and Korea", "region": "East Asia", "lat": 35.01, "lon": 135.77, "instrument": "koto" },
+    { "id": "indonesia", "label": "Southeast Asia", "region": "Southeast Asia", "lat": -7.8, "lon": 110.36, "instrument": "gamelan" },
+    { "id": "australia", "label": "Australia", "region": "Oceania", "lat": -23.7, "lon": 133.88, "instrument": "didgeridoo" },
+    { "id": "senegambia", "label": "West Africa (coast)", "region": "West Africa", "lat": 13.45, "lon": -16.58, "instrument": "kora" },
+    { "id": "mali", "label": "West Africa (Sahel)", "region": "West Africa", "lat": 9.0, "lon": 2.0, "instrument": "balafon" },
+    { "id": "zimbabwe", "label": "Southern and East Africa", "region": "Southern Africa", "lat": -17.83, "lon": 31.05, "instrument": "mbira" },
+    { "id": "usa", "label": "North America", "region": "North America", "lat": 38.0, "lon": -90.0, "instrument": "banjo" },
+    { "id": "mexico", "label": "Mexico and Central America", "region": "Central America", "lat": 17.0, "lon": -93.0, "instrument": "marimba" },
+    { "id": "andes", "label": "Andes", "region": "South America", "lat": -13.53, "lon": -71.97, "instrument": "panflute" },
+    { "id": "rio-plata", "label": "Río de la Plata and Brazil", "region": "South America", "lat": -30.0, "lon": -55.0, "instrument": "bandoneon" },
+    { "id": "pacific", "label": "Pacific Ocean", "region": "Pacific", "lat": 5.0, "lon": -150.0, "instrument": "ocean" },
+    { "id": "atlantic", "label": "Atlantic Ocean", "region": "Atlantic", "lat": 10.0, "lon": -35.0, "instrument": "ocean" },
+    { "id": "indian-ocean", "label": "Indian Ocean", "region": "Indian Ocean", "lat": -25.0, "lon": 75.0, "instrument": "ocean" }
+  ]
+}

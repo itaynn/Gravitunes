@@ -49,6 +49,15 @@
       "description": "Play with the sound engine: timbre, tunings, scales; play a scale up/down, as a chord, or one note.",
       "datasets": "none",
       "href": "../../../sound-engine/playground.html"
+    },
+    {
+      "id": "world-orchestra",
+      "name": "World orchestra",
+      "author": "moran",
+      "description": "About 280 world cities listen to the data. When a city's value rises past a threshold it plays one note, in a voice inspired by a nearby musical tradition (organ, guzheng, gamelan, sitar, kora, pan flute...). Pitch follows the value, east/west pans left/right; hover or use the arrow keys to hear and hear about any region.",
+      "datasets": [
+        "5152"
+      ]
     }
   ]
 }

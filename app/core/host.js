@@ -1,5 +1,5 @@
 // Mode host for app/mode.html?mode=<name>[&dataset=<id>]: builds ctx and starts modes/<name>/main.js.
-import { loadDataset } from './datasets.js';
+import { loadDataset, listDatasets } from './datasets.js';
 import { createViewer, createInput } from './viewer.js';
 import { createTime } from './time.js';
 import { createPanel, createDescribe } from './ui.js';
@@ -37,10 +37,20 @@ async function main() {
     $('#map').focus();
   });
 
+  // Dataset picker (?dataset=<id>): lists known descriptors; changing it reloads the mode.
+  const current = pickDataset(meta);
+  listDatasets().then((list) => {
+    if (!list.some((d) => d.id === current)) list.push({ id: current, title: current });
+    const dp = createPanel($('#dataset-picker'));
+    dp.select('Dataset', list.map((d) => [d.id, `${d.title} (${d.id})`]), (id) => {
+      params.set('dataset', id); location.search = params.toString();
+    }, { value: current, hint: 'Changing the dataset reloads this mode.' });
+  }).catch(() => {});
+
   status('Loading data...');
   let dataset;
   try {
-    dataset = await loadDataset(pickDataset(meta));
+    dataset = await loadDataset(current);
   } catch (e) {
     status(`Could not load the dataset (${e.message}). Run: sh app/tools/fetch-sample.sh`);
     throw e;
@@ -59,9 +69,9 @@ async function main() {
   const tl = createPanel($('#timeline'));
   const playBtn = tl.button('Play', () => {
     if (time.playing) time.pause(); else time.play();
-    playBtn.textContent = time.playing ? 'Pause' : 'Play';
     describe(time.playing ? 'Playing' : `Paused at ${time.label()}`);
   });
+  time.onPlayState((p) => { playBtn.textContent = p ? 'Pause' : 'Play'; });
   const slider = tl.slider('Time', { min: 0, max: time.count - 1, step: 1, value: 0, format: (n) => time.label(n) },
     (n) => time.seek(n));
   const timeText = $('#time-label');

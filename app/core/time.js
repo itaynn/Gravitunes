@@ -1,7 +1,8 @@
 // ctx.time: frame index t in [0, count-1]. play/pause/scrub; onFrame(fn) fires after a frame is loaded.
 
 export function createTime(dataset, viewer) {
-  const listeners = new Set();
+  const listeners = new Set(), stateListeners = new Set();
+  const emitState = () => stateListeners.forEach((fn) => fn(!!timer));
   let t = 0, timer = null, fps = 2, busy = false;
 
   async function seek(n) {
@@ -28,9 +29,13 @@ export function createTime(dataset, viewer) {
         busy = true;
         try { await seek(t + 1); } finally { busy = false; }
       }, 1000 / fps);
+      emitState();
     },
-    pause() { clearInterval(timer); timer = null; },
-    setSpeed(f) { fps = f; if (timer) { time.pause(); time.play(); } },
+    pause() { const was = !!timer; clearInterval(timer); timer = null; if (was) emitState(); },
+    setSpeed(f) { fps = f; if (timer) { clearInterval(timer); timer = null; time.play(); } },
+    get fps() { return fps; },
+    // onPlayState(fn(playing)) fires when play/pause changes.
+    onPlayState(fn) { stateListeners.add(fn); return () => stateListeners.delete(fn); },
     onFrame(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   };
   return time;
