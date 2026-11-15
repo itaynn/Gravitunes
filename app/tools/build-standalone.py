@@ -66,7 +66,7 @@ def extra_files(m):
                 out[key_of(p)] = {'text': p.read_text(), 'type': mimetypes.guess_type(str(p))[0] or 'text/plain'}
             elif p.is_file():  # audio samples and other binaries
                 out[key_of(p)] = {'b64': base64.b64encode(p.read_bytes()).decode()}
-    return out  # precipitation-ball: keep the 2.8 MB webm, drop the 30 MB mp4
+    return out
 
 
 def data_root(arg):
@@ -228,7 +228,15 @@ def inline_html(page, drop_sources=()):
         if not is_local(ref):
             return m.group(0)
         if ref.split('?')[0].endswith(drop_sources):
-            return '<!-- dropped -->' if m.group(0).startswith('<source') else m.group(0)
+            if not m.group(0).startswith('<source'):
+                return m.group(0)
+            # A dropped (heavy) mp4 with a sibling .webm on disk, not already a source: ship the webm
+            # (precipitation-ball: 2.8 MB webm instead of the 30 MB mp4).
+            webm = ref.split('?')[0].rsplit('.', 1)[0] + '.webm'
+            wp = repo_path(webm, base)
+            if webm in text or not wp.is_file():
+                return '<!-- dropped -->'
+            return f'<source src="{data_url(wp)}" type="video/webm">'
         p = repo_path(ref, base)
         return m.group(0).replace(m.group(1), f'src="{data_url(p)}"') if p.is_file() else m.group(0)
     text = re.sub(r'<source\b[^>]*?(src="([^"]+)")[^>]*>', source, text)
