@@ -253,3 +253,30 @@ console.log('grid tests ok');
   assert.ok(!listed.has('mapping-lab'), 'mapping-lab is hidden');
   console.log('gallery tests ok');
 }
+
+// ---- viewer zoom & pan: clamping, zoom around a point, screen <-> map hit-testing
+{
+  const { clampView, zoomAt, screenToMap, mapToScreen, createViewer, MAX_ZOOM } = await import('../core/viewer.js');
+  const W = 1024, H = 512;
+  assert.deepEqual(clampView({ z: 0.5, x: 50, y: 50 }, W, H), { z: 1, x: 0, y: 0 });
+  assert.deepEqual(clampView({ z: 20, x: 2000, y: -5 }, W, H), { z: MAX_ZOOM, x: W - W / 8, y: 0 });
+  // The map point under the cursor stays put while zooming.
+  const v = zoomAt({ z: 1, x: 0, y: 0 }, 4, 300, 200, W, H);
+  assert.equal(v.z, 4);
+  assert.deepEqual(screenToMap(v, 300, 200), [300, 200]);
+  assert.deepEqual(mapToScreen(v, ...screenToMap(v, 17, 33)), [17, 33]);
+  assert.deepEqual(zoomAt(v, 0.1, 10, 10, W, H), { z: 1, x: 0, y: 0 });  // zooming out past 1x resets
+  // Hit-test through a viewer: the screen centre of a 2x view centred on (lat 30, lon 90) is that place.
+  const fake = { width: W, height: H, getContext: () => new Proxy({}, { get: () => () => {} }) };
+  const vw = createViewer(fake, { basemap: false });
+  const [mx, my] = vw.toPixel(30, 90);
+  vw.setView({ z: 2, x: mx - W / 4, y: my - H / 4 });
+  const ll = vw.screenToLatLon(W / 2, H / 2);
+  near(ll.lat, 30, 1e-9); near(ll.lon, 90, 1e-9);
+  assert.deepEqual(vw.latLonToScreen(30, 90), [W / 2, H / 2]);
+  let heard = null; vw.onView((view, zoomed) => { heard = zoomed; });
+  vw.panBy(-100, 0); assert.equal(heard, null);  // already at the east edge: clamped, no change
+  vw.panBy(100, 0); assert.equal(heard, false); assert.equal(vw.view.x, 512 - 50);
+  vw.resetView(); assert.equal(heard, true); assert.equal(vw.zoom, 1);
+  console.log('zoom tests ok');
+}

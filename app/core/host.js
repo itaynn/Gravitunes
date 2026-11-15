@@ -125,6 +125,16 @@ async function main() {
 
   const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0', plain: noData, imageCanvas: $('#map-image') });
   const input = createInput(viewer);
+  // Zoom & pan (wheel, drag, pinch, + - 0 keys): a Reset button shows only while zoomed; zoom changes are announced.
+  const resetBtn = $('#zoom-reset');
+  resetBtn.addEventListener('click', () => { viewer.resetView(); $('#map').focus(); });
+  let zoomSay = 0;
+  viewer.onView((v, zoomed) => {
+    resetBtn.hidden = v.z <= 1;
+    if (!zoomed) return;
+    clearTimeout(zoomSay);
+    zoomSay = setTimeout(() => describe(v.z <= 1 ? 'Zoom reset, whole map' : `Zoom ${Math.round(v.z * 10) / 10} times`), 300);
+  });
   const time = createTime(dataset, viewer);
   const panel = createPanel($('#mode-controls'));
   await time.seek(0);
