@@ -466,6 +466,17 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     }
   });
 
+  // Space anywhere (not in fields or on buttons) = Play/Stop the video.
+  addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || videoButton.disabled) return;
+    if (/^(INPUT|TEXTAREA|SELECT|BUTTON|SUMMARY)$/.test(t?.tagName) || t?.isContentEditable) return;
+    e.preventDefault();
+    const wasPaused = video.paused;
+    videoButton.click();
+    setStatus(wasPaused ? "Playing" : "Stopped");
+  });
+
   surfaceForceControl.addEventListener("input", () => {
     surfaceForce = Number(surfaceForceControl.value);
     surfaceForceOutput.value = `${surfaceForce.toFixed(1)}×`;

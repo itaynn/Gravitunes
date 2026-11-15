@@ -10,6 +10,7 @@ import { nearestCenters } from '../../core/geo.js';
 import { createViewer, loadBasemap } from '../../core/viewer.js';
 import { noteHz, noteName, C4 } from '../../core/scales.js';
 import { toneNotes, neighbor } from './tones.js';
+import { onSpace } from '../../core/keys.js';
 import '../../core/switcher.js';
 
 const $ = (s) => document.querySelector(s);
@@ -219,11 +220,18 @@ canvas.addEventListener('keydown', async (e) => {
     if (!c) { describe(`No region further ${dir}.`); return; }
     await setRegion(c);
     if (loopBox.checked) play();   // looping follows the selection; otherwise Enter plays
-  } else if (e.key === 'Enter' || e.key === ' ') {
+  } else if (e.key === 'Enter') {
     e.preventDefault();
     if (!region && centers[0]) await setRegion(centers[0]);
     play();
   }
+});
+
+// Space anywhere (not in fields or on buttons): stop a running loop, otherwise play the current selection.
+onSpace(async () => {
+  if (loopBox.checked) { stopBtn.click(); return; }
+  if (!region && centers[0]) await setRegion(centers[0]);
+  play(); describe('Playing');
 });
 
 // Start on the first region (no sound until a click or key).

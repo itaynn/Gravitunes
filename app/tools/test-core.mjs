@@ -297,3 +297,17 @@ console.log('grid tests ok');
   for (const sel of NO_DATA_REMOVE) assert.ok(html.includes(`id="${sel.slice(1)}"`), `mode.html has ${sel}`);
   console.log('ok no-data host');
 }
+
+// ---- Space = Play/Stop, except where Space is native (fields, buttons, checkboxes)
+import { isSpaceToggle } from '../core/keys.js';
+{
+  const el = (tagName, role) => ({ tagName, getAttribute: () => role ?? null });
+  const sp = (target, extra = {}) => ({ key: ' ', target, ...extra });
+  assert.ok(isSpaceToggle(sp(el('CANVAS'))));
+  assert.ok(isSpaceToggle(sp(el('BODY'))));
+  for (const t of ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON']) assert.ok(!isSpaceToggle(sp(el(t))), t);
+  assert.ok(!isSpaceToggle(sp(el('DIV', 'checkbox'))));
+  assert.ok(!isSpaceToggle(sp(el('CANVAS'), { repeat: true })));
+  assert.ok(!isSpaceToggle({ key: 'Enter', target: el('CANVAS') }));
+  console.log('ok space key');
+}

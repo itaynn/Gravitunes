@@ -291,7 +291,7 @@ export function createInput(viewer) {
   c.addEventListener('pointercancel', up);
   c.style.touchAction = 'none';  // touch drag explores instead of scrolling
 
-  // Arrow keys move 5 degrees (Shift: 1, Alt: 20). Enter/Space = click. Home = 0,0. Key moves carry keyboard: true.
+  // Arrow keys move 5 degrees (Shift: 1, Alt: 20). Enter = click (Space is Play/Stop). Home = 0,0. Key moves carry keyboard: true.
   c.addEventListener('keydown', (e) => {
     const d = e.shiftKey ? 1 : e.altKey ? 20 : 5;
     let { lat, lon } = pos;
@@ -301,7 +301,7 @@ export function createInput(viewer) {
       case 'ArrowLeft': lon -= d; break;
       case 'ArrowRight': lon += d; break;
       case 'Home': lat = 0; lon = 0; break;
-      case 'Enter': case ' ': e.preventDefault(); emit(click, pos); return;
+      case 'Enter': e.preventDefault(); emit(click, pos); return;
       // + / - zoom in and out around the cursor (which stays on screen); 0 resets the view.
       case '+': case '=': case '-': case '_': {
         e.preventDefault();

@@ -4,6 +4,7 @@ import { createViewer, createInput } from './viewer.js';
 import { createTime } from './time.js';
 import { createPanel, createDescribe, volumeSlider } from './ui.js';
 import { createSound } from './sound.js';
+import { onSpace } from './keys.js';
 import { isNoDataMode, NO_DATA_REMOVE } from './no-data.js';
 import './switcher.js';
 
@@ -156,6 +157,7 @@ async function main() {
     });
     const showPlay = (p) => { playBtn.innerHTML = p ? '&#9632; Stop' : '&#9654; Play'; playBtn.setAttribute('aria-label', p ? 'Stop' : 'Play'); };
     time.onPlayState(showPlay); showPlay(false);
+    onSpace(() => playBtn.click());   // Space = Play/Stop anywhere (map too), not in fields or on buttons
     const slider = tl.slider('Time', { min: 0, max: time.count - 1, step: 1, value: 0, format: (n) => time.label(n) },
       (n) => time.seek(n));
     const timeText = $('#time-label');

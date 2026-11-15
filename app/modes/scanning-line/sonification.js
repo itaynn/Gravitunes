@@ -284,6 +284,14 @@ import { rainStrength, scaleMidi, midiHz, midiName } from "../../core/imerg.js";
   }
 
   playButton.addEventListener("click", togglePlayback);
+  // Space anywhere (not in fields or on buttons) = Play/Pause.
+  window.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || playButton.disabled) return;
+    if (/^(INPUT|TEXTAREA|SELECT|BUTTON|SUMMARY)$/.test(t?.tagName) || t?.isContentEditable) return;
+    e.preventDefault();
+    togglePlayback();
+  });
   stopButton.addEventListener("click", stopPlayback);
   passDurationControl.addEventListener("input", updatePassDurationLabel);
   image.addEventListener("load", () => {
