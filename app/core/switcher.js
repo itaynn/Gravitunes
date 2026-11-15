@@ -1,7 +1,6 @@
 // Demo switcher: "All demos" link + a dropdown of every demo in app/modes/index.json, on every page.
 // Mounts itself into #gt-switcher (or at the top of <body>) when imported in a browser.
-// Standalone builds set window.__GT_MODES__ ([{id, name, description, file}]) and window.__GT_CURRENT__;
-// the dropdown then switches between the built dist/*.html files.
+// Standalone builds set window.__GT_STANDALONE__: each file travels alone, so the switcher is not shown.
 
 // Gallery order: the tone lab, then the world orchestra (instruments map), then the data demos as listed.
 export const FIRST = ['synth-lab', 'world-orchestra'];
@@ -26,9 +25,6 @@ function currentId() {
 }
 
 async function demoList() {
-  if (Array.isArray(window.__GT_MODES__)) {
-    return { modes: window.__GT_MODES__.map((m) => ({ ...m, url: m.file })), home: 'index.html' };
-  }
   const appRoot = new URL('../', import.meta.url);
   const { modes } = await (await fetch(new URL('modes/index.json', appRoot))).json();
   return { modes: orderModes(modes).map((m) => ({ ...m, url: modeHref(m, appRoot) })), home: appRoot.href };
@@ -46,6 +42,8 @@ background:#1d2229;color:#f2f2f2;font:15px/1.4 system-ui,sans-serif;border-botto
 .gt-switcher .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}`;
 
 export async function mountSwitcher(root = document.getElementById('gt-switcher')) {
+  // A standalone dist/*.html is sent on its own: no switcher, no links to other demos.
+  if (window.__GT_STANDALONE__) { root?.remove(); return; }
   if (!document.getElementById('gt-switcher-css')) {
     document.head.append(Object.assign(document.createElement('style'), { id: 'gt-switcher-css', textContent: CSS }));
   }

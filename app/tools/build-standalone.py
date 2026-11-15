@@ -32,15 +32,6 @@ DROP_SOURCES = ('.mp4',)
 FIRST = ['synth-lab', 'world-orchestra']  # gallery order, as in app/core/switcher.js orderModes()
 
 
-REDIRECT = ('<!doctype html><meta charset="utf-8"><title>{name}</title>'
-            '<meta http-equiv="refresh" content="0; url={to}"><a href="{to}">{name}</a>')
-# Merged demos: old dist file -> (new file, title). Same map as REDIRECTS in app/core/host.js.
-REDIRECTS = {'timbre-atlas': ('world-orchestra.html?instruments=1', 'World orchestra'),
-             'ozone-probe': ('explore.html', 'Explore'), 'layered-maps': ('explore.html', 'Explore'),
-             'ozone-probe-hd': ('explore-hd.html', 'Explore'), 'layered-maps-hd': ('explore-hd.html', 'Explore'),
-             'mapping-lab': ('explore.html', 'Explore'), 'mapping-lab-hd': ('explore-hd.html', 'Explore')}  # hidden mode
-
-
 def order_modes(modes):
     rank = lambda m: FIRST.index(m['id']) if m['id'] in FIRST else len(FIRST)
     return sorted(modes, key=rank)  # stable: the rest keep index.json order
@@ -51,12 +42,9 @@ def one_line(d):
     return (m.group(0) if m else (d or '')).strip()
 
 
-def switcher_js(all_modes, mid, only=None):
-    """Globals read by app/core/switcher.js: the demo list (bundled files) and the current demo.
-    main() rewrites it after the build with only= the files that really exist."""
-    lst = [{'id': m['id'], 'name': m['name'], 'description': m.get('description', ''), 'file': f"{m['id']}.html"}
-           for m in order_modes(all_modes) if m['id'] not in SKIP and (only is None or m['id'] in only)]
-    return f'window.__GT_MODES__ = {json.dumps(lst)}; window.__GT_CURRENT__ = {json.dumps(mid)};'
+def switcher_js(mid):
+    """Globals read by app/core/switcher.js: a standalone file is sent on its own, so no demo switcher."""
+    return f'window.__GT_STANDALONE__ = true; window.__GT_CURRENT__ = {json.dumps(mid)};'
 
 
 def extra_files(m):
@@ -188,9 +176,11 @@ def runtime(files, mods, entry_key, extra_js=''):
 
 
 # ---- HTML inlining ---------------------------------------------------------------------------
-def inline_html(page, link_map, drop_sources=()):
-    """Inline CSS, classic scripts and media of an HTML page. Returns (html, module_entry_or_None)."""
+def inline_html(page, drop_sources=()):
+    """Inline CSS, classic scripts and media of an HTML page. Returns (html, module_entry_or_None).
+    Each standalone file travels alone: the demo switcher and links to other pages are removed."""
     text, base = page.read_text(), page.parent
+    text = re.sub(r'<nav id="gt-switcher".*?</nav>\s*', '', text, flags=re.S)
     entry = None
 
     def css(m):
@@ -233,11 +223,10 @@ def inline_html(page, link_map, drop_sources=()):
         if not is_local(ref):
             return m.group(0)
         p = repo_path(ref, base)
-        name = link_map.get(p)
-        # Links to other demos point at their bundled file; anything else is not bundled.
-        if name:
-            return f'{m.group(1)}href="{name}"{m.group(3)}{m.group(4)}</a>'
-        # Not bundled: plain text instead of a dead link.
+        # Other pages (gallery, demos) are not in this file: keep the text, drop the link.
+        if p.is_dir() or p.suffix == '.html':
+            return f'<span>{m.group(4)}</span>'
+        # Data files are not bundled: plain text instead of a dead link.
         return f'<span>{m.group(4)} (not in the offline file)</span>'
     text = re.sub(r'(<a\b[^>]*?)href="([^"]+)"([^>]*>)(.*?)</a>', anchor, text, flags=re.S)
     return text, entry
@@ -313,7 +302,7 @@ def own_files(folder, prefix):
     return out
 
 
-def build_host_mode(m, data, every, link_map, all_modes, variant='light'):
+def build_host_mode(m, data, every, variant='light'):
     mid = m['id']
     datasets = m.get('datasets')
     ids = [str(d) for d in datasets] if isinstance(datasets, list) else ['5152']
@@ -351,18 +340,18 @@ def build_host_mode(m, data, every, link_map, all_modes, variant='light'):
          "const modeName = window.__GT_MODE__ || params.get('mode') || '_template';"),
         ("import(new URL('main.js', base))", f"import('../modes/{mid}/main.js')"),
     ]}
-    page, entry = inline_html(ROOT / 'app' / 'mode.html', link_map)
+    page, entry = inline_html(ROOT / 'app' / 'mode.html')
     mods = collect_modules(entry, patches)
-    rt = runtime(files, mods, key_of(entry), extra_js=f'window.__GT_MODE__ = {json.dumps(mid)}; ' + switcher_js(all_modes, mid))
+    rt = runtime(files, mods, key_of(entry), extra_js=f'window.__GT_MODE__ = {json.dumps(mid)}; ' + switcher_js(mid))
     return page.replace('</body>', rt + '\n</body>')
 
 
-def build_page_mode(m, link_map, all_modes):
+def build_page_mode(m):
     page = repo_path(m['href'], MODES / m['id'])
-    text, entry = inline_html(page, link_map, DROP_SOURCES)
+    text, entry = inline_html(page, DROP_SOURCES)
     if entry:
         mods = collect_modules(entry)
-        text = text.replace('</body>', runtime(extra_files(m), mods, key_of(entry), switcher_js(all_modes, m['id'])) + '\n</body>')
+        text = text.replace('</body>', runtime(extra_files(m), mods, key_of(entry), switcher_js(m['id'])) + '\n</body>')
     return text
 
 
@@ -383,7 +372,7 @@ h1{{margin:.2em 0}} a{{color:var(--accent)}} .lead{{color:var(--muted);max-width
 </head><body>
 <h1>Gravitunes demos</h1>
 <p class="lead">NASA Earth data you can hear. Start with the Tone lab to hear the instruments, then the World orchestra, then the data demos.
-Each demo is one self-contained file that works offline; every demo has a menu at the top to switch to the others.</p>
+Each demo is one self-contained file that works offline; come back here to open another.</p>
 <ul class="demos">
 {items}
 </ul>
@@ -413,12 +402,7 @@ def main():
         modes = [m for m in modes if m['id'] == a.mode]
         if not modes:
             raise SystemExit(f'unknown mode {a.mode}')
-    # Links between demos inside the bundle: gallery -> index.html, mode folders -> <id>.html.
     all_modes = json.loads((MODES / 'index.json').read_text())['modes']
-    link_map = {ROOT / 'app': 'index.html', ROOT / 'app' / 'index.html': 'index.html'}
-    for m in all_modes:
-        if m['id'] not in SKIP:
-            link_map[MODES / m['id']] = f"{m['id']}.html"
 
     built = []
     for m in modes:
@@ -429,8 +413,8 @@ def main():
         variants = ['light'] if m.get('href') else (['light', 'hd'] if a.variant == 'both' else [a.variant])
         for variant in variants:
             try:
-                page = build_page_mode(m, link_map, all_modes) if m.get('href') else build_host_mode(
-                    m, data, a.every or DEFAULT_EVERY, link_map, all_modes, variant)
+                page = build_page_mode(m) if m.get('href') else build_host_mode(
+                    m, data, a.every or DEFAULT_EVERY, variant)
             except Exception as e:  # keep going; report
                 print(f'FAIL  {mid} ({variant}): {e}')
                 continue
@@ -445,21 +429,11 @@ def main():
                   + ('  (over 10 MB!)' if size > 10 and variant == 'light' else ''))
             built.append(m)
 
-    # Merged demos: keep old dist/<id>.html links working (timbre-atlas, ozone-probe, layered-maps).
-    for old, (to, name) in REDIRECTS.items():
-        if (out / to.split('?')[0]).is_file():
-            (out / f'{old}.html').write_text(REDIRECT.format(to=to, name=name))
+    # Old redirect stubs of merged demos only made sense as links: remove leftovers.
+    for old in ('timbre-atlas', 'ozone-probe', 'layered-maps', 'mapping-lab'):
+        for f in (out / f'{old}.html', out / f'{old}-hd.html'):
+            f.unlink(missing_ok=True)
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
-    # Second pass: the switcher in each built page lists only demos whose files exist.
-    have = {m['id'] for m in existing}
-    for m in existing:
-        for f in (out / f"{m['id']}.html", out / f"{m['id']}-hd.html"):
-            if not f.is_file():
-                continue
-            txt = f.read_text()
-            old, new = switcher_js(all_modes, m['id']), switcher_js(all_modes, m['id'], have)
-            if old != new and old in txt:
-                f.write_text(txt.replace(old, new))
     mb = lambda name: (out / name).stat().st_size / 1e6
 
     def hd_link(m):
