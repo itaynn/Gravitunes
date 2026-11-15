@@ -50,7 +50,17 @@ def switcher_js(mid):
 def extra_files(m):
     """mode.json "standalone": {"files": [repo globs]} -> virtual files (text, or base64 for binaries such as samples)."""
     out = {}
-    for pat in ((m.get('standalone') or {}).get('files') or []):
+    st = m.get('standalone') or {}
+    if st.get('instrumentSamples'):  # only the recorded samples data/earth/instruments.json can play
+        lib = ROOT / 'sound-engine' / 'library' / 'samples'
+        idx = json.loads((lib / 'index.json').read_text())
+        used = {v.get('sample') for v in json.loads((ROOT / 'data' / 'earth' / 'instruments.json').read_text())['instruments'].values()}
+        keep = {k: v for k, v in idx.items() if k in used}
+        out[key_of(lib / 'index.json')] = {'text': json.dumps(keep), 'type': 'application/json'}
+        for v in keep.values():
+            for z in v['zones']:
+                out[key_of(lib / z['file'])] = {'b64': base64.b64encode((lib / z['file']).read_bytes()).decode()}
+    for pat in (st.get('files') or []):
         for p in sorted(ROOT.glob(pat)):
             if p.is_file() and p.suffix in ('.json', '.txt', '.csv', '.md'):
                 out[key_of(p)] = {'text': p.read_text(), 'type': mimetypes.guess_type(str(p))[0] or 'text/plain'}
@@ -134,6 +144,12 @@ def pack(files):
     for k, f in files.items():
         if f.get('text') is not None and len(f['text']) > 4096:
             f = {'gz': base64.b64encode(gzip.compress(f['text'].encode(), 9, mtime=0)).decode(), 'type': f.get('type')}
+        elif f.get('b64') is not None and len(f['b64']) > 4096:
+            # Raw binary layers (value grids, int8 flow) shrink a lot; images and gzipped files don't: keep those as is.
+            raw = base64.b64decode(f['b64'])
+            z = gzip.compress(raw, 9, mtime=0)
+            if len(z) < 0.9 * len(raw):
+                f = {'gz': base64.b64encode(z).decode(), 'type': 'application/octet-stream'}
         out[k] = f
     return out
 
@@ -430,7 +446,10 @@ def main():
             built.append(m)
 
     # Old redirect stubs of merged demos only made sense as links: remove leftovers.
-    for old in ('timbre-atlas', 'ozone-probe', 'layered-maps', 'mapping-lab'):
+    # Hidden modes (mode.json "hidden": true) are not in index.json: remove their old files too.
+    hidden = [d.name for d in MODES.iterdir()
+              if (d / 'mode.json').is_file() and json.loads((d / 'mode.json').read_text()).get('hidden')]
+    for old in ('timbre-atlas', 'ozone-probe', 'layered-maps', *hidden):
         for f in (out / f'{old}.html', out / f'{old}-hd.html'):
             f.unlink(missing_ok=True)
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]

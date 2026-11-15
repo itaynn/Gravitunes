@@ -1,4 +1,5 @@
-// Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif.
+// Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif. One dataset at a
+// time (Data menu: IMERG rain, or GEOS-CF ozone, carbon monoxide, nitrogen oxides); each has its own vortex analysis.
 // Pitch / volume / tempo / notes each take a source (More menus: size, strength, spin speed or nothing); spin direction can turn the tune up/down; pan <- longitude,
 // instrument (and ring colour) <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows, flowAt, advect } from '../../core/flow.js';
@@ -8,12 +9,14 @@ import { shapeForPitch } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon, centerColors } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
 import { volumeSlider, fold } from '../../core/ui.js';
-import { createBackdrop } from '../../core/svs-frames.js';
+import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
+import { fieldOf } from '../../core/fields.js';
 import { motifFreq, motifSteps, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn } from './vortex.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
+  const field = fieldOf(dataset), NAME = field.name;
   // The mode's own copy of the dataset (mode.json datasetDirs) also holds the flow layers and vortices.
   const dir = new URL(dataset.dir, location.href);
   (async () => {
@@ -23,7 +26,7 @@ export default function start(ctx) {
     ]);
     if (!alive) return;
     setup = run(flowData, vort, mj.centers, ij.instruments);
-  })().catch((e) => { console.error(e); describe(`Vortex melodies could not load (only dataset 4285 is prepared): ${e.message}`); });
+  })().catch((e) => { console.error(e); describe(`Vortex melodies could not load the swirls in ${NAME}: ${e.message}`); });
 
   function run({ layers }, data, centers, instruments) {
     const flow = layerByPrefix(layers, 'flow_');
@@ -44,7 +47,7 @@ export default function start(ctx) {
       scale: 'pentatonic-minor', map: { ...DEFAULT_MAP },
       bed: false, arrows: false, streams: false, volume: 0.6,
     };
-    const backdrop = createBackdrop(dir, { viewer, time });
+    const backdrop = field.rain ? createBackdrop(dir, { viewer, time }) : plainBackdrop({ time });
     // vortex id -> { t0, loop, root, n }: loop origin (performance clock, s), loop length, motif root, notes per loop. Kept for the
     // track's life so its melody and its rotating mark never restart; a loop-length change keeps the position.
     const phase = new Map();
@@ -147,7 +150,7 @@ export default function start(ctx) {
     const legend = document.createElement('p');
     legend.className = 'hint';
     const legendList = document.createElement('span'), legendNote = document.createElement('span');
-    legendNote.textContent = ' Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum (More) adds a low hum where rain converges.';
+    legendNote.textContent = ` Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum (More) adds a low hum where ${NAME} converges.`;
     legend.append(legendList, legendNote);
     let legendKey = null;
     function updateLegend(vs) {
@@ -185,9 +188,9 @@ export default function start(ctx) {
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
     const streamsCb = panel.checkbox('Streams', s.streams, (v) => {
       s.streams = v; parts = v ? Array.from({ length: NPARTS }, () => spawnPart({}, true)) : [];
-      viewer.redraw(); describe(v ? 'Streams on: faint lines follow the rain motion.' : 'Streams off.');
+      viewer.redraw(); describe(v ? `Streams on: faint lines follow the ${NAME} motion.` : 'Streams off.');
     });
-    streamsCb.setAttribute('aria-label', 'Show streamlines of the rain motion');
+    streamsCb.setAttribute('aria-label', `Show streamlines of the ${NAME} motion`);
     const more = fold('More', [...mapSels, bedCb, arrowsCb, streamsCb]);
     more.before(legend);
     const offPlay = time.onPlayState((p) => {
@@ -195,10 +198,11 @@ export default function start(ctx) {
       if (!p) sound.stopAll(); else for (const q of phase.values()) q.t0 += now - clock;   // resume where the marks stopped
       clock = now;
     });
-    const hostBar = document.getElementById('colorbar');
+    // Rain: the NASA colour bars replace the host's generic one (gases keep the host's).
+    const hostBar = field.rain ? document.getElementById('colorbar') : null;
     if (hostBar) hostBar.hidden = true;
     const bars = document.createElement('div');
-    (hostBar || viewer.canvas).after(bars);
+    (hostBar || document.getElementById('colorbar') || viewer.canvas).after(bars);
     backdrop.colorbars().then((ims) => { if (alive) bars.append(...ims); });
 
     // ---- click / Enter: solo the vortex there (again, empty map, or Escape: back to all). Mouse hover is silent.
@@ -336,7 +340,7 @@ export default function start(ctx) {
 
     active = activeVortices(data, ranks, time.now(), Infinity, trackById);
     updateLegend(active);
-    describe(`Vortex melodies ready: ${data.tracks.length} tracked vortices. Press Play to hear them all; select one on the map (click, or arrow keys then Enter) to solo it.`);
+    describe(`Vortex melodies ready: ${dataset.title}, ${data.tracks.length} tracked swirls in ${NAME}. Press Play to hear them all; select one on the map (click, or arrow keys then Enter) to solo it; choose another dataset with the Data menu.`);
     return () => {
       offFrame(); offPlay(); document.removeEventListener('keydown', onEsc); offHover(); offClick(); clearInterval(sched); clearTimeout(pausedTimer); removeOverlay(); cancelAnimationFrame(raf);
       more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;

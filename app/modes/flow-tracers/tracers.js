@@ -82,16 +82,8 @@ export function flowBetween(flow, lat, lon, t, ph, count = flow.frames) {
   return { u: a.u + (b.u - a.u) * ph, v: a.v + (b.v - a.v) * ph };
 }
 
-// The 4285 field is log10 rain rate: 0 = dry, 0..1 spans 0.1..50 mm/h (field header rate_log10).
-export const RATE_LOG10 = [-1, Math.log10(50)];
-export const rateOf = (v) => (v == null || v <= 0 ? 0 : 10 ** (RATE_LOG10[0] + v * (RATE_LOG10[1] - RATE_LOG10[0])));
-export function rateText(v) {
-  const r = rateOf(v);
-  if (!r) return 'dry';
-  const n = r < 1 ? r.toFixed(1) : String(Math.round(r));
-  const word = r < 1 ? 'light rain' : r < 5 ? 'moderate rain' : r < 20 ? 'heavy rain' : 'very heavy rain';
-  return `${word}, ${n} mm per hour`;
-}
+// Rain wording for the 4285 field (log10 rain rate: 0 = dry, 0..1 spans 0.1..50 mm/h) lives in core/fields.js.
+export { RATE_LOG10, rateOf, rainText as rateText } from '../../core/fields.js';
 
 // Visual particle: moves with the flow for dtH hours. Returns false when it should be respawned
 // (too old, or no flow under it for a while).

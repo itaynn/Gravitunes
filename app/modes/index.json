@@ -1,45 +1,25 @@
 {
   "modes": [
     {
-      "id": "explore",
-      "name": "Explore",
-      "summary": "Pick a place, press Play: hear how its ozone, carbon monoxide, nitrogen oxides or rain changes over time.",
-      "author": "moran",
-      "description": "Pick a dataset with the Data menu (ozone, carbon monoxide, nitrogen oxides from NASA's GEOS-CF model, or IMERG rain): the map shows it and you hear only it, on its own recorded instrument and pitch range (carbon monoxide cello low, ozone flute in the middle, nitrogen oxides koto higher, rain marimba). Higher values play higher notes. Click, tap or use the arrow keys to pick a place (hovering only announces), then press Play: the map animates and the place's value plays as a melody, one note per hour. With no place picked, Play uses New Delhi.",
-      "datasets": [
-        "5152",
-        "5153",
-        "5154",
-        "4285"
-      ],
-      "standalone": {
-        "every": 6,
-        "files": [
-          "sound-engine/library/samples/index.json",
-          "sound-engine/library/samples/cello-*",
-          "sound-engine/library/samples/flute-*",
-          "sound-engine/library/samples/koto-*",
-          "sound-engine/library/samples/marimba-*"
-        ]
-      },
-      "hd": true
-    },
-    {
       "id": "flow-tracers",
       "name": "Flow tracers",
-      "summary": "NASA IMERG rain with particles following its motion. Press Play: tracers over rain sing, heavier rain higher and louder.",
+      "summary": "A NASA dataset (rain, ozone, carbon monoxide or nitrogen oxides: pick it in the Data menu) with particles following its motion. Press Play: tracers over high values sing, higher values play higher and louder.",
       "author": "moran",
-      "description": "NASA's real-time precipitation (IMERG) over the continents, with streams of particles following the rain's motion. Yellow tracers over rain sing: heavier rain plays higher and louder, west to east pans left to right.",
+      "description": "Pick a dataset with the Data menu: NASA real-time precipitation (IMERG), or near-surface ozone, carbon monoxide or nitrogen oxides from NASA's GEOS-CF model. Streams of particles follow the apparent motion of that dataset's pattern (optical flow). Yellow tracers over high values (rain, or above-median gas) sing: a higher value plays higher and louder, west to east pans left to right, the instrument comes from the region. Only the chosen dataset is shown and heard.",
       "datasets": [
-        "4285"
+        "4285",
+        "5152",
+        "5153",
+        "5154"
       ],
       "datasetDirs": {
-        "4285": "data/4285/"
+        "4285": "data/4285/",
+        "5152": "data/5152/",
+        "5153": "data/5153/",
+        "5154": "data/5154/"
       },
       "standalone": {
-        "files": [
-          "sound-engine/library/samples/*"
-        ]
+        "instrumentSamples": true
       },
       "hd": false
     },
@@ -72,9 +52,9 @@
     {
       "id": "storm-watch",
       "name": "Storm watch",
-      "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: north sounds higher, bigger storms louder.",
+      "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: each region plays its own instrument, bigger storms louder.",
       "author": "itay",
-      "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
+      "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): each region plays its own instrument, panned by longitude, and bigger storms are louder (under More, size or latitude can drive pitch or volume instead). Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
       "datasets": [
         "4285"
       ],
@@ -84,8 +64,7 @@
       "source": "itay, branch clustering",
       "standalone": {
         "files": [
-          "sound-engine/library/samples/index.json",
-          "sound-engine/library/samples/marimba-*"
+          "sound-engine/library/samples/*"
         ]
       },
       "hd": false
@@ -114,19 +93,23 @@
     {
       "id": "vortex-melodies",
       "name": "Vortex melodies",
-      "summary": "Swirling storms in NASA IMERG rain: press Play and every swirl loops its own tune, faster spin plays faster and the dot circles once per tune. Click or press Enter on a swirl to hear it alone; Escape brings back all.",
+      "summary": "Swirls in a NASA dataset (rain, ozone, carbon monoxide or nitrogen oxides: pick it in the Data menu): press Play and every swirl loops its own tune, faster spin plays faster and the dot circles once per tune. Click or press Enter on a swirl to hear it alone; Escape brings back all.",
       "author": "moran",
-      "description": "Swirling storms in NASA real-time precipitation (IMERG), found by optical flow and tracked over the day. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where rain converges.",
+      "description": "Pick a dataset with the Data menu: NASA real-time precipitation (IMERG), or near-surface ozone, carbon monoxide or nitrogen oxides from NASA's GEOS-CF model. Swirls in its pattern are found by optical flow and tracked over time. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where the pattern converges. Only the chosen dataset is shown and heard.",
       "datasets": [
-        "4285"
+        "4285",
+        "5152",
+        "5153",
+        "5154"
       ],
       "datasetDirs": {
-        "4285": "data/4285/"
+        "4285": "data/4285/",
+        "5152": "data/5152/",
+        "5153": "data/5153/",
+        "5154": "data/5154/"
       },
       "standalone": {
-        "files": [
-          "sound-engine/library/samples/*"
-        ]
+        "instrumentSamples": true
       },
       "hd": false
     }

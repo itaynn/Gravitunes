@@ -22,7 +22,7 @@ try {
     assert.ok(!/<nav id="gt-switcher"/.test(html), `${f} has the switcher element`);
     assert.ok(html.includes('__GT_STANDALONE__ = true'), `${f} lacks the standalone flag`);
   }
-  for (const old of ['ozone-probe', 'layered-maps', 'mapping-lab', 'timbre-atlas']) assert.ok(!files.includes(`${old}.html`), `${old} stub`);
+  for (const old of ['ozone-probe', 'layered-maps', 'mapping-lab', 'timbre-atlas', 'explore']) assert.ok(!files.includes(`${old}.html`), `${old} stub`);
   console.log(`standalone: ${files.length} files, no cross-demo links`);
 } finally {
   rmSync(out, { recursive: true, force: true });

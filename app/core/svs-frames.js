@@ -101,3 +101,18 @@ export function createBackdrop(dirUrl, { viewer, time, alpha = 0.85 } = {}) {
     dispose() { offFrame(); },
   };
 }
+
+// Same interface for datasets without SVS frames (data-tools value grids such as 5152-5154): the host already
+// paints the grid with its colour bar under the overlays, so draw() adds nothing and the host colour bar stays.
+export function plainBackdrop({ time } = {}) {
+  let frameAt = performance.now();
+  const offFrame = time.onFrame(() => { frameAt = performance.now(); });
+  return {
+    ready: Promise.resolve(), plain: true,
+    phase: () => framePhase(performance.now() - frameAt, time.fps || 2, time.playing),
+    frameCount: () => time.count,
+    draw() {},
+    colorbars: async () => [],
+    dispose() { offFrame(); },
+  };
+}

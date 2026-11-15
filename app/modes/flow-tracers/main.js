@@ -1,7 +1,9 @@
-// Flow tracers: the original NASA IMERG frames (cross-faded, over land and coastlines) with ~1000 faint particles
-// streaming along the apparent motion of the rain (optical flow, analysis/scripts/flow-tracers/build.py), plus a
-// few dozen larger "singing" tracers. A singing tracer over rain plays a note: heavier rain = higher and louder,
-// faster motion = brighter, east/west = right/left, timbre = world-orchestra region. Dry tracers are silent.
+// Flow tracers: one dataset at a time (Data menu: IMERG rain, or GEOS-CF ozone, carbon monoxide, nitrogen oxides).
+// Rain shows the original NASA frames (cross-faded, over land and coastlines); gases show the host's painted value grid.
+// ~1000 faint particles stream along the apparent motion of the pattern (optical flow,
+// analysis/scripts/flow-tracers/build.py), plus a few dozen larger "singing" tracers. A singing tracer over a high
+// value (rain, or a gas above its median) plays a note: higher value = higher and louder, faster motion = brighter,
+// east/west = right/left, timbre = world-orchestra region. Tracers over low values are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
 import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
@@ -10,22 +12,24 @@ import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth } from '../../core/data.js';
 import { MAX_FUND_HZ } from '../../core/sound.js';
 import { volumeSlider, fold, timbreControl } from '../../core/ui.js';
-import { createBackdrop } from '../../core/svs-frames.js';
-import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle, rateText } from './tracers.js';
+import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
+import { fieldOf } from '../../core/fields.js';
+import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle } from './tracers.js';
 
 // Pitch range: the shared bounds (C2 up to the engine's top fundamental).
-const LOW_HZ = noteHz(0), HIGH_HZ = MAX_FUND_HZ;   // rain plays C4..E6: bright, not muffled
-const DRY = 0.02;   // field value of the lightest rain colour (0.1 mm/h); below = dry
+const LOW_HZ = noteHz(0), HIGH_HZ = MAX_FUND_HZ;   // values play C4..E6: bright, not muffled
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
+  // The chosen dataset's value as a 0..1 level; DRY = below it a tracer is silent (rain: 0.1 mm/h, gases: median).
+  const field = fieldOf(dataset), DRY = field.threshold, NAME = field.name;
   const dir = new URL(dataset.dir, location.href);
   (async () => {
     const [flowData, mj, ij] = await Promise.all([loadFlow(dir, null), loadEarth('musical-centers'), loadEarth('instruments')]);
     if (!alive) return;
     setup = run(flowData, mj.centers, ij.instruments);
-  })().catch((e) => { console.error(e); describe(`Flow tracers could not load (only dataset 4285 is prepared): ${e.message}`); });
+  })().catch((e) => { console.error(e); describe(`Flow tracers could not load the motion of ${NAME}: ${e.message}`); });
 
   function run({ header, layers }, centers, instruments) {
     const flow = layerByPrefix(layers, 'flow_');
@@ -34,12 +38,12 @@ export default function start(ctx) {
     const instLabel = (id) => instruments[id]?.label || id;
     // Recorded samples for every instrument; until loaded (or on the built-in synth) notes are synthesized.
     sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
-    const backdrop = createBackdrop(dir, { viewer, time });
+    const backdrop = field.rain ? createBackdrop(dir, { viewer, time }) : plainBackdrop({ time });
 
     const s = { count: 24, particles: 1200, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
       drift: 5, arrows: false, volume: 0.6, sound: true };
     const random = rng(Date.now() & 0xffff);
-    const val = (lat, lon, t = time.now()) => dataset.valueAt(lat, lon, t) ?? 0;
+    const val = (lat, lon, t = time.now()) => field.level(lat, lon, t);
     const rainy = (t) => (lat, lon) => val(lat, lon, t) >= DRY;
     let tracers = [], parts = [];
 
@@ -67,8 +71,8 @@ export default function start(ctx) {
       return { voice: r.voice, name: instLabel(r.primary.instrument), sample: instruments[r.primary.instrument]?.sample };
     }
     const tones = () => scaleFreqs(s.scale, LOW_HZ, HIGH_HZ);
-    // Pitch from the rain rate over C4..E6 (voiceNote folds octave-shifted voices back inside).
-    const noteFor = (value) => quantize(Math.min(1, value), [0, 1], s.scale, LOW_HZ, HIGH_HZ).freq;
+    // Pitch from the value over C4..E6 (voiceNote folds octave-shifted voices back inside).
+    const noteFor = (value) => quantize(field.spread(Math.min(1, value)), [0, 1], s.scale, LOW_HZ, HIGH_HZ).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
       if (!s.sound) return null;
       const vf = voiceFor(tr), sh = voiceNote(vf.voice, noteFor(tr.value), { tones: tones() }).note;
@@ -83,11 +87,12 @@ export default function start(ctx) {
     // ---- controls: Sound, Scale, Volume up front; the rest folded under "More".
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
-    const howTo = panel.text('How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.');
+    const howTo = panel.text(field.rain ? 'How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.'
+      : `How it sounds: yellow tracers are over high ${NAME} (above its median) and sing. Higher ${NAME} = higher, louder note; left/right = west/east.`);
     howTo.classList.add('hint');
     const legend = document.createElement('p');
     legend.className = 'hint';
-    legend.textContent = 'White streaks: rain motion we computed from the frames (not NASA data). Yellow dots: the places you hear now.';
+    legend.textContent = `White streaks: ${NAME} motion we computed from the maps (not NASA data). Yellow dots: the places you hear now.`;
     howTo.after(legend);
     const timbre = timbreControl(panel, { options: [['region', 'By region'], ['single', 'One voice'], ['speed', 'By speed']],
       value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
@@ -97,11 +102,11 @@ export default function start(ctx) {
     const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
     const more = fold('More', [timbre.timbre, timbre.single, countSl, voicesSl, driftSl, arrowsCb]);
-    // The NASA colour bars replace the host's generic one.
-    const hostBar = document.getElementById('colorbar');
+    // Rain: the NASA colour bars replace the host's generic one (gases keep the host's).
+    const hostBar = field.rain ? document.getElementById('colorbar') : null;
     if (hostBar) hostBar.hidden = true;
     const bars = document.createElement('div');
-    (hostBar || viewer.canvas).after(bars);
+    (hostBar || document.getElementById('colorbar') || viewer.canvas).after(bars);
     backdrop.colorbars().then((ims) => { if (alive) bars.append(...ims); });
 
     // ---- sound: one sustained line per singing tracer, re-struck each frame while playing
@@ -123,7 +128,7 @@ export default function start(ctx) {
       const next = new Map();
       on.forEach((i, k) => {
         const tr = tracers[i];
-        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * tr.value) / Math.sqrt(on.length),
+        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * field.spread(tr.value)) / Math.sqrt(on.length),
           dur: frameDur * 1.1, t: (k * 0.02) % frameDur, sustained: true }));
       });
       prevFreq = next;
@@ -134,9 +139,9 @@ export default function start(ctx) {
     const sumTimer = setInterval(() => {
       if (!time.playing) return;
       const on = pickVoices(tracers, s.maxVoices, DRY).map((i) => tracers[i]);
-      if (!on.length) { describe(`${time.label()}. All tracers are in dry air.`); return; }
+      if (!on.length) { describe(`${time.label()}. All tracers are over ${field.rain ? 'dry air' : `low ${NAME}`}.`); return; }
       const top = on[0];
-      describe(`${time.label()}. ${on.length} tracers singing. Loudest: ${rateText(top.value)}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
+      describe(`${time.label()}. ${on.length} tracers singing. Loudest: ${field.text(top.lat, top.lon, time.now())}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
     }, 6000);
 
     // ---- keys / click: describe the spot (text). Mouse hover is silent and says nothing; Enter or click also plays it.
@@ -149,7 +154,7 @@ export default function start(ctx) {
       if (!play && key === lastKey) return;
       lastKey = key;
       const motion = f && v >= DRY ? `moving ${compass(f.u, f.v)} at ${Math.round(Math.hypot(f.u, f.v))} km/h` : 'no detectable motion';
-      describe(`${formatLatLon(lat, lon)}: ${rateText(v)}, ${motion}.`);
+      describe(`${formatLatLon(lat, lon)}: ${field.text(lat, lon, t)}, ${motion}.`);
       if (play && f && v >= DRY) {
         const speed = Math.hypot(f.u, f.v), g = hoverGesture(f.u, f.v, lon), pt = { lat, lon, value: v, speed };
         for (let k = 0; k < g.notes; k++) {
@@ -235,7 +240,7 @@ export default function start(ctx) {
     backdrop.ready.then(() => viewer.redraw());
 
     rescatter();
-    describe(`Flow tracers ready: NASA precipitation with ${s.count} singing tracers. Press Play to hear it, or use the arrow keys to explore.`);
+    describe(`Flow tracers ready: ${dataset.title}, with ${s.count} singing tracers following the motion of ${NAME}. Press Play to hear it, or use the arrow keys to explore; choose another dataset with the Data menu.`);
     return () => {
       offFrame(); offPlay(); offHover(); offClick(); clearInterval(sumTimer); cancelAnimationFrame(raf);
       removeOverlay(); more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;

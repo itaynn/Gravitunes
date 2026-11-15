@@ -20,15 +20,16 @@ import sys
 import cv2
 import numpy as np
 
+from .profiles import profile
 from .sources import REPO_ROOT, data_root, load_dataset
 
 FLOW_SCRIPT = REPO_ROOT / "analysis" / "scripts" / "flow" / "run.py"
 
 
 def run_flow(dataset: str, data_dir: Path | None, out: Path, coarse: list[str], width: int = 1440,
-             diagnostics: int = 0) -> None:
+             diagnostics: int = 0, extra: list[str] | None = None) -> None:
     cmd = [sys.executable, str(FLOW_SCRIPT), "--dataset", dataset, "--out", str(out),
-           "--diagnostics", str(diagnostics), "--width", str(width), "--coarse", *coarse]
+           "--diagnostics", str(diagnostics), "--width", str(width), "--coarse", *coarse, *(extra or [])]
     if data_dir:
         cmd += ["--data-dir", str(data_dir)]
     subprocess.run(cmd, check=True)
@@ -47,6 +48,29 @@ def write_field_grid(dataset: str, data_dir: Path | None, dest: Path, times: lis
               "note": "precipitation rate 0..1 = log10 scale 0.1..50 mm/h decoded from the SVS colours (0 = dry), from mode_export.py",
               "rate_log10": [-1.0, 1.69897]}
     (dest / f"field_{W}x{H}.json").write_text(json.dumps(header))
+
+
+def write_value_grid(dataset: str, data_dir: Path | None, dest: Path, every: int, size=(256, 128), bits: int = 6) -> None:
+    """A data-tools value grid (physical units, e.g. ppbv) strided to every `every` hours, in the delta-gzip
+    format the browser reads (app/core/grid.js), as dest/<id>_<W>x<H>.json + .bin.gz. Same file names as the
+    data-tools export, so the host's dataset loader finds it through mode.json "datasetDirs"."""
+    sys.path.insert(0, str(REPO_ROOT / "data-tools" / "python"))
+    from gravitunes_data.web import pack
+    W, H = size
+    root = Path(data_dir) if data_dir else data_root()
+    z = np.load(root / "nasa-svs" / dataset / f"{dataset}_{W}x{H}.npz")
+    g = np.ascontiguousarray(z["data"][::every])
+    meta = json.loads(str(z["meta"]))
+    (start, n, blob), = pack(g, None, bits)
+    stem = f"{dataset}_{W}x{H}"
+    (dest / f"{stem}.bin.gz").write_bytes(blob)
+    header = {"id": dataset, "dims": [W, H], "frames": int(n), "dtype": "uint8", "layout": "t,y,x (y=0 is 90N, x=0 is 180W)",
+              "nodata": 255, "scale": float(z["scale"]), "offset": float(z["offset"]),
+              "transform": meta.get("transform", "linear"), "encoding": "delta-gzip", "bits": bits,
+              "chunks": [{"file": f"{stem}.bin.gz", "start": 0, "frames": int(n)}],
+              "units": meta["units"], "range": meta["range"], "times": z["times"][::every].tolist(),
+              "every_hours": every, "source": meta["source"], "credits": meta["credits"], "disclaimer": meta["disclaimer"]}
+    (dest / f"{stem}.json").write_text(json.dumps(header))
 
 
 def write_frames(dataset: str, data_dir: Path | None, dest: Path, times: list[str], width: int = 1800) -> None:
@@ -140,10 +164,15 @@ def compact_vortices(v: dict, min_track_frames: int) -> dict:
 
 def export_mode(mode: str, dataset: str, layers: list[str], coarse: list[str], data_dir: Path | None,
                 vortices: bool = False, min_track_frames: int = 3, work: Path | None = None,
-                frames_width: int = 1800, rerun: bool = True) -> Path:
+                frames_width: int = 1440, rerun: bool = True) -> Path:
+    """IMERG (4285) ships its SVS frames + a 0..1 field grid; data-tools grid datasets (5152-5154) ship their
+    value grid (strided per profiles.py) and are painted with their colour bar by the host."""
     work = work or REPO_ROOT / "data" / "derived" / dataset / "flow"
+    pr = profile(dataset)
+    is_png = dataset == "4285"
+    extra = [] if is_png else ["--every", str(pr["every"]), "--k", str(pr["k"]), "--min-area-km2", str(pr["min_area_km2"])]
     if rerun or not (work / "flow.json").is_file():
-        run_flow(dataset, data_dir, work, coarse, diagnostics=4)
+        run_flow(dataset, data_dir, work, coarse, width=pr["width"], diagnostics=4, extra=extra)
     dest = REPO_ROOT / "app" / "modes" / mode / "data" / dataset
     if dest.exists():
         shutil.rmtree(dest)
@@ -157,10 +186,15 @@ def export_mode(mode: str, dataset: str, layers: list[str], coarse: list[str], d
         head["vortices"] = "vortices.json"
     else:
         head.pop("vortices", None)
+    head["name"] = pr["name"]
     (dest / "flow.json").write_text(json.dumps(head, indent=1))
     for k in layers:
         shutil.copy(work / head["layers"][k]["file"], dest / head["layers"][k]["file"])
-    write_field_grid(dataset, data_dir, dest, head["times"])
+    if not is_png:
+        write_value_grid(dataset, data_dir, dest, pr["every"])
+        frames_width = 0
+    else:
+        write_field_grid(dataset, data_dir, dest, head["times"])
     if frames_width:
         write_frames(dataset, data_dir, dest, head["times"], frames_width)
         write_land(dest)

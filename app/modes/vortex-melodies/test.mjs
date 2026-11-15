@@ -132,3 +132,18 @@ console.log('vortex-melodies marker ok');
   const src = readFileSync(join(here, 'main.js'), 'utf8');
   assert.match(src, /'Notes'/); assert.match(src, /steps = p\.n/); assert.match(src, /n = p \? p\.n/);
 }
+
+// Every dataset in the Data menu ships flow, divergence and vortices on the same time axis.
+{
+  const meta = JSON.parse(readFileSync(join(here, 'mode.json'), 'utf8'));
+  assert.deepEqual(meta.datasets, ['4285', '5152', '5153', '5154']);
+  for (const id of meta.datasets) {
+    const dir = join(here, meta.datasetDirs[id]);
+    const head = JSON.parse(readFileSync(join(dir, 'flow.json'), 'utf8'));
+    const v = JSON.parse(readFileSync(join(dir, 'vortices.json'), 'utf8'));
+    assert.equal(v.frames.length, head.frames, `${id} vortex frames`);
+    assert.ok(v.tracks.length >= 20, `${id}: ${v.tracks.length} tracks`);
+    for (const k of ['flow_64x32', 'divergence_64x32']) assert.ok(head.layers[k], `${id} ${k}`);
+  }
+}
+console.log('vortex-melodies datasets ok');

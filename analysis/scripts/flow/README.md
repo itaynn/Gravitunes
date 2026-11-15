@@ -107,3 +107,10 @@ Ids are the same in `frames[*].vortices` and `tracks`. Tracks shorter than `--mi
   smoothing averages the rotation down. Treat them as relative ("faster / slower"), not physical.
 - 5152 ozone: flow is smooth and global, but vortex directions are ~50 % cyclonic (essentially random), so ozone
   vortices are mostly noise; the daily sunlight cycle also creates fake motion. Use 4285 for vortex demos.
+
+## Per-dataset settings
+
+`gravitunes_analysis/profiles.py` holds the stride, analysis width and vortex thresholds per dataset; `mode_export.export_mode`
+uses them (flow-tracers and vortex-melodies build all four: `build.py --dataset 4285 5152 5153 5154 --data-dir <data>`).
+Gases run every 6 h (66 frames over 16.5 days) with stricter Okubo-Weiss thresholds (ozone k 1.0 / 300 000 km2,
+CO and NOx k 0.6 / 100 000 km2) so each has about 7-13 tracked vortices per frame (rain: about 19).

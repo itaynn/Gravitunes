@@ -109,3 +109,31 @@ console.log(`flow-tracers tests ok (${n} sampled cells with flow, ${moving} movi
   assert.doesNotMatch(src, /world-orchestra\/|const getJson|fmtPos/);
 }
 console.log('flow-tracers scale wiring ok');
+
+// Every dataset in the Data menu ships its own folder: flow layer frame-aligned with the value grid.
+{
+  const meta = JSON.parse(readFileSync(join(here, 'mode.json'), 'utf8'));
+  assert.deepEqual(meta.datasets, ['4285', '5152', '5153', '5154']);
+  for (const id of meta.datasets) {
+    const dir = join(here, meta.datasetDirs[id]);
+    const head = JSON.parse(readFileSync(join(dir, 'flow.json'), 'utf8'));
+    const L = Object.entries(head.layers).find(([k]) => k.startsWith('flow_'))[1];
+    const [W, H] = L.dims;
+    const frames = readFileSync(join(dir, L.file)).length / (W * H * 2);
+    const grid = JSON.parse(readFileSync(join(dir, id === '4285' ? 'field_256x128.json' : `${id}_256x128.json`), 'utf8'));
+    assert.equal(frames, grid.frames, `${id} flow frames`);
+    assert.deepEqual(head.times, grid.times, `${id} times`);
+  }
+}
+// Value wording per dataset (core/fields.js)
+{
+  const { fieldOf } = await import('../../core/fields.js');
+  const fake = (id) => ({ id, title: 'x', valueAt: () => 40, norm: (v) => (v - 5) / 55, format: (v) => `${v} ppbv`, percentile: (p) => 5 + 55 * p });
+  const oz = fieldOf(fake('5152'));
+  assert.equal(oz.name, 'ozone'); assert.ok(Math.abs(oz.threshold - 0.5) < 1e-9);
+  assert.match(oz.text(0, 0, 0), /^ozone 40 ppbv, (high|moderate)/);
+  assert.equal(oz.spread(oz.threshold), 0);
+  const rain = fieldOf({ id: '4285', valueAt: () => 0.5 });
+  assert.equal(rain.threshold, 0.02); assert.match(rain.text(0, 0, 0), /moderate rain/);
+}
+console.log('flow-tracers datasets ok');
