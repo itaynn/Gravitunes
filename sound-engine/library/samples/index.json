@@ -2,6 +2,7 @@
  "sitar": {
   "label": "Sitar",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Sitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -21,6 +22,7 @@
  "banjo": {
   "label": "Banjo",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Banjo: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -40,6 +42,7 @@
  "shamisen": {
   "label": "Shamisen",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Shamisen: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -59,6 +62,7 @@
  "koto": {
   "label": "Koto",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -78,6 +82,7 @@
  "kalimba": {
   "label": "Kalimba",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Kalimba: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -97,6 +102,7 @@
  "bagpipe": {
   "label": "Bagpipe",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Bagpipe: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -111,6 +117,7 @@
  "fiddle": {
   "label": "Fiddle",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Fiddle: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -125,6 +132,7 @@
  "shanai": {
   "label": "Shehnai",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Shehnai: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -139,6 +147,7 @@
  "steel_drums": {
   "label": "Steel drum",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Steel drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -153,6 +162,7 @@
  "taiko": {
   "label": "Taiko drum",
   "kind": "hit",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Taiko drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -167,6 +177,7 @@
  "melodic_tom": {
   "label": "Tom drum",
   "kind": "hit",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Tom drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -181,6 +192,7 @@
  "woodblock": {
   "label": "Woodblock",
   "kind": "hit",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Woodblock: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -195,6 +207,7 @@
  "agogo": {
   "label": "Agogo bells",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Agogo bells: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -209,6 +222,7 @@
  "pan_flute": {
   "label": "Pan flute",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Pan flute: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -223,6 +237,7 @@
  "ocarina": {
   "label": "Ocarina",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Ocarina: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -242,6 +257,7 @@
  "accordion": {
   "label": "Accordion",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Accordion: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -261,6 +277,7 @@
  "bandoneon": {
   "label": "Bandoneon",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Bandoneon: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -280,6 +297,7 @@
  "harmonica": {
   "label": "Harmonica",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Harmonica: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -294,6 +312,7 @@
  "nylon_guitar": {
   "label": "Nylon-string guitar",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Nylon-string guitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -313,6 +332,7 @@
  "steel_guitar": {
   "label": "Steel-string guitar",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Steel-string guitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -332,6 +352,7 @@
  "dulcimer": {
   "label": "Hammered dulcimer",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Hammered dulcimer: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -351,6 +372,7 @@
  "harp": {
   "label": "Harp",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Harp: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -370,6 +392,7 @@
  "cello": {
   "label": "Cello",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Cello: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -384,6 +407,7 @@
  "violin": {
   "label": "Violin",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Violin: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -398,6 +422,7 @@
  "english_horn": {
   "label": "English horn",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "English horn: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -412,6 +437,7 @@
  "choir": {
   "label": "Choir",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Choir: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -426,6 +452,7 @@
  "marimba": {
   "label": "Marimba",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Marimba: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -445,6 +472,7 @@
  "vibraphone": {
   "label": "Vibraphone",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Vibraphone: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -464,6 +492,7 @@
  "trumpet": {
   "label": "Trumpet",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Trumpet: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -478,6 +507,7 @@
  "flute": {
   "label": "Flute",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Flute: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -492,6 +522,7 @@
  "church_organ": {
   "label": "Church organ",
   "kind": "sustain",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Church organ: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -506,6 +537,7 @@
  "tubular_bells": {
   "label": "Tubular bells",
   "kind": "pluck",
+  "realism": "soundfont",
   "license": "MIT",
   "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
   "attribution": "Tubular bells: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
@@ -520,6 +552,7 @@
  "djembe": {
   "label": "Djembe",
   "kind": "hit",
+  "realism": "recorded",
   "license": "Public domain",
   "source": "Wikimedia Commons",
   "attribution": "\"Djembe.ogg\" by Freddythehat at English Wikipedia, Public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Djembe.ogg",
@@ -534,6 +567,7 @@
  "bongo": {
   "label": "Bongo",
   "kind": "hit",
+  "realism": "recorded",
   "license": "CC0",
   "source": "Wikimedia Commons",
   "attribution": "\"Bongo sound.wav\" by MarleneAyni, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Bongo_sound.wav",
@@ -548,6 +582,7 @@
  "frame_drum": {
   "label": "Frame drum",
   "kind": "hit",
+  "realism": "recorded",
   "license": "CC0",
   "source": "Wikimedia Commons",
   "attribution": "\"B%C4%99ben obr%C4%99czowy uderzenia pojedyncze.flac\" by Swietliste, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:B%C4%99ben_obr%C4%99czowy_uderzenia_pojedyncze.flac",
@@ -562,6 +597,7 @@
  "khomus": {
   "label": "Khomus (jaw harp)",
   "kind": "pluck",
+  "realism": "recorded",
   "license": "Public domain",
   "source": "Wikimedia Commons",
   "attribution": "\"Kamus.ogg\" by Tosha, Public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Kamus.ogg",
@@ -576,6 +612,7 @@
  "vsco_organ": {
   "label": "Pipe organ",
   "kind": "sustain",
+  "realism": "recorded",
   "license": "CC0 1.0",
   "source": "VSCO-2 Community Edition (Versilian Studios)",
   "attribution": "\"Pipe organ, manual 3 open (Rode)\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE",
@@ -590,6 +627,7 @@
  "vsco_celtic_harp": {
   "label": "Celtic harp",
   "kind": "pluck",
+  "realism": "recorded",
   "license": "CC0 1.0",
   "source": "VSCO-2 Community Edition (Versilian Studios)",
   "attribution": "\"Harp C3 mf\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE",
@@ -604,6 +642,7 @@
  "vsco_gong": {
   "label": "Gong",
   "kind": "hit",
+  "realism": "recorded",
   "license": "CC0 1.0",
   "source": "VSCO-2 Community Edition (Versilian Studios)",
   "attribution": "\"Gong hit mf\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE",
@@ -618,6 +657,7 @@
  "vsco_nepalese_bells": {
   "label": "Nepalese bells",
   "kind": "hit",
+  "realism": "recorded",
   "license": "CC0 1.0",
   "source": "VSCO-2 Community Edition (Versilian Studios)",
   "attribution": "\"Nepalese bells\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE",
@@ -632,6 +672,7 @@
  "oud": {
   "label": "Oud",
   "kind": "pluck",
+  "realism": "recorded",
   "license": "CC BY-SA 3.0",
   "source": "Wikimedia Commons",
   "attribution": "\"Oud open Strings.ogg\" by User:Bottomline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
@@ -656,6 +697,7 @@
  "dombra": {
   "label": "Dombra",
   "kind": "pluck",
+  "realism": "recorded",
   "license": "CC0",
   "source": "Wikimedia Commons",
   "attribution": "\"Домбра.ogg\" by Lvova, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg",
@@ -670,6 +712,7 @@
  "darbuka": {
   "label": "Darbuka",
   "kind": "hit",
+  "realism": "recorded",
   "license": "CC BY-SA 4.0",
   "source": "Wikimedia Commons",
   "attribution": "\"Derbake Grave.ogg\" by ZappaMidiPF, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
@@ -684,6 +727,7 @@
  "didgeridoo": {
   "label": "Didgeridoo",
   "kind": "sustain",
+  "realism": "recorded",
   "license": "CC BY-SA 4.0",
   "source": "Wikimedia Commons",
   "attribution": "\"Didgeridoo sound.ogg\" by Cassa342, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
@@ -698,6 +742,7 @@
  "erhu": {
   "label": "Erhu",
   "kind": "sustain",
+  "realism": "recorded",
   "license": "CC BY-SA 4.0",
   "source": "Wikimedia Commons",
   "attribution": "\"二泉映月.ogg\" by David290 (recording), performed by Zhang Peijian, music by Abing, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
@@ -706,6 +751,21 @@
     "file": "erhu-0.mp3",
     "f0": 207.83,
     "bytes": 10197
+   }
+  ]
+ },
+ "tabla": {
+  "label": "Tabla",
+  "kind": "pluck",
+  "realism": "recorded",
+  "license": "CC BY-SA 3.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Tabla drums demo.oga\" by tabladrumsonline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Tabla_drums_demo.oga (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
+  "zones": [
+   {
+    "file": "tabla-0.mp3",
+    "f0": 269.3,
+    "bytes": 1953
    }
   ]
  }

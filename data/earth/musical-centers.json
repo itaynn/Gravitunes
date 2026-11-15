@@ -266,6 +266,14 @@
    "instrument": "shehnai"
   },
   {
+   "id": "bengal",
+   "label": "Bengal and the Ganges plain",
+   "region": "Bengal",
+   "lat": 23.5,
+   "lon": 88.0,
+   "instrument": "tabla"
+  },
+  {
    "id": "tibet",
    "label": "Tibet and Nepal",
    "region": "Tibet and Nepal",

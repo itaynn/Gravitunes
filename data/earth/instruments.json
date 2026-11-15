@@ -3495,6 +3495,85 @@
     "fixedHz": 130.813,
     "about": "drum dance pulse"
    }
+  },
+  "tabla": {
+   "label": "tabla",
+   "inspiredBy": "North Indian tabla (dayan and bayan)",
+   "family": "tuned hand drums: ringing 'na' and 'tin' strokes",
+   "sample": "tabla",
+   "harmonics": [
+    1,
+    0.5,
+    0.3
+   ],
+   "partials": [
+    {
+     "ratio": 2,
+     "amp": 0.4,
+     "decay": 0.3
+    },
+    {
+     "ratio": 3,
+     "amp": 0.25,
+     "decay": 0.2
+    }
+   ],
+   "envelope": {
+    "attack": 0.002,
+    "decay": 0.35,
+    "sustain": 0,
+    "release": 0.2
+   },
+   "noise": {
+    "amount": 0.2,
+    "attack": 0.001,
+    "decay": 0.03,
+    "cutoff": 1800
+   },
+   "brightness": 0.35,
+   "dur": 0.3,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     700,
+     1200
+    ],
+    "steps": [
+     0,
+     0,
+     2,
+     0,
+     1,
+     0,
+     0,
+     2
+    ],
+    "rhythm": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "accents": [
+     1,
+     0.6,
+     0.7,
+     0.8,
+     1,
+     0.6,
+     0.7,
+     0.8
+    ],
+    "gap": 0.13,
+    "dur": 0.3,
+    "fixedHz": 261.626,
+    "about": "teental theka: dha dhin dhin dha (na/tin strokes)"
+   }
   }
  }
 }

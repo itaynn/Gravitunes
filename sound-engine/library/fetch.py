@@ -17,7 +17,7 @@ data/earth/instruments/_samples_src/), cut start..start+dur, mix to mono 32 kHz,
 MP3 48 kb/s into sound-engine/library/samples/<id>-<n>.mp3 (committed), then write samples/index.json
 (what the app loads) and samples/LICENSES.md.
 """
-import argparse, hashlib, json, subprocess, sys, time, urllib.parse, urllib.request
+import argparse, hashlib, http.client, json, subprocess, sys, time, urllib.parse, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -43,6 +43,8 @@ def build_samples(manifest, only=None):
     for s in manifest["samples"]:
         if not s["license"].startswith(SAMPLE_LICENSES) or any(r in s["license"] for r in ("NC", "ND")):
             raise SystemExit(f"{s['id']}: license {s['license']!r} is not allowed for app samples")
+        if s.get("realism") not in ("recorded", "soundfont", "synth"):
+            raise SystemExit(f"{s['id']}: realism must be recorded, soundfont or synth")
         if only and s["id"] not in only:
             if s["id"] in old:
                 index[s["id"]] = old[s["id"]]
@@ -67,16 +69,18 @@ def build_samples(manifest, only=None):
                 af = f"afade=t=in:d=0.005,lowpass=f=7000,{af}"
                 gain = peak_gain(src, z["start"], z["dur"], f"lowpass=f=7000")
                 af += f",volume={gain:.2f}dB"
+            # clean cuts are low-passed at 7 kHz, so 16 kHz / 32 kb/s keeps everything audible at half the size
+            rate, kbps = ("16000", "32k") if s.get("clean") else ("32000", "48k")
             cmd = ["ffmpeg", "-v", "error", "-y", "-ss", str(z["start"]), "-t", str(z["dur"]), "-i", str(src),
-                   "-ac", "1", "-ar", "32000", "-af", af,
-                   "-c:a", "libmp3lame", "-b:a", "48k", "-map_metadata", "-1", str(out)]
+                   "-ac", "1", "-ar", rate, "-af", af,
+                   "-c:a", "libmp3lame", "-b:a", kbps, "-map_metadata", "-1", str(out)]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode:
                 bad.append(f"{s['id']}: ffmpeg failed: {r.stderr.strip()[:200]}")
                 continue
             zones.append({"file": out.name, "f0": z["f0"], "bytes": out.stat().st_size})
         if zones:
-            index[s["id"]] = {"label": s["label"], "kind": s["kind"], "license": s["license"],
+            index[s["id"]] = {"label": s["label"], "kind": s["kind"], "realism": s.get("realism", "recorded"), "license": s["license"],
                               "source": s["source"], "attribution": s["attribution"], "zones": zones}
             lic.append(f"- `{s['id']}-*.mp3`: {s['attribution']}")
     lic += ["", "Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence."]
@@ -117,19 +121,27 @@ def check_license(e):
 
 
 def download(url, dest):
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    """Fetch url to dest; resumes with a Range request when a big file is cut off, backs off on HTTP 429."""
     tmp = dest.with_suffix(dest.suffix + ".part")
-    for attempt in range(4):
+    tmp.unlink(missing_ok=True)
+    for attempt in range(8):
+        have = tmp.stat().st_size if tmp.exists() else 0
+        headers = {"User-Agent": UA, **({"Range": f"bytes={have}-"} if have else {})}
         try:
-            with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=120) as r, \
+                    open(tmp, "ab" if have and r.status == 206 else "wb") as f:
                 while block := r.read(1 << 16):
                     f.write(block)
             tmp.replace(dest)
             return
         except urllib.error.HTTPError as err:
-            if err.code != 429 or attempt == 3:
+            if err.code != 429 or attempt == 7:
                 raise
             time.sleep(30 * (attempt + 1))
+        except (OSError, http.client.HTTPException):  # dropped connection: resume from what we have
+            if attempt == 7:
+                raise
+            time.sleep(5)
 
 
 def write_licenses(entries):

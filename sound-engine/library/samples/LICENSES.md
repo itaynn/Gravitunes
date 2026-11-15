@@ -47,5 +47,6 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `darbuka-*.mp3`: "Derbake Grave.ogg" by ZappaMidiPF, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
 - `didgeridoo-*.mp3`: "Didgeridoo sound.ogg" by Cassa342, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
 - `erhu-*.mp3`: "二泉映月.ogg" by David290 (recording), performed by Zhang Peijian, music by Abing, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
+- `tabla-*.mp3`: "Tabla drums demo.oga" by tabladrumsonline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Tabla_drums_demo.oga (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)
 
 Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence.
