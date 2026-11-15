@@ -1,29 +1,29 @@
 # Gravitunes
 
-NASA Space Apps 2026 "Earth Information Jukebox": NASA Earth visualizations turned into sound, usable by blind and
-low-vision people. Layout: `docs/structure.md`.
+New types of data sonification.
 
-## Build the demos
+Main app is at ./app/modes/storm-picker/index.html.
 
-Needs Python ≥ 3.10, [uv](https://docs.astral.sh/uv/) and `ffmpeg` on `PATH` (it decodes the NASA movies). Node is only
-used for the JS tests. Run from the repo root:
+# 🇮🇱 עברית:
+פתרון זה פותח במסגרת NASA Space Apps Tel Aviv 2026. האירוע הובל על ידי המרכז להנדסת חלל (SEC) ו-SpaceTAU באוניברסיטת תל אביב, בשיתוף משימת רקיע וקהילת Space Campus IL.
 
-```bash
-uv venv .venv && uv pip install -p .venv -e data-tools/python        # a few seconds
+# 🌍 English:
+This solution was developed as part of NASA Space Apps Tel Aviv 2026. The event was led by the Space Engineering Center (SEC) and SpaceTAU at Tel Aviv University, in partnership with the Rakia Mission and Space Campus IL.
 
-# Ozone, carbon monoxide, nitrogen oxides from NASA SVS: download frames + movie, decode, export browser grids.
-# About 2.5 min and ~210 MB in data/nasa-svs/<id>/ per dataset (~8 min, ~650 MB in total).
-for id in 5152 5153 5154; do
-  .venv/bin/gravitunes_data build  $id --size 256x128
-  .venv/bin/gravitunes_data export $id --size 256x128
-done
+# Running and recreating the data
+To run the code on your computer, run:
+```
+python3 -m http.server 8000
+```
+And then open http://localhost:8000/app/ in your browser.
 
-python3 app/tools/build-standalone.py                                 # ~1 min, 11 demos + index.html, ~55 MB in dist/
+To regenerate the speech tutorial, run:
+```
+pip install edge-tts
+node app/tools/make-voice.mjs                 # all lines
+node app/tools/make-voice.mjs intro           # just one
+VOICE=en-US-AndrewNeural node app/tools/make-voice.mjs   # different voice
 ```
 
-Nothing else has to be downloaded or computed: the rain data (SVS 4285), base maps (`data/earth/*.json`) and the
-flow and storm outputs the rain demos use (`app/modes/*/data/4285/`) are committed. To redo those analysis outputs, see
-`analysis/README.md` (`analysis/scripts/flow/run.py`, `gravitunes-storms --dataset 4285 --mode storm-watch`).
-
-Each `dist/<demo>.html` is self-contained and works offline from `file://`; `dist/index.html` (the demo menu) and the
-in-demo switcher link to the sibling files, so share the whole folder for the menu.
+# Usage of AI
+Claude and Copilot were used in the creation of this project for code generation.
