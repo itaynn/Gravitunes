@@ -109,3 +109,18 @@ console.log('vortex-melodies scale wiring ok');
   assert.doesNotMatch(src, /lowpass:/);
 }
 console.log('vortex-melodies marker ok');
+
+// mapping: defaults, shared targets average, nothing -> neutral
+{
+  const { targetRank, mapped, DEFAULT_MAP } = await import('./vortex.js');
+  const v = { sizeRank: 1, strengthRank: 0, spinRank: 0.5, fade: 1 };
+  assert.equal(targetRank(v, DEFAULT_MAP, 'pitch'), 1);
+  assert.equal(targetRank(v, { size: 'pitch', strength: 'pitch', spin: 'nothing' }, 'pitch'), 0.5);
+  assert.equal(targetRank(v, { size: 'nothing', strength: 'nothing', spin: 'nothing' }, 'tempo'), null);
+  const m = mapped(v, DEFAULT_MAP);
+  assert.equal(m.mi, MOTIFS.length - 1);              // big = low (largest motif)
+  assert.ok(Math.abs(m.loud - 0.35) < 1e-9);          // weakest = quietest
+  assert.ok(Math.abs(m.loop - loopSeconds(0.5)) < 1e-9);
+  const q = mapped(v, { size: 'volume', strength: 'nothing', spin: 'nothing' });
+  assert.equal(q.loud, 1); assert.equal(q.loop, loopSeconds(0.5));
+}

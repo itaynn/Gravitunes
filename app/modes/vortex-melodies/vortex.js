@@ -65,9 +65,29 @@ export function activeVortices(data, ranks, t, maxVoices, trackById) {
   const list = (data.frames[t] || []).map((v) => {
     const tr = trackById.get(v.id);
     const loud = (0.35 + 0.65 * ranks.strength(v.circ * v.r)) * lifeFade(t, tr);
-    return { ...v, track: tr, loud, spinRank: ranks.spin(v.spin), sizeRank: ranks.size(v.r) };
+    return { ...v, track: tr, loud, fade: lifeFade(t, tr), spinRank: ranks.spin(v.spin), sizeRank: ranks.size(v.r), strengthRank: ranks.strength(v.circ * v.r) };
   });
   return list.sort((a, b) => b.loud - a.loud || a.id - b.id).slice(0, Math.max(0, maxVoices));
+}
+
+// Mapping: each data property (size, strength, spin speed) drives one target (pitch, volume, tempo) or nothing;
+// spin direction optionally turns the tune up (ccw) or down (cw). Location is always instrument + pan.
+export const TARGETS = ['nothing', 'pitch', 'volume', 'tempo'];
+export const DEFAULT_MAP = { size: 'pitch', strength: 'volume', spin: 'tempo', direction: 'nothing' };
+// Rank 0..1 driving `target` (average when several properties pick it), or null when none does.
+export function targetRank(v, map, target) {
+  const src = { size: v.sizeRank, strength: v.strengthRank, spin: v.spinRank };
+  const xs = Object.keys(src).filter((k) => map[k] === target && src[k] != null).map((k) => src[k]);
+  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+// Sound parameters for a vortex under `map`: motif index (higher rank = longer, lower motif), loudness, loop seconds.
+export function mapped(v, map) {
+  const p = targetRank(v, map, 'pitch'), vol = targetRank(v, map, 'volume'), tempo = targetRank(v, map, 'tempo');
+  return {
+    mi: motifIndex('size', { sizeRank: p ?? 0.5 }),
+    loud: (0.35 + 0.65 * (vol ?? 0.6)) * (v.fade ?? 1),
+    loop: loopSeconds(tempo ?? 0.5),
+  };
 }
 
 // Divergence bed for one frame: net convergence -1 (all spreading) .. +1 (all converging).

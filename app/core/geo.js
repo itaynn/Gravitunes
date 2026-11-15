@@ -57,3 +57,13 @@ export function regionTint(centers, colorOf, blendKm = 0) {
   }
   return tint;
 }
+
+// Shared region/instrument colours (World orchestra, Tone lab, Vortex melodies): hue spread over the centers.
+export function centerColors(centers) {
+  return new Map(centers.map((c, i) => [c.id, `hsl(${Math.round((i * 360) / centers.length)} 70% 55%)`]));
+}
+// Colour of an instrument id: the colour of the first center that plays it (light grey if none does).
+export function instrumentColor(id, centers, colorOf = centerColors(centers)) {
+  const c = centers.find((k) => k.instrument === id);
+  return c ? colorOf.get(c.id) : 'hsl(0 0% 75%)';
+}
