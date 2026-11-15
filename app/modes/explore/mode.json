@@ -1,0 +1,22 @@
+{
+  "name": "Explore",
+  "summary": "One NASA map at a time: ozone, carbon monoxide, nitrogen oxides or rain. Click, tap or use the arrow keys: higher values play higher notes on that map's own instrument.",
+  "author": "moran",
+  "description": "Pick a dataset with the Data menu (ozone, carbon monoxide, nitrogen oxides from NASA's GEOS-CF model, or IMERG rain): the map shows it and you hear only it, on its own recorded instrument and pitch range (carbon monoxide cello low, ozone flute in the middle, nitrogen oxides koto higher, rain marimba). Higher values play higher notes. Click, tap or use the arrow keys; hovering only announces. Press Play to hear a spot change over time.",
+  "datasets": [
+    "5152",
+    "5153",
+    "5154",
+    "4285"
+  ],
+  "standalone": {
+    "every": 6,
+    "files": [
+      "sound-engine/library/samples/index.json",
+      "sound-engine/library/samples/cello-*",
+      "sound-engine/library/samples/flute-*",
+      "sound-engine/library/samples/koto-*",
+      "sound-engine/library/samples/marimba-*"
+    ]
+  }
+}

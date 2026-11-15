@@ -4,7 +4,7 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 
 ## In main
 - App: gallery, core (viewer, timeline, input, panel, sound adapter with frequency caps), dataset picker, Natural Earth basemap
-- Modes: ozone-probe, world-orchestra (with the former timbre-atlas as its Instruments view), layered-maps, mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
+- Modes: explore (former ozone-probe + layered-maps), world-orchestra (with the former timbre-atlas as its Instruments view), mapping-lab, synth-lab, itay's scanning-line, precipitation-ball, storm-watch
 - Sound engine (caps, rolloff, lowpass, sample voices, open instrument library; scales, tunings, Scala, live edits, mono/stereo)
 - Data tools: ozone (5152), CO (5153), NOx (5154) value grids; log grids in front end
 - Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)

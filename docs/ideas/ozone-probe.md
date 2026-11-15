@@ -1,6 +1,6 @@
 # Ozone probe
 
-**Status:** built (`app/modes/ozone-probe/`)
+**Status:** merged into Explore (`app/modes/explore/`)
 
 ## What you hear
 Move the mouse or arrow keys over the map and hear the value under the cursor.

@@ -219,3 +219,23 @@ console.log('grid tests ok');
   for (let t = 0; t < T; t++) for (const [la, lo] of [[60, -170], [-60, 100], [0, 0]]) assert.equal(fine.valueAt(la, lo, t), g.valueAt(la, lo, t));
   console.log('compressed grid tests ok');
 }
+
+// Default trigger threshold: 70th percentile, but never the bottom of the range (mostly-dry rain).
+{
+  const { defaultThreshold } = await import('../core/triggers.js');
+  assert.equal(defaultThreshold({ values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], range: [0, 10] }), 7);
+  const dry = [...Array(90).fill(0), ...Array(10).fill(0.5)];
+  assert.equal(defaultThreshold({ values: dry, range: [0, 1] }), 0.5);
+  assert.equal(defaultThreshold({ values: Array(10).fill(0), range: [0, 1] }), 0.2);
+  assert.equal(defaultThreshold({ pct: (p) => (p > 0.9 ? 0.4 : 0), range: [0, 1] }), 0.4);
+  // The committed rain grid (data/nasa-svs/4285/web, delta-gzip) unpacks and is mostly dry with some rain.
+  const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+  const dir = join(root, 'data/nasa-svs/4285/web');
+  const h = JSON.parse(readFileSync(join(dir, 'field_256x128.json'), 'utf8'));
+  const { unpackGrid } = await import('../core/grid.js');
+  const g = parseGrid(h, await unpackGrid(h, async (f) => new Uint8Array(readFileSync(join(dir, f)))));
+  assert.equal(g.frames, 48);
+  const thr = defaultThreshold({ pct: g.percentile, range: [0, 1] });
+  assert.ok(thr > 0 && thr < 1, `rain threshold ${thr}`);
+  console.log('trigger threshold tests ok');
+}

@@ -7,6 +7,9 @@ import json
 from pathlib import Path
 
 MODES = Path(__file__).resolve().parent.parent / "modes"
+# Datasets with an HD export (gravitunes_data export-hd); build-standalone.py makes <mode>-hd.html for host
+# modes that show one of them from the shared data folder.
+HD_DATASETS = {"5152", "5153", "5154"}
 
 
 def main():
@@ -23,6 +26,10 @@ def main():
             else:
                 print(f"skip {d.name}: no main.js, index.html or href")
                 continue
+        ds = meta.get("datasets")
+        own = meta.get("datasetDirs") or {}
+        entry["hd"] = bool("href" not in entry and meta.get("data") is not False and isinstance(ds, list)
+                           and any(str(d) in HD_DATASETS and str(d) not in own for d in ds))
         modes.append(entry)
     out = MODES / "index.json"
     out.write_text(json.dumps({"modes": modes}, indent=2) + "\n")

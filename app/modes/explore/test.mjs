@@ -1,17 +1,17 @@
-// node app/modes/layered-maps/test.mjs -- pure mapping logic; uses real grids if present (GRID_ROOT or data/).
+// node app/modes/explore/test.mjs -- pure mapping logic; uses real grids if present (GRID_ROOT or data/).
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LAYERS, layerFreq, layerFor, noteFor } from './layers.js';
+import { LAYERS, SAMPLES, layerFreq, layerFor, noteFor } from './layers.js';
 import { parseGrid, makeNorm, formatValue } from '../../core/grid.js';
 
-// Registers: all within C2..C5, distinct, ordered CO < ozone < NOx.
-const C2 = 65.406, C5 = 523.251;
+// Registers: all within C2..A5; the gases distinct, ordered CO < ozone < NOx.
+const C2 = 65.406, A5 = 880;
 for (const l of LAYERS) {
   for (const x of [0, 0.25, 0.5, 0.75, 1]) {
     const f = layerFreq(l, x);
-    assert.ok(f >= C2 - 0.01 && f <= C5 + 0.01, `${l.name} ${f} Hz out of C2..C5`);
+    assert.ok(f >= C2 - 0.01 && f <= A5 + 0.01, `${l.name} ${f} Hz out of C2..A5`);
   }
   assert.ok(layerFreq(l, 1) > layerFreq(l, 0), `${l.name} rises with value`);
 }
@@ -28,6 +28,12 @@ assert.ok(Math.abs(layerFreq(oz, 0) - 130.81) < 0.1 && Math.abs(layerFreq(oz, nu
 assert.equal(layerFor('5153'), co); assert.equal(layerFor(5154), nox); assert.equal(layerFor('9999'), oz);
 const n = noteFor(nox, 0.5, 0.3);
 assert.ok(n.pan === 0.3 && n.freq === layerFreq(nox, 0.5) && n.lowpass === 2200 && n.t === undefined);
+// Every dataset in mode.json has its own layer and a recorded instrument bundled for the offline file.
+const meta = JSON.parse(readFileSync(new URL('./mode.json', import.meta.url), 'utf8'));
+assert.deepEqual(meta.datasets.slice().sort(), LAYERS.map((l) => l.id).sort());
+assert.equal(new Set(SAMPLES).size, LAYERS.length, 'one instrument per dataset');
+for (const id of SAMPLES) assert.ok(meta.standalone.files.some((f) => f.includes(`/${id}-`)), `${id} samples bundled`);
+assert.equal(noteFor(layerFor('4285'), 1).sample, 'marimba');
 
 // Real grids (optional): values at a point map into 0..1 and format.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -44,8 +50,8 @@ for (const l of LAYERS) {
   if (v == null) continue;
   const x = norm(v);
   assert.ok(x >= 0 && x <= 1);
-  assert.ok(layerFreq(l, x) <= C5);
+  assert.ok(layerFreq(l, x) <= A5);
   assert.notEqual(formatValue(v), 'no data');
   real++;
 }
-console.log(`layered-maps tests ok${real ? ` (${real} real grids)` : ' (no grids found; set GRID_ROOT)'}`);
+console.log(`explore tests ok${real ? ` (${real} real grids)` : ' (no grids found; set GRID_ROOT)'}`);

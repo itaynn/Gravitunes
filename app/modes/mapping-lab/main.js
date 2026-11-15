@@ -3,7 +3,7 @@
 // sound parameter (pitch, loudness, pan, brightness, depth, attack, timbre family). Mapping lives in the URL.
 import { SOURCES, PARAMS, PRESETS, cloneMapping, presetOf, encodeMapping, decodeMapping,
   renderNote, describeNote, makePoints } from './mapping.js';
-import { selectTriggers, percentileOf } from '../../core/triggers.js';
+import { selectTriggers, defaultThreshold } from '../../core/triggers.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
 import { noteName, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { formatLatLon } from '../../core/geo.js';
@@ -32,7 +32,7 @@ export default function start(ctx) {
       threshold: null,
     };
     const valuesAt = (t) => points.map((p) => dataset.valueAt(p.lat, p.lon, t));
-    s.threshold = dataset.percentile?.(0.7) ?? percentileOf(valuesAt(time.now()), 0.7) ?? lo + 0.7 * (hi - lo);
+    s.threshold = defaultThreshold({ pct: dataset.percentile, values: valuesAt(time.now()), range: dataset.range });
     s.threshold = Number(fmtNum(s.threshold));
     if (url.has('thr') && Number.isFinite(+url.get('thr'))) s.threshold = Math.max(lo, Math.min(hi, +url.get('thr')));
 
@@ -142,15 +142,15 @@ export default function start(ctx) {
       notes = 0;
     }, 5000);
 
-    // ---- hover / arrow keys: play one point with the current mapping and say how it was mapped
+    // ---- hover describes; click, tap or arrow keys play one point with the current mapping and say how it was mapped
     const ready = throttle(150);
-    function probe({ lat, lon }, force = false) {
-      if (!ready(force, () => probe({ lat, lon }, force))) return;
+    function probe({ lat, lon, keyboard = false }, force = false) {
+      if (!ready(force, () => probe({ lat, lon, keyboard }, force))) return;
       const t = time.now();
       const value = dataset.valueAt(lat, lon, t), before = t > 0 ? dataset.valueAt(lat, lon, t - 1) : null;
       const point = { lat, lon, value, prev: before };
       const { play, labels, src } = renderNote(s.mapping, point, noteOpts(0.5));
-      if (value != null) sound.play({ ...play, amp: Math.min(0.45, play.amp + 0.05) });
+      if (value != null && (force || keyboard)) sound.play({ ...play, amp: Math.min(0.45, play.amp + 0.05) });
       const said = describeNote(s.mapping, point, labels, units, src.delta, dataset.format && ((v) => dataset.format(v, false)));
       describe(`Near ${formatLatLon(lat, lon)}: ${value == null ? `no data. ${said}` : said}`);
     }

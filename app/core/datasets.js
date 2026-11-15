@@ -25,11 +25,13 @@ export const DATASETS = {
     // Burned-in boxes (fractions of the frame): x, y, w, h. valueAt returns null inside.
     masks: [[0, 0, 0.172, 0.074], [0, 0.902, 0.245, 0.098]],
   },
-  // IMERG precipitation (relative 0..1 from the SVS PNG alpha). No data-tools export yet: modes that use it
-  // ship their own grid and name its folder in mode.json "datasetDirs" (see host.js).
+  // IMERG precipitation (0..1: log rain rate decoded from the SVS colours). No data-tools export: the shared
+  // grid is committed in data/nasa-svs/4285/web/ (delta-gzip); modes with extra layers ship their own copy
+  // and name its folder in mode.json "datasetDirs" (see host.js).
   4285: {
     id: '4285',
-    title: 'Precipitation (IMERG, relative)',
+    title: 'Rain (IMERG precipitation)',
+    committed: true,                  // always available (in git), even when the data-tools index omits it
     units: 'relative',
     range: [0, 1],
     source: 'https://svs.gsfc.nasa.gov/4285',
@@ -73,9 +75,11 @@ export async function listDatasets() {
   // The index lists what is really available (standalone builds write only the bundled ids); built-ins are a fallback.
   const listed = (Array.isArray(idx) ? idx : idx?.ids)?.map(String);
   const ids = new Set(listed?.length ? listed : Object.keys(DATASETS));
+  for (const [id, d] of Object.entries(DATASETS)) if (d.committed) ids.add(id);
   const out = [];
   for (const id of ids) {
-    const d = await fetchJson(`/data-tools/datasets/${id}.json`);
+    // No descriptor request (a 404) for built-ins the index doesn't list.
+    const d = listed?.length && !listed.includes(id) ? null : await fetchJson(`/data-tools/datasets/${id}.json`);
     out.push({ id, title: d?.title || DATASETS[id]?.title || id });
   }
   return out;

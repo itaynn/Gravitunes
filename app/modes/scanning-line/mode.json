@@ -1,5 +1,6 @@
 {
   "name": "Scanning line",
+  "summary": "A line sweeps one NASA IMERG rain map west to east and plays it: low notes at the bottom, high at the top, louder where it rains harder.",
   "author": "itay",
   "description": "A line sweeps across one global IMERG precipitation frame from west to east and plays it as notes on a C major scale, low (C2) at the bottom of the map and high (C5) at the top; the heaviest rain in each band sets that note's volume. From itay's scanning-line-demo branch.",
   "datasets": [

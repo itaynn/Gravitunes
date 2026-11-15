@@ -1,5 +1,6 @@
 {
   "name": "Flow tracers",
+  "summary": "NASA IMERG rain with particles following its motion. Press Play: tracers over rain sing, heavier rain higher and louder.",
   "author": "moran",
   "description": "NASA's real-time precipitation (IMERG) over the continents, with streams of particles following the rain's motion. Yellow tracers over rain sing: heavier rain plays higher and louder, west to east pans left to right.",
   "datasets": [

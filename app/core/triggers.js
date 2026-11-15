@@ -20,3 +20,12 @@ export function percentileOf(values, p) {
   if (!v.length) return null;
   return v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
 }
+
+// Default trigger threshold: the dataset's 70th percentile (pct(p) or, without a grid, of `values`). For mostly
+// empty fields such as rain that is the bottom of the range, where nothing can rise past it: then the
+// 95th percentile, else 20% of the range.
+export function defaultThreshold({ pct, values = [], range: [lo, hi] }) {
+  const at = (p) => pct?.(p) ?? percentileOf(values, p);
+  for (const p of [0.7, 0.95]) { const v = at(p); if (v != null && v > lo) return v; }
+  return lo + 0.2 * (hi - lo);
+}

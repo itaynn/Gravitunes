@@ -2,7 +2,7 @@
 """Build each demo as ONE self-contained HTML file in dist/ (open from file://, no server).
 
     python3 app/tools/build-standalone.py               # all modes in app/modes/index.json
-    python3 app/tools/build-standalone.py --mode ozone-probe --every 6
+    python3 app/tools/build-standalone.py --mode explore --variant light
 
 How it works: CSS is inlined; ES modules are stored as text and loaded as blob: URLs with their
 import specifiers rewritten; data files (grids, JSON) are stored in a virtual file table and served
@@ -14,6 +14,7 @@ Every hourly frame is kept. Datasets exported with `gravitunes_data export-hd` s
 """
 import argparse
 import base64
+import gzip
 import html
 import json
 import mimetypes
@@ -31,8 +32,12 @@ DROP_SOURCES = ('.mp4',)
 FIRST = ['synth-lab', 'world-orchestra']  # gallery order, as in app/core/switcher.js orderModes()
 
 
-REDIRECT = ('<!doctype html><meta charset="utf-8"><title>World orchestra</title>'
-            '<meta http-equiv="refresh" content="0; url={to}"><a href="{to}">World orchestra</a>')
+REDIRECT = ('<!doctype html><meta charset="utf-8"><title>{name}</title>'
+            '<meta http-equiv="refresh" content="0; url={to}"><a href="{to}">{name}</a>')
+# Merged demos: old dist file -> (new file, title). Same map as REDIRECTS in app/core/host.js.
+REDIRECTS = {'timbre-atlas': ('world-orchestra.html?instruments=1', 'World orchestra'),
+             'ozone-probe': ('explore.html', 'Explore'), 'layered-maps': ('explore.html', 'Explore'),
+             'ozone-probe-hd': ('explore-hd.html', 'Explore'), 'layered-maps-hd': ('explore-hd.html', 'Explore')}
 
 
 def order_modes(modes):
@@ -69,7 +74,7 @@ def data_root(arg):
     if arg:
         return Path(arg).resolve()
     d = ROOT / 'data'
-    if any((d / 'nasa-svs').glob('*/web/*.bin')):
+    if any((d / 'nasa-svs').glob('*/web/light/*')):  # (4285's committed grid alone doesn't count)
         return d
     try:  # in a git worktree, data/ lives in the main checkout
         common = subprocess.run(['git', 'rev-parse', '--git-common-dir'], cwd=ROOT,
@@ -134,14 +139,28 @@ def collect_modules(entry, patches=None):
     return mods
 
 
+def pack(files):
+    """Gzip larger text files (base maps, JSON) in the bundle: the fetch override inflates them (DecompressionStream)."""
+    out = {}
+    for k, f in files.items():
+        if f.get('text') is not None and len(f['text']) > 4096:
+            f = {'gz': base64.b64encode(gzip.compress(f['text'].encode(), 9, mtime=0)).decode(), 'type': f.get('type')}
+        out[k] = f
+    return out
+
+
 def runtime(files, mods, entry_key, extra_js=''):
     """Inline <script> that installs the fetch override and starts the module graph."""
-    payload = json.dumps({'files': files, 'mods': mods}).replace('</', '<\\/')
+    # Module sources travel as one gzipped JSON (inflated before the first import).
+    gzmods = base64.b64encode(gzip.compress(json.dumps(mods).encode(), 9, mtime=0)).decode()
+    payload = json.dumps({'files': pack(files), 'mods': gzmods}).replace('</', '<\\/')
     return f'''<script id="gt-bundle" type="application/json">{payload}</script>
 <script>
 (() => {{
   const B = JSON.parse(document.getElementById('gt-bundle').textContent);
   {extra_js}
+  const bytes = (b) => {{ const s = atob(b), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }};
+  const inflate = (b) => new Blob([bytes(b)]).stream().pipeThrough(new DecompressionStream('gzip'));
   const keys = Object.keys(B.files).sort((a, b) => b.length - a.length);
   const find = (u) => {{
     let p; try {{ p = decodeURIComponent(new URL(u, location.href).pathname); }} catch {{ return null; }}
@@ -154,17 +173,15 @@ def runtime(files, mods, entry_key, extra_js=''):
     const k = find(u);
     if (!k) return new Response('not in bundle', {{ status: 404 }});
     const f = B.files[k];
-    if (f.b64 != null) {{
-      const s = atob(f.b64), a = new Uint8Array(s.length);
-      for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
-      return new Response(a, {{ status: 200, headers: {{ 'Content-Type': 'application/octet-stream' }} }});
-    }}
+    if (f.gz != null) return new Response(inflate(f.gz), {{ status: 200, headers: {{ 'Content-Type': f.type || 'text/plain' }} }});
+    if (f.b64 != null) return new Response(bytes(f.b64), {{ status: 200, headers: {{ 'Content-Type': 'application/octet-stream' }} }});
     return new Response(f.text, {{ status: 200, headers: {{ 'Content-Type': f.type || 'text/plain' }} }});
   }};
   const urls = {{}}, busy = new Set();
+  let mods = {{}};
   const url = (k) => {{ if (busy.has(k) && !urls[k]) throw new Error('import cycle at ' + k); busy.add(k); return urls[k] || (urls[k] = URL.createObjectURL(new Blob(
-    [B.mods[k].replace(/@@GT:(.*?)@@/g, (_, d) => url(d))], {{ type: 'text/javascript' }}))); }};
-  {"import(url(" + json.dumps(entry_key) + ")).catch((e) => { console.error(e); const s = document.getElementById('status'); if (s) s.textContent = 'Error: ' + e.message; });" if entry_key else ''}
+    [mods[k].replace(/@@GT:(.*?)@@/g, (_, d) => url(d))], {{ type: 'text/javascript' }}))); }};
+  {"new Response(inflate(B.mods)).json().then((m) => { mods = m; return import(url(" + json.dumps(entry_key) + ")); }).catch((e) => { console.error(e); const s = document.getElementById('status'); if (s) s.textContent = 'Error: ' + e.message; });" if entry_key else ''}
 }})();
 </script>'''
 
@@ -278,6 +295,11 @@ def grid_files(data, ds, every):
     return out
 
 
+def committed_files(ds):
+    """A dataset grid committed in this checkout (data/nasa-svs/4285/web/), bundled as is. None if missing."""
+    return own_files(ROOT / 'data' / 'nasa-svs' / ds / 'web', f'/data/nasa-svs/{ds}/web/')
+
+
 def own_files(folder, prefix):
     if not folder.is_dir():
         return None
@@ -294,15 +316,19 @@ def build_host_mode(m, data, every, link_map, all_modes, variant='light'):
     mid = m['id']
     datasets = m.get('datasets')
     ids = [str(d) for d in datasets] if isinstance(datasets, list) else ['5152']
-    # The -hd variant only exists for modes that show export-hd datasets (not their own copies, not data: false).
-    if variant == 'hd' and (m.get('data') is False or all((m.get('datasetDirs') or {}).get(ds) for ds in ids)):
+    # The -hd variant only exists for modes that show export-hd datasets (not their own copies, not data: false);
+    # their other datasets (e.g. 4285, no HD export) use the light grid in it.
+    if variant == 'hd' and (m.get('data') is False or not any(
+            not (m.get('datasetDirs') or {}).get(ds) and variant_files(data, ds, 'hd') is not None for ds in ids)):
         return None
     files = {}
     for ds in ids:
         own = (m.get('datasetDirs') or {}).get(ds)
         # A mode that ships its own copy of a dataset (mode.json datasetDirs) is bundled whole and not
         # subsampled: its extra layers (e.g. flow) are frame-aligned with the grid. Keys match host.js URLs.
-        g = own_files(MODES / mid / own, f'/modes/{mid}/{own}') if own else (variant_files(data, ds, variant) or (None if variant == 'hd' else grid_files(data, ds, every)))
+        g = (own_files(MODES / mid / own, f'/modes/{mid}/{own}') if own else
+             variant_files(data, ds, variant) or variant_files(data, ds, 'light') or grid_files(data, ds, every)
+             or committed_files(ds))
         if g is None:
             print(f'  ! {mid}: no grid for dataset {ds} in {data}', file=sys.stderr)
             return None
@@ -355,7 +381,7 @@ h1{{margin:.2em 0}} a{{color:var(--accent)}} .lead{{color:var(--muted);max-width
 :focus-visible{{outline:3px solid var(--accent);outline-offset:3px}}</style>
 </head><body>
 <h1>Gravitunes demos</h1>
-<p class="lead">NASA Earth data you can hear. Start with the Tone lab to hear the instruments, then the Timbre atlas, then the data demos.
+<p class="lead">NASA Earth data you can hear. Start with the Tone lab to hear the instruments, then the World orchestra, then the data demos.
 Each demo is one self-contained file that works offline; every demo has a menu at the top to switch to the others.</p>
 <ul class="demos">
 {items}
@@ -418,9 +444,10 @@ def main():
                   + ('  (over 10 MB!)' if size > 10 and variant == 'light' else ''))
             built.append(m)
 
-    # Timbre atlas is now World orchestra's Instruments view: keep old dist/timbre-atlas.html links working.
-    if (out / 'world-orchestra.html').is_file():
-        (out / 'timbre-atlas.html').write_text(REDIRECT.format(to='world-orchestra.html?instruments=1'))
+    # Merged demos: keep old dist/<id>.html links working (timbre-atlas, ozone-probe, layered-maps).
+    for old, (to, name) in REDIRECTS.items():
+        if (out / to.split('?')[0]).is_file():
+            (out / f'{old}.html').write_text(REDIRECT.format(to=to, name=name))
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
     # Second pass: the switcher in each built page lists only demos whose files exist.
     have = {m['id'] for m in existing}
@@ -442,7 +469,7 @@ def main():
                 f'<span class="size">HD {mb(name):.0f} MB</span>')
     items = '\n'.join(
         f'<li class="card"><h2>{html.escape(m["name"])}</h2>'
-        f'<p>{html.escape(one_line(m.get("description", "")))}</p>'
+        f'<p>{html.escape(m.get("summary") or one_line(m.get("description", "")))}</p>'
         f'<p class="links"><a class="open" href="{m["id"]}.html" aria-label="Open {html.escape(m["name"])}">Open</a> '
         f'<a href="{m["id"]}.html" download aria-label="Download {html.escape(m["name"])}">Download</a> '
         f'<span class="size">{mb(m["id"] + ".html"):.1f} MB</span> {hd_link(m)}</p></li>'

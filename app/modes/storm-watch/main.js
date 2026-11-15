@@ -85,7 +85,7 @@ export default function start(ctx) {
       const tell = () => {
         if (under(input.position())?.id !== c.id) return;
         describe(`${say(c, frame().components)} Enter follows it.`);
-        voice(c, frame().components, 0.3);
+        if (p.keyboard) voice(c, frame().components, 0.3);   // the mouse only announces; sound needs a click, key or Play
       };
       if (hoverSay(false, tell)) tell();
     });

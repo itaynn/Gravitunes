@@ -1,5 +1,6 @@
 {
   "name": "Vortex melodies",
+  "summary": "Swirling storms in NASA IMERG rain, found by optical flow. Press Play: each swirl loops a tune, faster spin plays faster.",
   "author": "moran",
   "description": "Swirling storms in NASA real-time precipitation (IMERG), found by optical flow and tracked over the day. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where rain converges.",
   "datasets": [

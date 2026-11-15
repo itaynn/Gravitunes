@@ -1,5 +1,6 @@
 {
   "name": "Tone lab",
+  "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to A5.",
   "author": "moran",
   "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to A5.",
   "datasets": "none",

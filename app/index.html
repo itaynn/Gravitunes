@@ -22,8 +22,10 @@
     .card .desc { margin: 0; flex: 1; }
     .card .tags { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0; }
     .card .tags li { font-size: .8em; padding: 2px 8px; border-radius: 999px; background: #2b323b; color: var(--muted); }
-    .card .open { align-self: flex-start; margin-top: 4px; padding: .35em .9em; border-radius: 6px;
+    .card .links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 0; }
+    .card .open { padding: .35em .9em; border-radius: 6px;
       background: var(--accent); color: #000; font-weight: 600; font-size: .95em; }
+    .card .links a { position: relative; z-index: 1; color: var(--accent); } /* above the whole-card link */
     @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover, .card:focus-within { transform: none; } }
   </style>
 </head>
@@ -55,7 +57,8 @@
         h.append(a);
         li.append(h);
         if (m.author) li.append(el('p', 'author', `By ${m.author}`));
-        if (m.description) li.append(el('p', 'desc', m.description));
+        // One or two sentences: the summary, else the description.
+        if (m.summary || m.description) li.append(el('p', 'desc', m.summary || m.description));
         const ds = Array.isArray(m.datasets) ? m.datasets.map((d) => `SVS ${d}`) : m.datasets ? [`Datasets: ${m.datasets}`] : [];
         const tags = [...ds, ...(m.href ? ['Standalone page'] : [])];
         if (tags.length) {
@@ -64,9 +67,20 @@
           tl.append(...tags.map((t) => el('li', null, t)));
           li.append(tl);
         }
+        const links = el('p', 'links');
         const open = el('span', 'open', 'Open →');
         open.setAttribute('aria-hidden', 'true'); // the title link above is the accessible control
-        li.append(open);
+        // Offline single-file builds (python3 app/tools/build-standalone.py): light, and HD when one is built.
+        const file = (name, text, label) => {
+          const f = el('a', null, text);
+          f.href = new URL(`../dist/${name}`, location.href).href;
+          f.setAttribute('aria-label', `${label} ${m.name}`);
+          return f;
+        };
+        links.append(open);
+        links.append(file(`${m.id}.html`, 'Offline', 'Offline file:'));
+        if (m.hd) links.append(file(`${m.id}-hd.html`, 'HD', 'High-resolution offline file:'));
+        li.append(links);
         return li;
       }));
     } catch (e) {

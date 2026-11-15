@@ -2,9 +2,10 @@
 // between two hours, it plays one note in the voice of its nearest "musical center" (blended near
 // borders). Pitch <- value (quantized to a scale, low-to-mid register), loudness <- value, pan <- longitude.
 // "Instruments" view (on by default; ?instruments=0 starts in the data view): no dataset, a plain map, and
-// hovering or the arrow keys play each region's own phrase (the former Timbre atlas). Both views share the
+// a click, tap or the arrow keys play each region's own phrase (hovering only names it) (the former Timbre atlas). Both views share the
 // regions, voices and recorded samples (sound-engine/library/samples).
-import { distKm, voiceAt, selectTriggers, percentileOf } from './orchestra.js';
+import { distKm, voiceAt, selectTriggers } from './orchestra.js';
+import { defaultThreshold } from '../../core/triggers.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
 import { quantize, noteHz, noteName, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
@@ -61,13 +62,13 @@ export default function start(ctx) {
     let summary = { regions: new Map(), notes: 0, frames: 0 };
 
     const valuesAt = (t) => cities.map((c) => dataset.valueAt(c.lat, c.lon, t));
-    s.threshold = dataset.percentile?.(0.7) ?? percentileOf(valuesAt(time.now()), 0.7) ?? lo + 0.7 * (hi - lo);
+    s.threshold = defaultThreshold({ pct: dataset.percentile, values: valuesAt(time.now()), range: dataset.range });
     s.threshold = Number(fmtNum(s.threshold));
 
     // ---- controls
     const viewBox = panel.checkbox('Instruments', s.atlas, (v) => {
       setView(v);
-      describe(v ? 'Instruments: move over the map to hear each region. Square brackets jump between regions.'
+      describe(v ? 'Instruments: click the map or use the arrow keys to hear each region. Square brackets jump between regions.'
         : `Data: ${dataset.title}. Press Play orchestra; click or use the arrow keys to hear a spot.`);
     }, { hint: 'On: the map and its instruments. Off: the cities play the data.' });
     const firstControl = viewBox.closest('.control');
@@ -213,10 +214,11 @@ export default function start(ctx) {
       if (!force && (changed ? now - lastAt < 120 : now - lastAt < Math.max(400, lastLen * 1000))) return;
       lastKey = key; lastAt = now;
       if (!keyboard || force) describe(force ? `${fmt(lat, lon)}. ${text}` : text);
+      viewer.redraw();
+      if (!keyboard && !force) return;   // the mouse only names the region; a click, tap or arrow key plays it
       const notes = gestureNotes(voice, noteHz(s.baseSemis), { phrase: s.phrase, floorHz: noteHz(LOW_SEMIS) });
       lastLen = gestureLength(notes);
       playNotes(sound, voice, notes, { amp: 0.4, pan: lon / 180 });
-      viewer.redraw();
     }
     // [ and ] jump west/east between regions (Instruments view).
     const order = [...centers].sort((a, b) => a.lon - b.lon || b.lat - a.lat);
@@ -234,14 +236,12 @@ export default function start(ctx) {
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
 
-    // ---- visuals: faint region tint (Voronoi of centers), city dots, flashes, optional labels
-    const tint = regionTint(centers, colorOf), atlasTint = regionTint(centers, colorOf, BLEND_KM);
+    // ---- visuals: the data image as is (no region tint over it), city dots, flashes, optional labels
+    const atlasTint = regionTint(centers, colorOf, BLEND_KM);
     const removeOverlay = viewer.addOverlay((g, v) => {
       if (s.atlas) return drawAtlas(g, v);
       const W = v.canvas.width, H = v.canvas.height, now = performance.now();
       g.save();
-      g.globalAlpha = 0.13; g.imageSmoothingEnabled = false; g.drawImage(tint, 0, 0, W, H);
-      g.globalAlpha = 1;
       cities.forEach((c, i) => {
         const [x, y] = v.toPixel(c.lat, c.lon);
         const fl = flashes.get(i);
@@ -311,10 +311,10 @@ export default function start(ctx) {
     }
 
     prev = valuesAt(time.now()); prevT = time.now();
-    soundHint(panel, sound, 'move over the map, or turn Instruments off and press Play orchestra.');
+    soundHint(panel, sound, 'click the map, or turn Instruments off and press Play orchestra.');
     setView(s.atlas);
     describe(s.atlas
-      ? `World orchestra, Instruments: ${centers.length} regions. Move the mouse, touch, or use the arrow keys on the map to hear each region's instrument. Square brackets jump between regions. Turn Instruments off to hear the data.`
+      ? `World orchestra, Instruments: ${centers.length} regions. Click, tap, or use the arrow keys on the map to hear each region's instrument. Square brackets jump between regions. Turn Instruments off to hear the data.`
       : `World orchestra ready: ${cities.length} cities, ${centers.length} musical centers. Threshold ${fmtV(s.threshold)}. Press Play orchestra, or explore the map with the arrow keys.`);
 
     return () => {

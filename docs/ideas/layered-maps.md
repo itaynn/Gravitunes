@@ -1,6 +1,6 @@
 # Layered maps
 
-**Status:** built (`app/modes/layered-maps/`)
+**Status:** built as Explore (`app/modes/explore/`), one dataset at a time
 
 ## What you hear
 Pick several maps (ozone, CO, NOx) and hear them together, each as its own instrument, to compare where and when they rise.

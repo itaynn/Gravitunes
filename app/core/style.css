@@ -87,3 +87,9 @@ body.gt-mode { height: 100vh; height: 100dvh; display: flex; flex-direction: col
   .gt-mode .bar .control label { font-size: .75rem; }
   .gt-mode .drawer { top: auto; left: 0; width: auto; max-height: 70dvh; border-radius: 10px 10px 0 0; }
 }
+/* Portrait phones: a 2:1 map would leave most of the screen empty, so the map fills the free height
+   (stretched north-south, at most 3x; clicks and keys still map to the right place). */
+@media (max-width: 640px) and (orientation: portrait) {
+  .gt-mode .stage { align-items: stretch; padding-top: 4px; }
+  .gt-mode .mapbox { width: 100cqw; height: min(100cqh, 150cqw); aspect-ratio: auto; }
+}

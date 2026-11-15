@@ -8,9 +8,14 @@ import './switcher.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
-// Timbre atlas became World orchestra's Instruments view: old links land there.
-const redirected = params.get('mode') === 'timbre-atlas';
-if (redirected) location.replace(`?mode=world-orchestra&instruments=1`);
+// Merged modes: old links land on their successor (keeping ?dataset=). Timbre atlas became World orchestra's
+// Instruments view; Ozone probe and Layered maps became Explore.
+const REDIRECTS = { 'timbre-atlas': 'world-orchestra&instruments=1', 'ozone-probe': 'explore', 'layered-maps': 'explore' };
+const redirected = REDIRECTS[params.get('mode')];
+if (redirected) {
+  const ds = params.get('dataset');
+  location.replace(`?mode=${redirected}${ds ? `&dataset=${encodeURIComponent(ds)}` : ''}`);
+}
 const modeName = params.get('mode') || '_template';
 
 function pickDataset(meta) {

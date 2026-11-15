@@ -1,8 +1,33 @@
 {
   "modes": [
     {
+      "id": "explore",
+      "name": "Explore",
+      "summary": "One NASA map at a time: ozone, carbon monoxide, nitrogen oxides or rain. Click, tap or use the arrow keys: higher values play higher notes on that map's own instrument.",
+      "author": "moran",
+      "description": "Pick a dataset with the Data menu (ozone, carbon monoxide, nitrogen oxides from NASA's GEOS-CF model, or IMERG rain): the map shows it and you hear only it, on its own recorded instrument and pitch range (carbon monoxide cello low, ozone flute in the middle, nitrogen oxides koto higher, rain marimba). Higher values play higher notes. Click, tap or use the arrow keys; hovering only announces. Press Play to hear a spot change over time.",
+      "datasets": [
+        "5152",
+        "5153",
+        "5154",
+        "4285"
+      ],
+      "standalone": {
+        "every": 6,
+        "files": [
+          "sound-engine/library/samples/index.json",
+          "sound-engine/library/samples/cello-*",
+          "sound-engine/library/samples/flute-*",
+          "sound-engine/library/samples/koto-*",
+          "sound-engine/library/samples/marimba-*"
+        ]
+      },
+      "hd": true
+    },
+    {
       "id": "flow-tracers",
       "name": "Flow tracers",
+      "summary": "NASA IMERG rain with particles following its motion. Press Play: tracers over rain sing, heavier rain higher and louder.",
       "author": "moran",
       "description": "NASA's real-time precipitation (IMERG) over the continents, with streams of particles following the rain's motion. Yellow tracers over rain sing: heavier rain plays higher and louder, west to east pans left to right.",
       "datasets": [
@@ -10,87 +35,71 @@
       ],
       "datasetDirs": {
         "4285": "data/4285/"
-      }
-    },
-    {
-      "id": "layered-maps",
-      "name": "Layered maps",
-      "summary": "One gas at a time, from NASA's GEOS-CF model. Higher values play higher notes in that gas's own instrument; hover, touch or use the arrow keys.",
-      "author": "moran",
-      "description": "Pick one gas with the Dataset menu (ozone, carbon monoxide or nitrogen oxides): the map shows that gas and you hear only it, in its own instrument and pitch range (carbon monoxide low, ozone in the middle, nitrogen oxides higher). Higher values play higher notes. Hover, touch or use the arrow keys.",
-      "datasets": [
-        "5152",
-        "5153",
-        "5154"
-      ],
-      "standalone": {
-        "every": 6
-      }
+      },
+      "hd": false
     },
     {
       "id": "mapping-lab",
       "name": "Mapping lab",
-      "summary": "Hundreds of points across the map play a note when the gas rises past a threshold. Choose what drives pitch, loudness and pan under More.",
+      "summary": "Hundreds of points across the map play a note when the data rises past a threshold. Choose what drives pitch, loudness and pan under More.",
       "author": "moran",
-      "description": "About 300 grid points play a note when the data rises past a threshold. Choose what drives each part of the sound (pitch, loudness, pan, brightness, depth, attack, timbre family) from longitude, latitude, value or change, flip any mapping, try presets, and share the mapping by link. Hover or use the arrow keys to hear one point and hear how it was mapped.",
+      "description": "About 300 grid points play a note when the data rises past a threshold. Choose what drives each part of the sound (pitch, loudness, pan, brightness, depth, attack, timbre family) from longitude, latitude, value or change, flip any mapping, try presets, and share the mapping by link. Click, tap or use the arrow keys to hear one point and how it was mapped; hovering only describes it.",
       "datasets": [
         "5152",
         "5153",
-        "5154"
+        "5154",
+        "4285"
       ],
       "standalone": {
         "every": 6
-      }
-    },
-    {
-      "id": "ozone-probe",
-      "name": "Ozone probe",
-      "summary": "Near-surface ozone from NASA's GEOS-CF model. Hover, touch or use the arrow keys: more ozone plays a higher note.",
-      "author": "moran",
-      "description": "Explore near-surface ozone by hover, touch or arrow keys: higher ozone plays a higher note, patchy areas sound brighter, east/west pans left/right. Play the timeline to hear it change over two weeks.",
-      "datasets": [
-        "5152"
-      ]
+      },
+      "hd": true
     },
     {
       "id": "precipitation-ball",
       "name": "Precipitation ball",
+      "summary": "A ball rolls over a terrain raised by NASA IMERG rain, and its motion makes the sound.",
       "author": "itay",
       "description": "Place a ball on the moving IMERG precipitation video; rain raises a terrain whose slope rolls the ball around, with Web Audio sound following its motion. Keyboard: focus the map, Enter places the ball, arrows move it. From itay's clustering branch.",
       "datasets": [
         "4285"
       ],
       "source": "itay, branch clustering",
-      "href": "index.html"
+      "href": "index.html",
+      "hd": false
     },
     {
       "id": "scanning-line",
       "name": "Scanning line",
+      "summary": "A line sweeps one NASA IMERG rain map west to east and plays it: low notes at the bottom, high at the top, louder where it rains harder.",
       "author": "itay",
       "description": "A line sweeps across one global IMERG precipitation frame from west to east and plays it as notes on a C major scale, low (C2) at the bottom of the map and high (C5) at the top; the heaviest rain in each band sets that note's volume. From itay's scanning-line-demo branch.",
       "datasets": [
         "4285"
       ],
       "source": "itay, branch scanning-line-demo",
-      "href": "index.html"
+      "href": "index.html",
+      "hd": false
     },
     {
       "id": "storm-watch",
       "name": "Storm watch",
-      "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Hover a storm to hear it: north sounds higher, bigger storms louder.",
+      "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: north sounds higher, bigger storms louder.",
       "author": "itay",
-      "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Hover, or press N and P on the map, to hear about each storm: north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
+      "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
       "datasets": [
         "4285"
       ],
       "datasetDirs": {
         "4285": "data/4285/"
       },
-      "source": "itay, branch clustering"
+      "source": "itay, branch clustering",
+      "hd": false
     },
     {
       "id": "synth-lab",
       "name": "Tone lab",
+      "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to A5.",
       "author": "moran",
       "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to A5.",
       "datasets": "none",
@@ -101,11 +110,13 @@
           "sound-engine/library/presets/*.json",
           "sound-engine/library/samples/*"
         ]
-      }
+      },
+      "hd": false
     },
     {
       "id": "vortex-melodies",
       "name": "Vortex melodies",
+      "summary": "Swirling storms in NASA IMERG rain, found by optical flow. Press Play: each swirl loops a tune, faster spin plays faster.",
       "author": "moran",
       "description": "Swirling storms in NASA real-time precipitation (IMERG), found by optical flow and tracked over the day. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where rain converges.",
       "datasets": [
@@ -113,24 +124,28 @@
       ],
       "datasetDirs": {
         "4285": "data/4285/"
-      }
+      },
+      "hd": false
     },
     {
       "id": "world-orchestra",
       "name": "World orchestra",
+      "summary": "The world's musical regions on one map, each with its own recorded instrument. Click or use the arrow keys to hear a region; turn Instruments off and press Play to hear cities play the data.",
       "author": "moran",
-      "description": "The world's musical regions on one map. Instruments (on at first): move the mouse, touch, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...). Turn it off and about 280 cities play the data: a city whose value rises past a threshold plays one note in its region's voice.",
+      "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); hovering only names the region. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
       "datasets": [
         "5152",
         "5153",
-        "5154"
+        "5154",
+        "4285"
       ],
       "standalone": {
         "every": 6,
         "files": [
           "sound-engine/library/samples/*"
         ]
-      }
+      },
+      "hd": true
     }
   ]
 }

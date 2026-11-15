@@ -1,9 +1,0 @@
-{
-  "name": "Ozone probe",
-  "summary": "Near-surface ozone from NASA's GEOS-CF model. Hover, touch or use the arrow keys: more ozone plays a higher note.",
-  "author": "moran",
-  "description": "Explore near-surface ozone by hover, touch or arrow keys: higher ozone plays a higher note, patchy areas sound brighter, east/west pans left/right. Play the timeline to hear it change over two weeks.",
-  "datasets": [
-    "5152"
-  ]
-}
