@@ -80,7 +80,7 @@ export default function start(ctx) {
       const envelope = sustained ? { attack: dur * 0.3, decay: 0.1, sustain: 0.9, release: dur * 0.3 } : sh.envelope;
       const glide = sustained && tr.lastFreq && tr.lastFreq !== freq ? { to: freq, time: dur * 0.5 } : undefined;
       sound.play({ freq: glide ? tr.lastFreq : freq, amp, pan, dur, t, sample: vf.sample, harmonics: sh.harmonics, partials: sh.partials, envelope,
-        noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah, glide, lowpass: 400 + 1600 * speedBrightness(tr.speed || 0) });
+        noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah, glide, lowpass: 6000 + 6000 * speedBrightness(tr.speed || 0) });
       return freq;
     }
 

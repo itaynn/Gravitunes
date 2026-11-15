@@ -63,7 +63,7 @@ export function pickVoices(tracers, maxVoices, minValue = 0.06) {
     .map((x) => x.i);
 }
 
-// Speed (km/h) -> 0..1 brightness, relative to a typical top speed. Used for lowpass cutoff.
+// Speed (km/h) -> 0..1 brightness, relative to a typical top speed. Mild brightness: lowpass 6-12 kHz, never duller.
 export const speedBrightness = (kmh, top = 60) => Math.max(0, Math.min(1, kmh / top));
 
 // Hover: speed -> notes per second (1..6), and the pan glide from the point along the motion.
