@@ -85,7 +85,7 @@ Gotchas found:
 
 ## Data location
 
-Everything downloaded goes to `data/nasa-svs/<id>/` (git-ignored). Override with `GRAVITUNES_DATA_DIR`.
+Source movies, downloaded PNG frames, and intermediate NumPy files go to `data/nasa-svs/<id>/` and remain git-ignored. `gravitunes_data export` writes compact browser grids to `data/nasa-svs/<id>/web/`; the app's deployment datasets selectively include these exported grids and color bars. Override the tool's data root with `GRAVITUNES_DATA_DIR`.
 
 ## Raw science data (not implemented)
 
