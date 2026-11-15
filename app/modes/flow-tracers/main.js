@@ -50,7 +50,8 @@ export default function start(ctx) {
       let lat = 0, lon = 0;
       for (let k = 0; k < 25; k++) {
         lat = (Math.asin(random() * 2 - 1) * 180) / Math.PI * 0.9; lon = random() * 360 - 180;
-        if (val(lat, lon, t) >= DRY) break;
+        // Anywhere the motion is known (not only over signal), so streams cover the whole map.
+        if (flowAt(flow, lat, lon, t)) break;
       }
       return Object.assign(p, { lat, lon, age: 0, idle: 0, life: 40 + random() * 60 });
     }
@@ -60,6 +61,8 @@ export default function start(ctx) {
       parts = Array.from({ length: s.particles }, () => spawn());
       parts.forEach((p) => { p.age = random() * p.life; });
       clearTrails();
+      // Warm up: advect the particles one tail length so streams show before Play (and after a Data or Tracers change).
+      for (let k = 0; k < KEEP; k++) stepParts(time.now(), 0);
     }
 
     function voiceFor(tr) {
@@ -191,14 +194,18 @@ export default function start(ctx) {
     const STEP = 0.1, KEEP = 25;
     function clearTrails() { parts.forEach((p) => { p.hist = []; }); tracers.forEach((tr) => { tr.hist = []; }); }
     let last = performance.now(), acc = 0, raf = 0;
-    function step() {
-      const t = time.now(), ph = backdrop.phase();
-      const hours = STEP * (time.fps || 2) * dtH * s.drift;
+    const stepHours = () => STEP * (time.fps || 2) * dtH * s.drift;
+    function stepParts(t, ph) {
+      const hours = stepHours();
       for (const p of parts) {
         (p.hist ||= []).push([p.lat, p.lon]);
         if (p.hist.length > KEEP) p.hist.shift();
         if (!moveParticle(p, flowBetween(flow, p.lat, p.lon, t, ph, time.count), hours)) { spawn(p); p.hist = []; }
       }
+    }
+    function step() {
+      const t = time.now(), ph = backdrop.phase(), hours = stepHours();
+      stepParts(t, ph);
       for (const tr of tracers) {
         (tr.hist ||= []).push([tr.lat, tr.lon]);
         if (tr.hist.length > KEEP) tr.hist.shift();
@@ -244,8 +251,19 @@ export default function start(ctx) {
       backdrop.draw(g, vw);
       if (s.arrows) drawFlowArrows(g, vw, flow, time.now());
       const W = vw.canvas.width;
-      // Thin, faint streams so the NASA rain colours dominate; only the tracers sounding now are drawn.
-      tails(g, vw, parts, (a) => `rgba(235,245,255,${0.35 * a})`, Math.max(0.6, W / 1800));
+      // Streams: every particle is always drawn (tail + head dot). Over signal brighter, elsewhere dimmer but visible.
+      const t = time.now(), on = [], off = [];
+      for (const p of parts) (val(p.lat, p.lon, t) >= DRY ? on : off).push(p);
+      tails(g, vw, off, (a) => `rgba(200,215,235,${0.4 * a})`, Math.max(1, W / 1400));
+      tails(g, vw, on, (a) => `rgba(255,255,255,${0.75 * a})`, Math.max(1.2, W / 1100));
+      const heads = (list, fill, rad) => {
+        g.beginPath();
+        for (const p of list) { const [x, y] = vw.toPixel(p.lat, p.lon); g.moveTo(x + rad, y); g.arc(x, y, rad, 0, 7); }
+        g.fillStyle = fill; g.fill(); g.lineWidth = 0.75; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      };
+      heads(off, 'rgba(200,215,235,0.6)', Math.max(1.3, W / 1000));
+      heads(on, 'rgba(255,255,255,0.95)', Math.max(1.6, W / 800));
+      // Only the tracers sounding now are drawn in yellow.
       const now = tracers.filter((tr) => singing.has(tr.id));
       tails(g, vw, now, (a) => `rgba(255,209,102,${0.9 * a})`, Math.max(2, W / 500));
       g.save();
