@@ -93,7 +93,7 @@
     {
       "id": "synth-lab",
       "name": "Tone lab",
-      "summary": "A world map of instruments: click a region to hear its note, scale, chord or phrase, once or on a loop.",
+      "summary": "Hear each region's instrument: click the map. Note, Scale and Chord play the same pitch everywhere, so only the instrument changes.",
       "author": "moran",
       "description": "Every region of the world has its own instrument. Click or tap a region, or use the arrow keys and Enter, to hear a note, a scale, a chord or its typical phrase, once or on a loop. Recorded and analysed instruments are in the Instrument list.",
       "datasets": "none",
@@ -125,26 +125,6 @@
       },
       "standalone": {
         "files": [
-          "sound-engine/library/samples/*"
-        ]
-      },
-      "hd": false
-    },
-    {
-      "id": "world-orchestra",
-      "name": "World orchestra",
-      "summary": "Compare the world's instruments: click a region and it plays the same notes as every other region, on its own recorded instrument.",
-      "author": "moran",
-      "description": "The world's musical regions on one map, each with a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...). Click or tap a region, or use the arrow keys and Enter, to play it. Pitch, Melody and Scale are the same for every region, so only the instrument changes.",
-      "datasets": "none",
-      "data": false,
-      "standalone": {
-        "files": [
-          "data/earth/instruments.json",
-          "data/earth/musical-centers.json",
-          "data/earth/coastlines.json",
-          "data/earth/borders.json",
-          "data/earth/land.json",
           "sound-engine/library/samples/*"
         ]
       },

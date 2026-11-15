@@ -14,5 +14,6 @@
       "data/earth/land.json",
       "sound-engine/library/samples/*"
     ]
-  }
+  },
+  "hidden": true
 }

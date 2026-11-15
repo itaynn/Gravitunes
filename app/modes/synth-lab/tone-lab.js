@@ -31,7 +31,7 @@ scaleControl(createPanel($('#tone-scale')), { value: 'pentatonic-major', own: 'I
 let instruments = {}, centers = [], library = [], samples = {};
 let current = null;   // { label, voice, name? }
 let region = null;    // the selected musical center, or null when a non-map instrument is chosen
-let kind = 'phrase', loopTimer = 0;
+let kind = 'scale', loopTimer = 0;
 
 try {
   const [ij, mj] = await Promise.all([loadEarth('instruments'), loadEarth('musical-centers')]);

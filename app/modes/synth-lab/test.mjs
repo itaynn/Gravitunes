@@ -33,10 +33,11 @@ assert.equal(toneNotes({}, noteHz(-12), 'scale', 'slendro').length, 6);
 assert.deepEqual(chordSteps(SCALES['pentatonic-major'].cents), [0, 2, 3]);
 for (const id of PLEASANT) assert.equal(toneNotes({}, noteHz(-12), 'chord', id).length, 3, id);
 
-// Gallery / switcher order: tone lab, world orchestra, then the rest in index order.
+// Gallery / switcher order: tone lab first (world orchestra is hidden), then the rest in index order.
 const { modes } = JSON.parse(readFileSync(join(root, 'app/modes/index.json'), 'utf8'));
 const ids = orderModes(modes).map((m) => m.id);
-assert.deepEqual(ids.slice(0, 2), ['synth-lab', 'world-orchestra']);
+assert.equal(ids[0], 'synth-lab');
+assert.ok(!ids.includes('world-orchestra'));
 assert.equal(ids.length, modes.length);
 assert.equal(oneLine('One. Two.'), 'One.');
 {
