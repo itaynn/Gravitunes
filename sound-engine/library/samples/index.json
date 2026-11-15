@@ -125,17 +125,27 @@
   ]
  },
  "fiddle": {
-  "label": "Fiddle",
+  "label": "Fiddle (solo violin)",
   "kind": "sustain",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Fiddle: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "CC0 1.0",
+  "source": "VSCO-2 Community Edition (Versilian Studios)",
+  "attribution": "\"Solo Violin, arco vibrato\" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE",
   "zones": [
    {
     "file": "fiddle-0.mp3",
-    "f0": 261.626,
-    "bytes": 10197
+    "f0": 196.0,
+    "bytes": 5841
+   },
+   {
+    "file": "fiddle-1.mp3",
+    "f0": 330.8,
+    "bytes": 5841
+   },
+   {
+    "file": "fiddle-2.mp3",
+    "f0": 523.25,
+    "bytes": 5841
    }
   ]
  },
@@ -267,40 +277,35 @@
  "accordion": {
   "label": "Accordion",
   "kind": "sustain",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Accordion: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Accordion registers.ogg\" by Necz0r, Public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Accordion_registers.ogg",
   "zones": [
    {
     "file": "accordion-0.mp3",
-    "f0": 130.813,
-    "bytes": 10197
+    "f0": 261.5,
+    "bytes": 4545
    },
    {
     "file": "accordion-1.mp3",
-    "f0": 261.626,
-    "bytes": 10197
+    "f0": 525.9,
+    "bytes": 4977
    }
   ]
  },
  "bandoneon": {
   "label": "Bandoneon",
   "kind": "sustain",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Bandoneon: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Registre bandonéon.ogg\" by Levieuxtoby, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Registre_bandon%C3%A9on.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
   "zones": [
    {
     "file": "bandoneon-0.mp3",
-    "f0": 130.813,
-    "bytes": 10197
-   },
-   {
-    "file": "bandoneon-1.mp3",
-    "f0": 261.626,
-    "bytes": 10197
+    "f0": 220.0,
+    "bytes": 6129
    }
   ]
  },

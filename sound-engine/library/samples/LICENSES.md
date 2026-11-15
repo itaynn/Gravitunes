@@ -8,7 +8,7 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `koto-*.mp3`: Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `kalimba-*.mp3`: Kalimba: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `bagpipe-*.mp3`: "Amazing Grace (Bagpipes)" by the US Air Force Bands Program, public domain (work of the US government), via Internet Archive: https://archive.org/details/AmazingGraceBagpipes
-- `fiddle-*.mp3`: Fiddle: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
+- `fiddle-*.mp3`: "Solo Violin, arco vibrato" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE
 - `shanai-*.mp3`: Shehnai: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `steel_drums-*.mp3`: Steel drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `taiko-*.mp3`: Taiko drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
@@ -17,8 +17,8 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `agogo-*.mp3`: Agogo bells: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `pan_flute-*.mp3`: Pan flute: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `ocarina-*.mp3`: Ocarina: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
-- `accordion-*.mp3`: Accordion: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
-- `bandoneon-*.mp3`: Bandoneon: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
+- `accordion-*.mp3`: "Accordion registers.ogg" by Necz0r, Public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Accordion_registers.ogg
+- `bandoneon-*.mp3`: "Registre bandonéon.ogg" by Levieuxtoby, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Registre_bandon%C3%A9on.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
 - `harmonica-*.mp3`: Harmonica: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `nylon_guitar-*.mp3`: Nylon-string guitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `steel_guitar-*.mp3`: Steel-string guitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
