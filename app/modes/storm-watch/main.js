@@ -78,6 +78,8 @@ export default function start(ctx) {
     const phase = new Map();
     let playing = [];   // [{ c, reg, tune, gain }] for this frame
     let clock = performance.now() / 1000;
+    // Tunes follow the playback Speed menu gently: 50% speed = loop about 1.4x slower (square root keeps notes playable).
+    const loopLen = (it) => it.tune.loop * Math.sqrt(2 / Math.max(0.1, time.fps || 2));
     function loopOf(id, loop, now) {
       let p = phase.get(id);
       if (!p) { p = { t0: now, loop }; phase.set(id, p); }
@@ -98,11 +100,11 @@ export default function start(ctx) {
       items.forEach((it, i) => { it.gain = gains[i]; });
       playing = items.filter((it) => it.gain > 0);
       const now = performance.now() / 1000;
-      for (const it of playing) loopOf(it.c.id, it.tune.loop, now);
+      for (const it of playing) loopOf(it.c.id, loopLen(it), now);
     }
     const freqOf = (it, k) => tuneFreq(tones(), noteHz(it.tune.root), tuneSteps(it.tune.n)[k % it.tune.n]);
     function playStep(it, k, at) {
-      const freq = freqOf(it, k), sh = shapeForPitch(it.reg.voice, freq), step = it.tune.loop / it.tune.n;
+      const freq = freqOf(it, k), sh = shapeForPitch(it.reg.voice, freq), step = loopLen(it) / it.tune.n;
       sound.play({ freq, amp: 0.4 * it.gain, pan: panOf(it.reg.lon), sample: it.reg.sample, t: Math.max(0, at - performance.now() / 1000),
         dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
         vibrato: sh.vibrato, wah: sh.wah });
@@ -113,7 +115,7 @@ export default function start(ctx) {
       const now = performance.now() / 1000, to = now + 0.15;
       if (time.playing) {
         for (const it of playing) {
-          const p = loopOf(it.c.id, it.tune.loop, now);
+          const p = loopOf(it.c.id, loopLen(it), now);
           for (const { k, at } of dueNotes(it.tune.n, p.loop, p.t0, Math.max(lastTick, now), to)) playStep(it, k, at);
         }
       }

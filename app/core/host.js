@@ -158,6 +158,11 @@ async function main() {
     const showPlay = (p) => { playBtn.innerHTML = p ? '&#9632; Stop' : '&#9654; Play'; playBtn.setAttribute('aria-label', p ? 'Stop' : 'Play'); };
     time.onPlayState(showPlay); showPlay(false);
     onSpace(() => playBtn.click());   // Space = Play/Stop anywhere (map too), not in fields or on buttons
+    // Speed: how fast the data animation plays (100% = 2 frames per second); modes scale their tunes from time.fps.
+    const SPEEDS = [30, 50, 60, 70, 80, 90, 100];
+    const speedSel = tl.select('Speed', SPEEDS.map((p) => [String(p), `${p}%`]), (v) => {
+      time.setSpeed(2 * Number(v) / 100); describe(`Speed ${v}%`);
+    }, { value: '100', hint: 'How fast the data plays; the tunes follow.' });
     const slider = tl.slider('Time', { min: 0, max: time.count - 1, step: 1, value: 0, format: (n) => time.label(n) },
       (n) => time.seek(n));
     const timeText = $('#time-label');
