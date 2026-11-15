@@ -2,6 +2,8 @@
 
 New types of data sonification.
 
+The code is deployed at https://gravitunes-28qp.vercel.app/app/modes/storm-picker/index.html.
+
 Main app is at ./app/modes/storm-picker/index.html.
 
 # 🇮🇱 עברית:
