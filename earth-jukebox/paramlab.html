@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090d18">
+    <meta
+      name="description"
+      content="Listen to every Sound lab parameter on its own and in combination, then pick what sounds best."
+    >
+    <title>Parameter lab — Earth Jukebox</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./sonification.css">
+    <link rel="stylesheet" href="./soundlab.css">
+    <link rel="stylesheet" href="./paramlab.css">
+    <script src="./paramlab.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="masthead">
+        <a class="brand" href="./" aria-label="Earth Jukebox home">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span>EARTH JUKEBOX <span class="brand-divider">/</span> PARAMETER LAB</span>
+        </a>
+        <nav class="masthead-links" aria-label="Related experiments">
+          <a class="source-link" href="./sonification.html#sound-lab">Sound lab <span aria-hidden="true">↗</span></a>
+          <a class="source-link" href="./">Motion study <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <section class="lab pl" aria-labelledby="pl-title">
+        <div class="sonification-heading">
+          <div>
+            <p class="eyebrow">SOUND LAB / EVERY PARAMETER</p>
+            <h1 id="pl-title" class="lab-title">Hear each one,<br><em>then together.</em></h1>
+          </div>
+          <p class="sonification-copy">
+            Every sound parameter from the Sound lab, with the same instruments.
+            <strong>Solo</strong> a parameter to hear only it change while
+            everything else stays on a plain reference sound. Then choose what
+            each one does <strong>in the mix</strong> and play them all together.
+            Save the combinations you like as candidates and switch between them
+            while they play. When you've decided, send the result to the Sound lab.
+          </p>
+        </div>
+
+        <div class="pl-transport" id="pl-transport">
+          <div class="pl-transport-main">
+            <button class="button button-primary" id="pl-play-mix" type="button">
+              <span class="button-icon" aria-hidden="true">▶</span>
+              <span>Play all together</span>
+            </button>
+            <button class="button button-secondary" id="pl-stop" type="button" disabled>■ Stop</button>
+            <div class="pl-now-playing" aria-live="polite">
+              <span id="pl-now-what">Nothing playing</span>
+              <b id="pl-now-notes"></b>
+            </div>
+          </div>
+          <div class="pl-transport-tools">
+            <fieldset class="lab-segment lab-profile-tabs" id="pl-profile">
+              <legend class="visually-hidden">Which sound to edit and hear</legend>
+              <label style="--profile: #9be15d"><input type="radio" name="pl-profile" value="rain"><span><i class="lab-profile-dot"></i>Rain</span></label>
+              <label style="--profile: #6fd3ff"><input type="radio" name="pl-profile" value="snow"><span><i class="lab-profile-dot"></i>Snow</span></label>
+            </fieldset>
+            <fieldset class="lab-segment" id="pl-material">
+              <legend class="visually-hidden">What to play</legend>
+              <label><input type="radio" name="pl-material" value="motif"><span>Little tune</span></label>
+              <label><input type="radio" name="pl-material" value="note"><span>One note</span></label>
+            </fieldset>
+            <label class="lab-check"><input type="checkbox" id="pl-strict"> Strict tuning</label>
+            <label class="slider-control mini pl-volume" for="pl-volume">
+              <span class="slider-heading"><span>Volume</span><output id="pl-volume-out" for="pl-volume"></output></span>
+              <input id="pl-volume" type="range" min="0" max="1" step="0.01">
+            </label>
+          </div>
+        </div>
+        <p class="sonification-status" id="pl-status" role="status" aria-live="polite">Press any ▶ to start sound.</p>
+
+        <h2 class="lab-subhead">01 / ONE AT A TIME</h2>
+        <p class="lab-help lab-help-top">
+          Each ▶ solos that parameter: only it changes, and everything else
+          plays a plain reference (pure tone, middle C, quarter notes, C major).
+          <em>From</em> and <em>To</em> are the Sound lab's range for that row:
+          when the row is driven by the map, the sound moves between them;
+          when it's manual, only <em>From</em> is used. <em>Sweep</em> moves
+          From → To → From over 8 seconds. List parameters can also
+          <em>cycle</em> through every option, two bars each.
+        </p>
+        <div class="pl-cards" id="pl-cards"></div>
+
+        <h2 class="lab-subhead">02 / ALL TOGETHER</h2>
+        <p class="lab-help lab-help-top">
+          The <em>In the mix</em> switch on each card decides what that
+          parameter does when you press <strong>Play all together</strong>:
+          <em>Off</em> keeps the reference, <em>From</em> or <em>To</em> holds
+          that end, and <em>Sweep</em> moves it, the way a storm moving across
+          the map would. All sweeping parameters move together, like one storm.
+          Changes are heard right away while it plays.
+        </p>
+        <div class="pl-together">
+          <div class="pl-mix-summary" id="pl-mix-summary"></div>
+          <div class="pl-together-tools">
+            <button class="button button-secondary" type="button" id="pl-mix-soundlab">Mix like the Sound lab</button>
+            <button class="button button-secondary" type="button" id="pl-mix-none">Everything off</button>
+          </div>
+        </div>
+        <div class="pl-cards pl-cards-together" id="pl-cards-together"></div>
+
+        <h2 class="lab-subhead">03 / CANDIDATES: COMPARE AND DECIDE</h2>
+        <p class="lab-help lab-help-top">
+          Save the current settings (rain, snow, global sound and the mix) as a
+          candidate. Press ▶ on another candidate while one plays to switch
+          instantly, A/B style. Candidates are saved in this browser; use
+          <em>Copy choices</em> to share one with the team.
+        </p>
+        <form class="pl-save" id="pl-save">
+          <label class="visually-hidden" for="pl-save-name">Candidate name</label>
+          <input class="pl-input" id="pl-save-name" type="text" maxlength="60" placeholder="Name this candidate, e.g. “Warm organ rain”">
+          <button class="button button-secondary" type="submit">Save candidate</button>
+        </form>
+        <ol class="pl-candidates" id="pl-candidates"></ol>
+
+        <div class="pl-export">
+          <button class="button button-primary" type="button" id="pl-apply">Send to Sound lab</button>
+          <button class="button button-secondary" type="button" id="pl-copy">Copy choices</button>
+          <button class="button button-secondary" type="button" id="pl-import">Load from Sound lab</button>
+          <button class="button button-secondary" type="button" id="pl-reset">Reset to defaults</button>
+        </div>
+        <p class="lab-help">
+          <strong>Send to Sound lab</strong> writes the rain and snow sounds
+          (key, scale, ranges, instrument, chord, notes) and the global sound
+          (voices, tempo, glide, reverb, blend, volume, strict tuning) into the
+          Sound lab's saved settings. What drives each row (X, Y, color…) is
+          kept. Reload the Sound lab page to hear it there.
+        </p>
+      </section>
+
+      <footer class="footer">
+        <span>AN EXPERIMENT IN DATA, SOUND &amp; MOTION</span>
+        <span>SAME SYNTH AS THE SOUND LAB</span>
+      </footer>
+    </main>
+  </body>
+</html>

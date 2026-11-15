@@ -78,7 +78,18 @@ Below the scan-line demo, `sonification.html#sound-lab` plays the moving SVS 428
   - Chords in scales that don't have 7 notes (pentatonic, whole tone, chromatic) use the scale note nearest each real chord interval, so a "5th" is a 5th.
 - **Saving and sharing:** presets and *Randomize* give you starting points. *Copy mapping* copies a readable summary plus JSON to share with the team. Settings are saved in your browser.
 
-Files: [`soundlab.js`](./soundlab.js) and [`soundlab.css`](./soundlab.css). Like the other demos, it needs to be served from localhost so the video pixels can be read.
+## Parameter lab (decide what sounds best)
+
+[`paramlab.html`](./paramlab.html) (linked from the Sound lab) lays out every Sound lab sound parameter as a card, played with the same instruments and synth:
+
+- **Solo** any parameter to hear only it change, against a plain reference (pure tone, middle C, quarter notes, C major). Range rows can sweep From → To or hold either end; Instrument, Chord, Notes and Key & scale can also cycle through every option, two bars each. Voices, tempo, glide and reverb have solos too.
+- **In the mix** on each card sets what that parameter does when you press *Play all together*: off (reference), From, To, or Sweep. All sweeping parameters move together, like one storm crossing the map. *Rain ↔ snow* plays both sounds and fades between them with the blend setting.
+- **Candidates:** save the current settings by name, then press ▶ on another candidate while one plays to switch instantly (A/B).
+- **Send to Sound lab** writes the chosen rain/snow sounds and global sound into the Sound lab's saved settings (what drives each row is kept); *Load from Sound lab* goes the other way. On a first visit the page starts from the Sound lab's current settings.
+
+The synth engine in `paramlab.js` is a copy of the one in `soundlab.js`; if you change an instrument in one, change it in the other.
+
+Files: [`soundlab.js`](./soundlab.js) and [`soundlab.css`](./soundlab.css); [`paramlab.js`](./paramlab.js) and [`paramlab.css`](./paramlab.css). Like the other demos, it needs to be served from localhost so the video pixels can be read.
 
 Storm Watch data: [`data/storm-watch/`](./data/storm-watch/) is a copy of `storm-tracker/data/preprocessed-tracks.json` and `storm-tracker/data/snapshots/` from the `clustering` branch. In the snapshot file names, `:` is replaced with `-`, because Windows can't store `:` in a file name (`imergert_alpha.2026-11-07T00-00-00Z.png`). If the tracker data is regenerated, copy it here again.
 
