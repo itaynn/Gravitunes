@@ -311,7 +311,7 @@
    "region": "Japan",
    "lat": 36.0,
    "lon": 138.5,
-   "instrument": "koto"
+   "instrument": "shakuhachi"
   },
   {
    "id": "vietnam",
@@ -440,6 +440,14 @@
    "lat": -14.0,
    "lon": -71.0,
    "instrument": "panflute"
+  },
+  {
+   "id": "bolivia",
+   "label": "Bolivian altiplano",
+   "region": "Bolivia",
+   "lat": -19.5,
+   "lon": -65.5,
+   "instrument": "charango"
   },
   {
    "id": "brazil",

@@ -778,5 +778,70 @@
     "bytes": 1953
    }
   ]
+ },
+ "shakuhachi": {
+  "label": "Shakuhachi",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "CC0",
+  "source": "Internet Archive",
+  "attribution": "\"Iwashimizu\" (Tozan-ryu honkyoku) performed by Iburozan, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/Iwashimizu",
+  "zones": [
+   {
+    "file": "shakuhachi-0.mp3",
+    "f0": 291.2,
+    "bytes": 6129
+   },
+   {
+    "file": "shakuhachi-1.mp3",
+    "f0": 589.5,
+    "bytes": 6561
+   },
+   {
+    "file": "shakuhachi-2.mp3",
+    "f0": 783.1,
+    "bytes": 6561
+   }
+  ]
+ },
+ "charango": {
+  "label": "Charango",
+  "kind": "pluck",
+  "realism": "recorded",
+  "license": "CC0",
+  "source": "Internet Archive",
+  "attribution": "\"con mi charango\" by pjgrau, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/ConMiCharango_104",
+  "zones": [
+   {
+    "file": "charango-0.mp3",
+    "f0": 333.0,
+    "bytes": 1953
+   },
+   {
+    "file": "charango-1.mp3",
+    "f0": 442.4,
+    "bytes": 3393
+   }
+  ]
+ },
+ "talking_drum": {
+  "label": "Talking drum",
+  "kind": "hit",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Internet Archive (radio aporee)",
+  "attribution": "\"Talking Drum - Tutu, Akuapim North, Ghana\" recorded by Massimo Carozzi (Unfolding Cultural Heritage), drummer Okyeame Fredrick Akuffo, Public Domain Mark 1.0, via Internet Archive / radio aporee: https://archive.org/details/aporee_69353_80706",
+  "zones": [
+   {
+    "file": "talking_drum-0.mp3",
+    "f0": 146.4,
+    "bytes": 1521
+   },
+   {
+    "file": "talking_drum-1.mp3",
+    "f0": 219.0,
+    "bytes": 1233
+   }
+  ]
  }
 }

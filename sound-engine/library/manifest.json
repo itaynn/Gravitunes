@@ -1472,6 +1472,97 @@
           "dur": 0.32
         }
       ]
+    },
+    {
+      "id": "shakuhachi",
+      "label": "Shakuhachi",
+      "kind": "sustain",
+      "source": "Internet Archive",
+      "license": "CC0",
+      "author": "Iburozan",
+      "page": "https://archive.org/details/Iwashimizu",
+      "attribution": "\"Iwashimizu\" (Tozan-ryu honkyoku) performed by Iburozan, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/Iwashimizu",
+      "zones": [
+        {
+          "url": "https://archive.org/download/Iwashimizu/Iwashimizu_Nov2010.ogg",
+          "note": null,
+          "f0": 291.2,
+          "start": 84.0,
+          "dur": 1.4
+        },
+        {
+          "url": "https://archive.org/download/Iwashimizu/Iwashimizu_Nov2010.ogg",
+          "note": null,
+          "f0": 589.5,
+          "start": 21.3,
+          "dur": 1.5
+        },
+        {
+          "url": "https://archive.org/download/Iwashimizu/Iwashimizu_Nov2010.ogg",
+          "note": null,
+          "f0": 783.1,
+          "start": 47.3,
+          "dur": 1.5
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
+    },
+    {
+      "id": "charango",
+      "label": "Charango",
+      "kind": "pluck",
+      "source": "Internet Archive",
+      "license": "CC0",
+      "author": "pjgrau",
+      "page": "https://archive.org/details/ConMiCharango_104",
+      "attribution": "\"con mi charango\" by pjgrau, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/ConMiCharango_104",
+      "zones": [
+        {
+          "url": "https://archive.org/download/ConMiCharango_104/ConMiCharango.ogg",
+          "note": null,
+          "f0": 333.0,
+          "start": 10.12,
+          "dur": 0.35
+        },
+        {
+          "url": "https://archive.org/download/ConMiCharango_104/ConMiCharango.ogg",
+          "note": null,
+          "f0": 442.4,
+          "start": 8.06,
+          "dur": 0.7
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
+    },
+    {
+      "id": "talking_drum",
+      "label": "Talking drum",
+      "kind": "hit",
+      "source": "Internet Archive (radio aporee)",
+      "license": "Public domain",
+      "author": "Massimo Carozzi (recording); Okyeame Fredrick Akuffo (drummer)",
+      "page": "https://archive.org/details/aporee_69353_80706",
+      "attribution": "\"Talking Drum - Tutu, Akuapim North, Ghana\" recorded by Massimo Carozzi (Unfolding Cultural Heritage), drummer Okyeame Fredrick Akuffo, Public Domain Mark 1.0, via Internet Archive / radio aporee: https://archive.org/details/aporee_69353_80706",
+      "zones": [
+        {
+          "url": "https://archive.org/download/aporee_69353_80706/TALKINGDRUM.mp3",
+          "note": null,
+          "f0": 146.4,
+          "start": 11.72,
+          "dur": 0.22
+        },
+        {
+          "url": "https://archive.org/download/aporee_69353_80706/TALKINGDRUM.mp3",
+          "note": null,
+          "f0": 219.0,
+          "start": 12.24,
+          "dur": 0.17
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
     }
   ]
 }

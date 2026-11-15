@@ -1212,9 +1212,9 @@
   },
   "talkingdrum": {
    "label": "talking drum",
-   "inspiredBy": "Yoruba dùndún talking drum",
+   "inspiredBy": "Akan / Yoruba talking drum (dondo, dùndún)",
    "family": "hourglass drum whose pitch bends like speech",
-   "sample": "melodic_tom",
+   "sample": "talking_drum",
    "harmonics": [
     1,
     0.3
@@ -3574,6 +3574,131 @@
     "fixedHz": 261.626,
     "about": "teental theka: dha dhin dhin dha (na/tin strokes)"
    }
+  },
+  "shakuhachi": {
+   "label": "shakuhachi",
+   "inspiredBy": "Japanese shakuhachi (bamboo flute)",
+   "family": "breathy end-blown bamboo flute, long bending notes",
+   "sample": "shakuhachi",
+   "harmonics": [
+    1,
+    0.06,
+    0.2,
+    0.03,
+    0.06
+   ],
+   "envelope": {
+    "attack": 0.07,
+    "decay": 0.2,
+    "sustain": 0.7,
+    "release": 0.25
+   },
+   "noise": {
+    "amount": 0.55,
+    "attack": 0.03,
+    "decay": 0.3,
+    "cutoff": 1600
+   },
+   "brightness": 0.25,
+   "dur": 0.55,
+   "gesture": {
+    "scale": [
+     0,
+     100,
+     500,
+     700,
+     800
+    ],
+    "steps": [
+     0,
+     2,
+     1,
+     2,
+     4
+    ],
+    "gap": 0.55,
+    "dur": 0.8,
+    "about": "miyako-bushi (in) scale, slow honkyoku phrasing"
+   },
+   "vibrato": {
+    "rate": 4.5,
+    "depth": 12,
+    "delay": 0.25
+   },
+   "slide": {
+    "cents": -40,
+    "time": 0.06
+   }
+  },
+  "charango": {
+   "label": "charango",
+   "inspiredBy": "Andean charango",
+   "family": "small bright strummed lute",
+   "harmonics": [
+    1,
+    0.8,
+    0.55
+   ],
+   "envelope": {
+    "attack": 0.001,
+    "decay": 0.3,
+    "sustain": 0,
+    "release": 0.15
+   },
+   "partials": [
+    {
+     "ratio": 4,
+     "amp": 0.4,
+     "decay": 0.1
+    },
+    {
+     "ratio": 5,
+     "amp": 0.3,
+     "decay": 0.07
+    },
+    {
+     "ratio": 6,
+     "amp": 0.22,
+     "decay": 0.05
+    },
+    {
+     "ratio": 1.007,
+     "amp": 0.4,
+     "decay": 0.3
+    }
+   ],
+   "noise": {
+    "amount": 0.2,
+    "attack": 0.001,
+    "decay": 0.015,
+    "cutoff": 3200
+   },
+   "brightness": 0.6,
+   "dur": 0.22,
+   "gesture": {
+    "scale": [
+     0,
+     300,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     2,
+     4,
+     3,
+     2
+    ],
+    "gap": 0.2,
+    "tremolo": {
+     "count": 6,
+     "gap": 0.065
+    },
+    "tremoloAll": true,
+    "about": "huayno pentatonic, quick strummed figure"
+   },
+   "sample": "charango"
   }
  }
 }
