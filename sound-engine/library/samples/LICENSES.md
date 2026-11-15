@@ -2,10 +2,10 @@
 
 Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples".
 
-- `sitar-*.mp3`: Sitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
+- `sitar-*.mp3`: "Sitar sample yaman.ogg" by Tito Dutta, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sitar_sample_yaman.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)
 - `banjo-*.mp3`: Banjo: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `shamisen-*.mp3`: Shamisen: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
-- `koto-*.mp3`: Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
+- `koto-*.mp3`: "Kojonotsuki.ogg" by ContributorQ, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Kojonotsuki.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
 - `kalimba-*.mp3`: Kalimba: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `bagpipe-*.mp3`: "Amazing Grace (Bagpipes)" by the US Air Force Bands Program, public domain (work of the US government), via Internet Archive: https://archive.org/details/AmazingGraceBagpipes
 - `fiddle-*.mp3`: "Solo Violin, arco vibrato" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE

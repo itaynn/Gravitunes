@@ -2,20 +2,25 @@
  "sitar": {
   "label": "Sitar",
   "kind": "pluck",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Sitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "CC BY-SA 3.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Sitar sample yaman.ogg\" by Tito Dutta, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sitar_sample_yaman.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
   "zones": [
    {
     "file": "sitar-0.mp3",
-    "f0": 130.813,
-    "bytes": 11277
+    "f0": 261.0,
+    "bytes": 2961
    },
    {
     "file": "sitar-1.mp3",
-    "f0": 261.626,
-    "bytes": 11277
+    "f0": 325.9,
+    "bytes": 4545
+   },
+   {
+    "file": "sitar-2.mp3",
+    "f0": 390.3,
+    "bytes": 2529
    }
   ]
  },
@@ -62,20 +67,20 @@
  "koto": {
   "label": "Koto",
   "kind": "pluck",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Kojonotsuki.ogg\" by ContributorQ, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Kojonotsuki.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
   "zones": [
    {
     "file": "koto-0.mp3",
-    "f0": 130.813,
-    "bytes": 11277
+    "f0": 294.7,
+    "bytes": 2961
    },
    {
     "file": "koto-1.mp3",
-    "f0": 261.626,
-    "bytes": 11277
+    "f0": 442.2,
+    "bytes": 3105
    }
   ]
  },

@@ -393,29 +393,36 @@
       "id": "sitar",
       "label": "Sitar",
       "kind": "pluck",
-      "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-      "license": "MIT",
-      "author": "Frank Wen (FluidR3_GM); renders by Benjamin Gleitzman",
-      "page": "https://member.keymusician.com/Member/FluidR3_GM/index.html",
-      "gm_program": "sitar",
-      "attribution": "Sitar: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 3.0",
+      "author": "Tito Dutta",
+      "page": "https://commons.wikimedia.org/wiki/File:Sitar_sample_yaman.ogg",
+      "attribution": "\"Sitar sample yaman.ogg\" by Tito Dutta, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sitar_sample_yaman.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
       "zones": [
         {
-          "url": "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@master/FluidR3_GM/sitar-mp3/C3.mp3",
-          "note": "C3",
-          "f0": 130.813,
-          "start": 0,
-          "dur": 1.8
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/14/Sitar_sample_yaman.ogg",
+          "note": null,
+          "f0": 261.0,
+          "start": 3.33,
+          "dur": 0.58
         },
         {
-          "url": "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@master/FluidR3_GM/sitar-mp3/C4.mp3",
-          "note": "C4",
-          "f0": 261.626,
-          "start": 0,
-          "dur": 1.8
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/14/Sitar_sample_yaman.ogg",
+          "note": null,
+          "f0": 325.9,
+          "start": 5.08,
+          "dur": 1.0
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/14/Sitar_sample_yaman.ogg",
+          "note": null,
+          "f0": 390.3,
+          "start": 8.88,
+          "dur": 0.5
         }
       ],
-      "realism": "soundfont"
+      "realism": "recorded",
+      "clean": true
     },
     {
       "id": "banjo",
@@ -477,29 +484,29 @@
       "id": "koto",
       "label": "Koto",
       "kind": "pluck",
-      "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-      "license": "MIT",
-      "author": "Frank Wen (FluidR3_GM); renders by Benjamin Gleitzman",
-      "page": "https://member.keymusician.com/Member/FluidR3_GM/index.html",
-      "gm_program": "koto",
-      "attribution": "Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "author": "ContributorQ",
+      "page": "https://commons.wikimedia.org/wiki/File:Kojonotsuki.ogg",
+      "attribution": "\"Kojonotsuki.ogg\" by ContributorQ, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Kojonotsuki.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
       "zones": [
         {
-          "url": "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@master/FluidR3_GM/koto-mp3/C3.mp3",
-          "note": "C3",
-          "f0": 130.813,
-          "start": 0,
-          "dur": 1.8
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Kojonotsuki.ogg",
+          "note": null,
+          "f0": 294.7,
+          "start": 0.22,
+          "dur": 0.6
         },
         {
-          "url": "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@master/FluidR3_GM/koto-mp3/C4.mp3",
-          "note": "C4",
-          "f0": 261.626,
-          "start": 0,
-          "dur": 1.8
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Kojonotsuki.ogg",
+          "note": null,
+          "f0": 442.2,
+          "start": 2.16,
+          "dur": 0.62
         }
       ],
-      "realism": "soundfont"
+      "realism": "recorded",
+      "clean": true
     },
     {
       "id": "kalimba",
