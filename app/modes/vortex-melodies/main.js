@@ -1,7 +1,7 @@
 // Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif.
 // Size / strength / spin speed each map (More menus) to pitch, volume or tempo; spin direction can turn the tune up/down; pan <- longitude,
 // instrument (and ring colour) <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
-import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
+import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows, flowAt, advect } from '../../core/flow.js';
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch } from '../../core/voices.js';
@@ -42,7 +42,7 @@ export default function start(ctx) {
 
     const s = {
       scale: 'pentatonic-minor', map: { ...DEFAULT_MAP },
-      bed: true, arrows: false, volume: 0.6,
+      bed: true, arrows: false, streams: false, volume: 0.6,
     };
     const backdrop = createBackdrop(dir, { viewer, time });
     // vortex id -> { t0, loop, mi }: loop origin (performance clock, s), loop length, motif index. Kept for the
@@ -165,7 +165,12 @@ export default function start(ctx) {
     mapSels.push(mapSel('direction', [['nothing', 'Nothing'], ['updown', 'Tune up/down']]));
     const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
-    const more = fold('More', [...mapSels, bedCb, arrowsCb]);
+    const streamsCb = panel.checkbox('Streams', s.streams, (v) => {
+      s.streams = v; parts = v ? Array.from({ length: NPARTS }, () => spawnPart({}, true)) : [];
+      viewer.redraw(); describe(v ? 'Streams on: faint lines follow the rain motion.' : 'Streams off.');
+    });
+    streamsCb.setAttribute('aria-label', 'Show streamlines of the rain motion');
+    const more = fold('More', [...mapSels, bedCb, arrowsCb, streamsCb]);
     more.before(legend);
     const offPlay = time.onPlayState((p) => {
       const now = performance.now() / 1000;
@@ -210,6 +215,55 @@ export default function start(ctx) {
     const offHover = input.onHover(onKeyMove);
     const offClick = input.onClick(onSelect);
 
+    // ---- streams: faint particles advected by the optical-flow field, drawn as short fading tails (under the rings).
+    const NPARTS = 700, KEEP = 18, STEP = 0.1, HOURS = 1.2;
+    let parts = [], acc = 0, lastStep = performance.now();
+    function spawnPart(p, scatterAge = false) {
+      const t = time.now();
+      let lat = 0, lon = 0;
+      for (let k = 0; k < 20; k++) {
+        lat = (Math.asin(Math.random() * 2 - 1) * 180) / Math.PI * 0.85; lon = Math.random() * 360 - 180;
+        if (flowAt(flow, lat, lon, t)) break;
+      }
+      const life = 30 + Math.random() * 40;
+      return Object.assign(p, { lat, lon, hist: [], idle: 0, life, age: scatterAge ? Math.random() * life : 0 });
+    }
+    function stepParts() {
+      const t = time.now();
+      for (const p of parts) {
+        p.hist.push(p.lat, p.lon);
+        if (p.hist.length > KEEP * 2) p.hist.splice(0, 2);
+        const f = flowAt(flow, p.lat, p.lon, t);
+        p.age++;
+        if (!f) { if (++p.idle > 10) spawnPart(p); continue; }
+        p.idle = 0;
+        const n = advect(p.lat, p.lon, f.u, f.v, HOURS);
+        p.lat = n.lat; p.lon = n.lon;
+        if (p.age > p.life) spawnPart(p);
+      }
+    }
+    function drawStreams(g, vw) {
+      const now = performance.now();
+      acc += Math.min(0.25, (now - lastStep) / 1000); lastStep = now;
+      while (acc >= STEP) { stepParts(); acc -= STEP; }
+      const W = vw.canvas.width, bands = 3;
+      g.lineWidth = Math.max(0.6, W / 1800); g.lineCap = 'round';
+      for (let b = 0; b < bands; b++) {
+        g.strokeStyle = `rgba(235,245,255,${0.45 * ((b + 1) / bands) ** 1.5})`; g.beginPath();
+        for (const p of parts) {
+          const h = p.hist, n = h.length / 2; if (n < 2) continue;
+          const i0 = Math.floor((b * n) / bands), i1 = Math.floor(((b + 1) * n) / bands);
+          let prev = vw.toPixel(h[i0 * 2], h[i0 * 2 + 1]);
+          for (let i = i0 + 1; i <= i1; i++) {
+            const cur = i < n ? vw.toPixel(h[i * 2], h[i * 2 + 1]) : vw.toPixel(p.lat, p.lon);
+            if (Math.abs(cur[0] - prev[0]) < W / 2) { g.moveTo(prev[0], prev[1]); g.lineTo(cur[0], cur[1]); }
+            prev = cur;
+          }
+        }
+        g.stroke();
+      }
+    }
+
     // ---- visuals: rotating rings sized by radius, coloured by instrument; the dot's direction shows spin
     const removeOverlay = viewer.addOverlay((g, vw) => {
       const W = vw.canvas.width, t = time.now();
@@ -218,6 +272,7 @@ export default function start(ctx) {
       g.save();
       backdrop.draw(g, vw);
       if (s.arrows) drawFlowArrows(g, vw, flow, t, { heads: false });
+      if (s.streams) drawStreams(g, vw);
       const ph = backdrop.phase(), nextPos = new Map((data.frames[(t + 1) % data.frames.length] || []).map((n) => [n.id, n]));
       const byId = new Map(active.map((v) => [v.id, v]));
       let soloAt = null;
