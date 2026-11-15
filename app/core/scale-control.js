@@ -24,9 +24,9 @@ function remember(id) {
 // panel: a createPanel(); onChange(id) is called at once with the starting scale and on every change.
 // sound (optional): a createSound(); value-only notes then follow the menu (tuning first, then scale).
 // own (optional): a label for an extra first option, value '' (onChange gets null), e.g. "Instrument's own";
-// it is the default unless ?scale= or a remembered choice says otherwise. Returns the <select>.
+// `value` stays the default; the extra option is only used when picked. Returns the <select>.
 export function scaleControl(panel, { value = 'pentatonic-major', onChange, describe, hint, sound, own } = {}) {
-  const start = own ? initialScale('') : initialScale(value);
+  const start = initialScale(value);
   const ids = !start || PLEASANT.includes(start) ? PLEASANT : [start, ...PLEASANT];
   const opts = ids.map((id) => [id, SCALES[id].label]);
   if (own) opts.unshift(['', own]);

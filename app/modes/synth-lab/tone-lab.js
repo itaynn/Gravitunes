@@ -26,7 +26,8 @@ loadBasemap(repoUrl('data/earth/'));   // cached: the viewer's own loadBasemap()
 const viewer = createViewer(canvas, { plain: true });
 
 const sound = await createSound();
-let scale = null;   // null: the instrument's own scale
+window.__gtSound = sound;   // test hook, as in core/host.js
+let scale = 'pentatonic-major';   // null: the instrument's own scale (set by the control below)
 scaleControl(createPanel($('#tone-scale')), { value: 'pentatonic-major', own: 'Instrument\'s own', describe,
   onChange: (v) => { scale = v; }, hint: 'For Scale and Chord.' });
 
