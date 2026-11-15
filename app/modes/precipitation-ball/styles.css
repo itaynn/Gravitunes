@@ -379,6 +379,53 @@ a:focus-visible {
   gap: 18px;
 }
 
+.sound-design {
+  width: 100%;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.sound-design summary {
+  width: fit-content;
+  color: #e8e9e9;
+  cursor: pointer;
+  font: 11px var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.sound-design summary::marker {
+  color: var(--acid);
+}
+
+.sound-design-note {
+  margin: 12px 0 16px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sound-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sound-select {
+  display: grid;
+  gap: 8px;
+  color: #d9dce1;
+  font-size: 11px;
+}
+
+.sound-select select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #101725;
+  color: #e8e9e9;
+}
+
 .slider-control {
   display: grid;
   gap: 10px;
@@ -509,6 +556,10 @@ a:focus-visible {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .sound-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .notes {
     gap: 20px;
   }
@@ -616,6 +667,10 @@ a:focus-visible {
   .sliders {
     gap: 14px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sound-controls {
+    grid-template-columns: 1fr;
   }
 
   .slider-heading {

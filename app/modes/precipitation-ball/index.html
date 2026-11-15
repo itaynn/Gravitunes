@@ -137,6 +137,73 @@
               <span class="slider-scale"><span>SUBTLE</span><span>STRONG</span></span>
             </label>
           </div>
+
+          <details class="sound-design">
+            <summary>Shape the sound</summary>
+            <p class="sound-design-note">Choose what the ball listens to and how its motion is voiced. These controls affect sound only, not the terrain physics.</p>
+            <div class="sound-controls">
+              <label class="sound-select" for="pitch-source-control">
+                <span>Pitch follows</span>
+                <select id="pitch-source-control">
+                  <option value="rain" selected>Color-coded rain</option>
+                  <option value="speed">Ball speed</option>
+                  <option value="slope">Slope force</option>
+                </select>
+              </label>
+              <label class="sound-select" for="loudness-source-control">
+                <span>Motion loudness follows</span>
+                <select id="loudness-source-control">
+                  <option value="motion" selected>Speed + slope</option>
+                  <option value="rain">Color-coded rain</option>
+                  <option value="speed">Ball speed</option>
+                  <option value="slope">Slope force</option>
+                </select>
+              </label>
+              <label class="sound-select" for="scale-control">
+                <span>Scale</span>
+                <select id="scale-control">
+                  <option value="pentatonic-major" selected>Major pentatonic</option>
+                  <option value="pentatonic-minor">Minor pentatonic</option>
+                  <option value="major">Major</option>
+                  <option value="minor">Minor</option>
+                  <option value="whole-tone">Whole tone</option>
+                </select>
+              </label>
+              <label class="sound-select" for="waveform-control">
+                <span>Tone</span>
+                <select id="waveform-control">
+                  <option value="sine" selected>Sine · smooth</option>
+                  <option value="triangle">Triangle · mellow</option>
+                  <option value="sawtooth">Sawtooth · bright</option>
+                  <option value="square">Square · hollow</option>
+                </select>
+              </label>
+              <label class="sound-select" for="harmony-control">
+                <span>Harmony</span>
+                <select id="harmony-control">
+                  <option value="octave" selected>Octave below</option>
+                  <option value="fifth">Fifth below</option>
+                  <option value="third">Major third below</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label class="sound-select" for="storm-texture-control">
+                <span>Storm texture</span>
+                <select id="storm-texture-control">
+                  <option value="rain" selected>Rain hiss</option>
+                  <option value="rumble">Deep rumble</option>
+                  <option value="wind">Wind</option>
+                </select>
+              </label>
+              <label class="sound-select" for="stereo-control">
+                <span>Stereo</span>
+                <select id="stereo-control">
+                  <option value="center" selected>Centered</option>
+                  <option value="map">Follow ball across map</option>
+                </select>
+              </label>
+            </div>
+          </details>
         </div>
         <p class="interaction-status" id="interaction-status" role="status" aria-live="polite">
           Loading the precipitation field…

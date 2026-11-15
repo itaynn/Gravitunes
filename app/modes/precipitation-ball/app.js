@@ -39,6 +39,13 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
   const motionVolumeOutput = document.querySelector("#motion-volume-output");
   const pitchResponseControl = document.querySelector("#pitch-response-control");
   const pitchResponseOutput = document.querySelector("#pitch-response-output");
+  const pitchSourceControl = document.querySelector("#pitch-source-control");
+  const loudnessSourceControl = document.querySelector("#loudness-source-control");
+  const scaleControl = document.querySelector("#scale-control");
+  const waveformControl = document.querySelector("#waveform-control");
+  const harmonyControl = document.querySelector("#harmony-control");
+  const stormTextureControl = document.querySelector("#storm-texture-control");
+  const stereoControl = document.querySelector("#stereo-control");
   const prompt = document.querySelector("#stage-prompt");
   const status = document.querySelector("#interaction-status");
   const frameLabel = document.querySelector("#frame-label");
@@ -62,6 +69,44 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
   let audioContext = null;
   let audioNodes = null;
   let soundEnabled = false;
+  const soundSettings = {
+    pitchSource: pitchSourceControl.value,
+    loudnessSource: loudnessSourceControl.value,
+    scale: scaleControl.value,
+    waveform: waveformControl.value,
+    harmony: harmonyControl.value,
+    stormTexture: stormTextureControl.value,
+    stereo: stereoControl.value,
+  };
+  const SCALES = {
+    "pentatonic-major": [0, 2, 4, 7, 9],
+    "pentatonic-minor": [0, 3, 5, 7, 10],
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    "whole-tone": [0, 2, 4, 6, 8, 10],
+  };
+  const SCALE_NOTES = Object.fromEntries(Object.entries(SCALES).map(([name, steps]) => [
+    name,
+    Array.from({ length: 25 }, (_, i) => i + 48).filter((midi) => steps.includes(midi % 12)),
+  ]));
+  const HARMONY_RATIOS = { octave: 0.5, fifth: 2 / 3, third: 0.8, off: 1 };
+  const STORM_TEXTURES = {
+    rain: { cutoff: 360, waveform: "sine", rumble: 48 },
+    rumble: { cutoff: 180, waveform: "triangle", rumble: 42 },
+    wind: { cutoff: 340, waveform: "sawtooth", rumble: 70 },
+  };
+
+  function setAudioTarget(parameter, value, timeConstant = 0.08) {
+    parameter.setTargetAtTime(value, audioContext.currentTime, timeConstant);
+  }
+
+  function applyStormTexture() {
+    if (!audioNodes) return;
+    const texture = STORM_TEXTURES[soundSettings.stormTexture];
+    setAudioTarget(audioNodes.stormFilter.frequency, texture.cutoff);
+    audioNodes.stormRumble.type = texture.waveform;
+    setAudioTarget(audioNodes.stormRumble.frequency, texture.rumble);
+  }
 
   function createAudioGraph() {
     const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
@@ -72,7 +117,9 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     const audio = new AudioContextConstructor();
     const masterGain = audio.createGain();
     masterGain.gain.value = 0;
-    masterGain.connect(audio.destination);
+    const masterPanner = audio.createStereoPanner();
+    masterGain.connect(masterPanner);
+    masterPanner.connect(audio.destination);
 
     const noiseBuffer = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
     const noise = noiseBuffer.getChannelData(0);
@@ -84,7 +131,7 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     noiseSource.loop = true;
     const stormFilter = audio.createBiquadFilter();
     stormFilter.type = "lowpass";
-    stormFilter.frequency.value = 360;
+    stormFilter.frequency.value = STORM_TEXTURES[soundSettings.stormTexture].cutoff;
     stormFilter.Q.value = 0.7;
     const stormGain = audio.createGain();
     stormGain.gain.value = 0;
@@ -94,8 +141,8 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     noiseSource.start();
 
     const stormRumble = audio.createOscillator();
-    stormRumble.type = "triangle";
-    stormRumble.frequency.value = 48;
+    stormRumble.type = STORM_TEXTURES[soundSettings.stormTexture].waveform;
+    stormRumble.frequency.value = STORM_TEXTURES[soundSettings.stormTexture].rumble;
     const rumbleGain = audio.createGain();
     rumbleGain.gain.value = 0.08;
     stormRumble.connect(rumbleGain);
@@ -106,7 +153,7 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     toneGain.gain.value = 0;
     toneGain.connect(masterGain);
     const tone = audio.createOscillator();
-    tone.type = "sine";
+    tone.type = soundSettings.waveform;
     tone.frequency.value = 180;
     tone.connect(toneGain);
     tone.start();
@@ -115,13 +162,13 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     harmonyGain.gain.value = 0.22;
     harmonyGain.connect(toneGain);
     const harmony = audio.createOscillator();
-    harmony.type = "sine";
-    harmony.frequency.value = 270;
+    harmony.type = soundSettings.waveform;
+    harmony.frequency.value = 90;
     harmony.connect(harmonyGain);
     harmony.start();
 
     audioContext = audio;
-    audioNodes = { masterGain, stormGain, tone, harmony, toneGain };
+    audioNodes = { masterGain, masterPanner, stormGain, stormFilter, stormRumble, tone, harmony, toneGain, harmonyGain };
   }
 
   async function toggleSound() {
@@ -149,12 +196,20 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     }
   }
 
-  // Pitch follows the rain under the ball, on a C major pentatonic scale from C3 to C5.
-  const PENTA = [0, 2, 4, 7, 9];
-  const RAIN_NOTES = scaleMidi(PENTA, 48, 11); // C3..C5 pentatonic
-  function rainFrequency(rain) {
-    const i = Math.round(Math.max(0, Math.min(1, rain)) * (RAIN_NOTES.length - 1));
-    return midiHz(RAIN_NOTES[i]);
+  function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function rainFrequency(rain, speedRatio, accelerationRatio) {
+    const source = {
+      rain: rain,
+      speed: speedRatio,
+      slope: accelerationRatio,
+    }[soundSettings.pitchSource];
+    const responsive = Math.pow(clamp01(source), 1 / pitchResponse);
+    const notes = SCALE_NOTES[soundSettings.scale];
+    const index = Math.round(responsive * (notes.length - 1));
+    return midiHz(notes[index]);
   }
 
   const rainLevel = (rain) => rainWords(rain, MIN_SURFACE_HEIGHT);
@@ -171,12 +226,29 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
 
     const now = audioContext.currentTime;
     const speedRatio = Math.min(1, speed / MAX_SPEED);
+    const slopeRatio = 1 - Math.exp(-acceleration / 1800);
     const accelerationRatio = 1 - Math.exp(-(acceleration * pitchResponse) / 1800);
-    const frequency = rainFrequency(ball ? heightAt(ball.x, ball.y) : 0);
+    const rain = ball ? heightAt(ball.x, ball.y) : 0;
+    const frequency = rainFrequency(rain, speedRatio, slopeRatio);
+    const loudness = {
+      motion: 0.025 + speedRatio * 0.18 + accelerationRatio * 0.035,
+      rain: 0.025 + rain * 0.215,
+      speed: 0.025 + speedRatio * 0.215,
+      slope: 0.025 + slopeRatio * 0.215,
+    }[soundSettings.loudnessSource];
+    const harmonyRatio = HARMONY_RATIOS[soundSettings.harmony];
+    audioNodes.tone.type = soundSettings.waveform;
+    audioNodes.harmony.type = soundSettings.waveform;
     audioNodes.tone.frequency.setTargetAtTime(frequency, now, 0.06);
-    audioNodes.harmony.frequency.setTargetAtTime(frequency / 2, now, 0.06);
+    audioNodes.harmony.frequency.setTargetAtTime(frequency * harmonyRatio, now, 0.06);
+    audioNodes.harmonyGain.gain.setTargetAtTime(soundSettings.harmony === "off" ? 0 : 0.22, now, 0.08);
+    audioNodes.masterPanner.pan.setTargetAtTime(
+      soundSettings.stereo === "map" && ball ? (ball.x / WORLD_WIDTH) * 2 - 1 : 0,
+      now,
+      0.08,
+    );
     audioNodes.toneGain.gain.setTargetAtTime(
-      soundEnabled ? motionVolume * (0.025 + speedRatio * 0.18 + accelerationRatio * 0.035) : 0,
+      soundEnabled ? motionVolume * loudness : 0,
       now,
       0.08,
     );
@@ -506,6 +578,17 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     pitchResponseOutput.value = `${pitchResponse.toFixed(1)}×`;
     pitchResponseOutput.textContent = pitchResponseOutput.value;
   });
+
+  pitchSourceControl.addEventListener("change", () => { soundSettings.pitchSource = pitchSourceControl.value; });
+  loudnessSourceControl.addEventListener("change", () => { soundSettings.loudnessSource = loudnessSourceControl.value; });
+  scaleControl.addEventListener("change", () => { soundSettings.scale = scaleControl.value; });
+  waveformControl.addEventListener("change", () => { soundSettings.waveform = waveformControl.value; });
+  harmonyControl.addEventListener("change", () => { soundSettings.harmony = harmonyControl.value; });
+  stormTextureControl.addEventListener("change", () => {
+    soundSettings.stormTexture = stormTextureControl.value;
+    applyStormTexture();
+  });
+  stereoControl.addEventListener("change", () => { soundSettings.stereo = stereoControl.value; });
 
   video.addEventListener("loadeddata", () => {
     window.clearTimeout(videoRetryTimer);
