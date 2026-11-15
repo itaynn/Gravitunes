@@ -1,6 +1,6 @@
 // Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif. One dataset at a
 // time (Data menu: IMERG rain, or GEOS-CF ozone, carbon monoxide, nitrogen oxides); each has its own vortex analysis.
-// Pitch / volume / tempo / notes each take a source (More menus: size, strength, spin speed or nothing); spin direction can turn the tune up/down; pan <- longitude,
+// Pitch / volume / tempo / notes each take a source (menus: size, strength, spin speed or nothing); spin direction can turn the tune up/down; pan <- longitude,
 // instrument (and ring colour) <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows, flowAt, advect } from '../../core/flow.js';
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
@@ -8,7 +8,7 @@ import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon, centerColors } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
-import { volumeSlider, fold } from '../../core/ui.js';
+import { volumeSlider, createPanel } from '../../core/ui.js';
 import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
 import { fieldOf } from '../../core/fields.js';
 import { motifFreq, motifSteps, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn } from './vortex.js';
@@ -79,9 +79,10 @@ export default function start(ctx) {
       const m = motifOf(v);
       const freq = motifFreq(tones(), noteHz(m.root), m.steps[k % m.steps.length], voice.octave || 0);
       const sh = shapeForPitch(voice, freq);
+      // Detached notes (about half a step, quick fade): bowed, blown and whale recordings otherwise join into one held moan.
       const step = loopOf(v, clock).loop / m.steps.length;
       sound.play({ freq, amp: 0.4 * mapped(v, s.map).loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
-        dur: Math.min(sh.dur ?? 0.4, step * 0.9), sample, harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
+        dur: Math.min(sh.dur ?? 0.4, step * 0.55), fade: Math.min(0.08, step * 0.25), sample, harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
         vibrato: sh.vibrato, wah: sh.wah });
     }
 
@@ -150,7 +151,7 @@ export default function start(ctx) {
     const legend = document.createElement('p');
     legend.className = 'hint';
     const legendList = document.createElement('span'), legendNote = document.createElement('span');
-    legendNote.textContent = ` Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum (More) adds a low hum where ${NAME} converges.`;
+    legendNote.textContent = ` Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum adds a low hum where ${NAME} converges. Arrows show which way the ${NAME} is moving (longer, brighter = faster).`;
     legend.append(legendList, legendNote);
     let legendKey = null;
     function updateLegend(vs) {
@@ -167,32 +168,39 @@ export default function start(ctx) {
       }
       if (!seen.size) legendList.textContent = 'No vortices on screen.';
     }
-    const bedCb = panel.checkbox('Hum', s.bed, (v) => { s.bed = v; });
+    // Sound and view options sit right in the control bar (after Play / Data), not in a fold: one word each.
+    const barBox = document.createElement('div'); barBox.className = 'bar-item';
+    const picker = document.getElementById('dataset-picker');
+    if (picker) picker.after(barBox);
+    const opts = picker ? createPanel(barBox) : panel;
+    const bedCb = opts.checkbox('Hum', s.bed, (v) => { s.bed = v; });
     bedCb.setAttribute('aria-label', 'Convergence hum (low pad) on or off');
     // Mapping menus: where each sound property gets its value. A new mapping restarts the tunes.
     const SOURCE_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['strength', 'Strength'], ['spin', 'Spin speed']];
     const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo', notes: 'Notes' };
     const HINTS = { pitch: 'bigger = lower', volume: 'bigger = louder', tempo: 'bigger = faster', notes: 'bigger = more notes, 3 to 8' };
     const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'fixed tempo', notes: 'fixed at 5 notes' };
-    const srcSel = (key) => panel.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
+    const srcSel = (key) => opts.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
       s.map[key] = val; phase.clear();
       const label = SOURCE_OPTS.find((o) => o[0] === val)[1].toLowerCase();
       describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.` : `${SOUND_NAMES[key]} now follows ${label} (${HINTS[key]}).`);
     }, { value: s.map[key] });
     const mapSels = ['pitch', 'volume', 'tempo', 'notes'].map(srcSel);
-    mapSels.push(panel.select('Spin direction \u2192', [['nothing', 'Nothing'], ['updown', 'Tune up/down']], (val) => {
+    mapSels.push(opts.select('Spin \u2192', [['nothing', 'Nothing'], ['updown', 'Tune up/down']], (val) => {
       s.map.direction = val; phase.clear();
       describe(val === 'updown' ? 'Spin direction now turns the tune up (counterclockwise) or down (clockwise).' : 'Spin direction now controls nothing.');
     }, { value: s.map.direction }));
-    const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
-    arrowsCb.setAttribute('aria-label', 'Show flow arrows');
-    const streamsCb = panel.checkbox('Streams', s.streams, (v) => {
+    const arrowsCb = opts.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
+    arrowsCb.setAttribute('aria-label', `Flow arrows: which way the ${NAME} is moving`);
+    const streamsCb = opts.checkbox('Streams', s.streams, (v) => {
       s.streams = v; parts = v ? Array.from({ length: NPARTS }, () => spawnPart({}, true)) : [];
       viewer.redraw(); describe(v ? `Streams on: faint lines follow the ${NAME} motion.` : 'Streams off.');
     });
     streamsCb.setAttribute('aria-label', `Show streamlines of the ${NAME} motion`);
-    const more = fold('More', [...mapSels, bedCb, arrowsCb, streamsCb]);
-    more.before(legend);
+    (document.getElementById('mode-controls') || barBox).prepend(legend);
+    for (const el of [...mapSels, bedCb, arrowsCb, streamsCb]) {
+      const row = el.closest('.control'); if (row) barBox.append(row);
+    }
     const offPlay = time.onPlayState((p) => {
       const now = performance.now() / 1000;
       if (!p) sound.stopAll(); else for (const q of phase.values()) q.t0 += now - clock;   // resume where the marks stopped
@@ -293,7 +301,10 @@ export default function start(ctx) {
       const sec = clock;
       g.save();
       backdrop.draw(g, vw);
-      if (s.arrows) drawFlowArrows(g, vw, flow, t, { heads: false });
+      if (s.arrows) {   // bold arrows on a coarse grid, skipped inside vortex rings so the rings stay readable
+        const rings = active.map((v) => [v.lat, v.lon, v.r + 300]);
+        drawFlowArrows(g, vw, flow, t, { bold: true, avoid: (lat, lon) => rings.some(([a, b, r]) => distKm(lat, lon, a, b) < r) });
+      }
       if (s.streams) drawStreams(g, vw);
       const ph = backdrop.phase(), nextPos = new Map((data.frames[(t + 1) % data.frames.length] || []).map((n) => [n.id, n]));
       const byId = new Map(active.map((v) => [v.id, v]));

@@ -6,7 +6,7 @@
 //
 // play(opts): pitch from freq | value+range (pentatonic); amplitude/amp, duration/dur, pan, t (s from now),
 // voice (engine preset name), harmonics (number of harmonics, or an amplitude array),
-// partials [{ratio, amp, decay}], envelope {attack, decay, sustain, release},
+// partials [{ratio, amp, decay}], envelope {attack, decay, sustain, release}, fade (sampled: cut at dur, release s),
 // noise {amount 0..1, attack, decay, cutoff Hz} (breath/pick noise, added by the adapter for both engines),
 // glide {to Hz, time, at} (pitch slide; engine-native, emulated in the built-in synth),
 // vibrato {rate Hz, depth cents, delay s} and wah {rate Hz, harmonics} (alternates the timbre to `harmonics` and
@@ -249,7 +249,7 @@ export async function createSound() {
     // gesture) starts the audio context; notes scheduled meanwhile play as soon as it resumes.
     play(opts = {}) {
       if (!started) { started = true; engine.start().then(() => this.setVolume(volume)).catch((e) => console.warn('[sound]', e.message)); this.setVolume(volume); }
-      let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, glide, vibrato, wah, ...rest } = opts;
+      let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, glide, vibrato, wah, fade, ...rest } = opts;
       const builtIn = name === 'built-in';
       if (lowpass > 0 && rest.freq > 0 && !rest.voice) {
         ({ harmonics, partials, noise } = { harmonics: harmonics ?? 1, partials, noise,
@@ -264,6 +264,8 @@ export async function createSound() {
         rest.voice = z.name; harmonics = partials = envelope = noise = wah = undefined;
         const d = duration ?? rest.dur ?? 0.3;
         rest.dur = Math.max(d, Math.min(kenv.ring, z.len ?? kenv.ring));
+        // fade (s): cut the recording at dur with this short release (detached notes, no held moan).
+        if (fade > 0) { rest.dur = d; envelope = { ...kenv.envelope, release: fade }; }
       }
       if (noise) noise = { ...noise, cutoff: Math.min(noise.cutoff ?? 2000, FADE_HZ) };
       const ev = { ...rest, ...sanitizeTimbre({ harmonics, partials, envelope }) };

@@ -92,7 +92,8 @@ export function layerByPrefix(layers, prefix) {
 }
 
 // Canvas overlay: a grid of flow arrows, dark with a light halo so they read on light and dark maps.
-export function drawFlowArrows(g, vw, flow, t, { color = 'rgba(0,0,0,0.6)', halo = 'rgba(255,255,255,0.6)', heads = true } = {}) {
+export function drawFlowArrows(g, vw, flow, t, { color = 'rgba(0,0,0,0.6)', halo = 'rgba(255,255,255,0.6)', heads = true, bold = false, avoid } = {}) {
+  if (bold) return drawBoldArrows(g, vw, flow, t, avoid);
   const k = (vw.canvas.width / 1024) * 0.35;
   const segs = [];
   for (let lat = 75; lat > -80; lat -= 7.5) for (let lon = -176; lon < 180; lon += 7.5) {
@@ -108,6 +109,32 @@ export function drawFlowArrows(g, vw, flow, t, { color = 'rgba(0,0,0,0.6)', halo
       g.beginPath(); g.moveTo(x, y); g.lineTo(x1, y1); g.stroke();
       if (heads) { g.beginPath(); g.arc(x1, y1, 1.2, 0, 7); g.stroke(); }
     }
+  }
+  g.restore();
+}
+
+// Legible arrows: a coarse 15-degree grid, length and opacity by speed (relative to the fastest on screen), filled
+// arrowheads, bright yellow with a thin dark outline so they read over light and dark maps. avoid(lat, lon) skips a point.
+function drawBoldArrows(g, vw, flow, t, avoid) {
+  const px = vw.canvas.width / 1024, pts = [];
+  for (let lat = 67.5; lat > -75; lat -= 15) for (let lon = -172.5; lon < 180; lon += 15) {
+    if (avoid?.(lat, lon)) continue;
+    const f = flowAt(flow, lat, lon, t);
+    if (!f) continue;
+    const sp = Math.hypot(f.u, f.v);
+    if (sp > 0) pts.push([...vw.toPixel(lat, lon), f.u / sp, -f.v / sp, sp]);
+  }
+  const top = Math.max(1e-9, ...pts.map((p) => p[4]));
+  g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
+  for (const [x, y, dx, dy, sp] of pts) {
+    const s = Math.sqrt(sp / top);
+    if (s < 0.15) continue;
+    const len = (10 + 26 * s) * px, head = 7 * px, x0 = x - dx * len / 2, y0 = y - dy * len / 2, x1 = x + dx * len / 2, y1 = y + dy * len / 2;
+    const bx = x1 - dx * head, by = y1 - dy * head, nx = -dy * head * 0.6, ny = dx * head * 0.6;
+    g.globalAlpha = 0.45 + 0.55 * s;
+    const shape = () => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(bx, by); g.stroke(); g.beginPath(); g.moveTo(x1, y1); g.lineTo(bx + nx, by + ny); g.lineTo(bx - nx, by - ny); g.closePath(); };
+    g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 5 * px; shape(); g.stroke();
+    g.strokeStyle = '#ffe14d'; g.fillStyle = '#ffe14d'; g.lineWidth = 2.4 * px; shape(); g.fill();
   }
   g.restore();
 }
