@@ -1,28 +1,13 @@
 # World orchestra
 
-About 280 major cities (`data/earth/cities.json`) are listening points. Each hour, a city whose value
-rises past the threshold (previous hour below, this hour at or above) plays one note.
+An instrument-comparison map. About 60 musical regions (`data/earth/musical-centers.json`), each with a
+recorded instrument (`data/earth/instruments.json`, samples in `sound-engine/library/samples`). No dataset.
 
-- **Voice:** the instrument of the nearest musical center (`data/earth/musical-centers.json`), crossfaded
-  with the second-nearest within a 900 km blend zone. Voices (`data/earth/instruments.json`) are
-  hand-synthesized impressions *inspired by* organ, guzheng, gamelan, sitar, koto, kora, balafon, oud,
-  pan flute, Celtic harp, marimba, balalaika, bandoneón, didgeridoo, banjo, mbira, duduk, bouzouki, plus
-  an ocean pad. They are not recordings or faithful models.
-- **Pitch:** value, quantized to the chosen scale (pentatonic default; slendro and pelog use the sound
-  engine's gamelan cents). Range is low to mid: default G2 to G4, adjustable within C2 to A5. Upper
-  partials roll off as pitch rises (and above 4 kHz are dropped) so bright voices are not shrill.
-- **Loudness:** value. **Pan:** longitude.
-- **Controls:** play/pause, speed (hours per second), scale, threshold (default: dataset 70th percentile),
-  max notes per hour, per-city cooldown, lowest/highest note, volume, center legend.
-- **Explore:** hover, touch or arrow keys play the blended voice of that spot once and announce, e.g.
-  "Delhi region: sitar-inspired, 48 ppbv". While playing, a summary is announced every 5 s
-  ("Playing: East Asia, South Asia; 12 notes in the last 6 hours").
-- **Visuals:** a faint tint per center region, white city dots that flash in the region color when they play,
-  instrument labels when the legend is shown.
+- **Play:** click or tap a region, or move with the arrow keys and press Enter. `[` and `]` jump between regions.
+  Hover and arrow keys only announce the region and instrument; they never play.
+- **Same notes everywhere:** Pitch (C3 to C5, default C4), Melody (Single note, Scale up, Arpeggio, Short tune)
+  and Scale apply to every region, so only the timbre differs. Nothing goes above A5.
+- **Visuals:** a faint tint per region and instrument labels; the clicked region gets a yellow outline and is
+  announced ("Playing South Asia: Sitar, ...").
 
-Works with any dataset that has a descriptor and a value grid (`?dataset=<id>`); ozone 5152 is the default.
-
-Tests: `node app/modes/world-orchestra/test.mjs` (nearest center and blending, triggering, scale
-quantization, and decoding the real 256x128 grid when `data/nasa-svs/5152/web/5152_256x128.bin` exists).
-
-Instruments view (on at first, the former Timbre atlas): no dataset, a plain Natural Earth map, and each of the ~60 regions plays its own phrase or drum pattern on a recorded instrument (sound-engine/library/samples). Old `?mode=timbre-atlas` and `timbre-atlas.html` links redirect here.
+Tests: `node app/modes/world-orchestra/test.mjs`.

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { nearestCenters, blendWeight, voiceAt, blendVoices, shapeForPitch, selectTriggers, distKm } from './orchestra.js';
+import { nearestCenters, blendWeight, voiceAt, blendVoices, shapeForPitch, selectTriggers, distKm, melodyNotes, MELODIES } from './orchestra.js';
 import { quantize, scaleFreqs, SCALES, noteHz } from '../../core/scales.js';
 import { parseGrid, frameForHour } from '../../core/grid.js';
 
@@ -170,4 +170,10 @@ assert.ok(gestureNotes(instruments.sitar, noteHz(-12)).every((n) => n.glide));  
 assert.equal(voiceAt(28.61, 77.21, centers, instruments, 900).voice.gesture, instruments.sitar.gesture);
 
 }
+// melody: same notes for every region, within C2..A5; Single note at C4 is C4
+for (const m of Object.keys(MELODIES)) for (const p of [-12, 0, 12]) for (const sc of ['pentatonic-major', 'slendro']) {
+  const ns = melodyNotes(sc, p, m);
+  assert.ok(ns.length >= 1 && ns.every((n) => n.freq >= noteHz(-24) && n.freq <= noteHz(21) * 1.001), `${m} ${p} ${sc}`);
+}
+assert.ok(Math.abs(melodyNotes('pentatonic-major', 0, 'single')[0].freq - noteHz(0)) < 1e-9);
 console.log('world-orchestra tests ok');

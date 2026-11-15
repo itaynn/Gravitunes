@@ -133,23 +133,22 @@
     {
       "id": "world-orchestra",
       "name": "World orchestra",
-      "summary": "The world's musical regions on one map, each with its own recorded instrument. Click or use the arrow keys to hear a region; turn Instruments off and press Play to hear cities play the data.",
+      "summary": "Compare the world's instruments: click a region and it plays the same notes as every other region, on its own recorded instrument.",
       "author": "moran",
-      "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); moving the mouse into a region plays it too. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
-      "datasets": [
-        "5152",
-        "5153",
-        "5154",
-        "4285"
-      ],
+      "description": "The world's musical regions on one map, each with a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...). Click or tap a region, or use the arrow keys and Enter, to play it. Pitch, Melody and Scale are the same for every region, so only the instrument changes.",
+      "datasets": "none",
+      "data": false,
       "standalone": {
-        "every": 6,
         "files": [
+          "data/earth/instruments.json",
+          "data/earth/musical-centers.json",
+          "data/earth/coastlines.json",
+          "data/earth/borders.json",
+          "data/earth/land.json",
           "sound-engine/library/samples/*"
         ]
       },
-      "mute": true,
-      "hd": true
+      "hd": false
     }
   ]
 }
