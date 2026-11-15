@@ -306,14 +306,6 @@
    "instrument": "janggu"
   },
   {
-   "id": "japan",
-   "label": "Japan",
-   "region": "Japan",
-   "lat": 36.0,
-   "lon": 138.5,
-   "instrument": "shakuhachi"
-  },
-  {
    "id": "vietnam",
    "label": "Vietnam",
    "region": "Vietnam",
@@ -471,7 +463,7 @@
    "region": "Pacific Ocean",
    "lat": 5.0,
    "lon": -140.0,
-   "instrument": "ocean"
+   "instrument": "humpback"
   },
   {
    "id": "south-pacific",
@@ -479,7 +471,7 @@
    "region": "South Pacific",
    "lat": -35.0,
    "lon": -120.0,
-   "instrument": "ocean"
+   "instrument": "bluewhale"
   },
   {
    "id": "atlantic",
@@ -487,7 +479,7 @@
    "region": "Atlantic Ocean",
    "lat": 25.0,
    "lon": -40.0,
-   "instrument": "ocean"
+   "instrument": "minke"
   },
   {
    "id": "south-atlantic",
@@ -495,7 +487,7 @@
    "region": "South Atlantic",
    "lat": -30.0,
    "lon": -15.0,
-   "instrument": "ocean"
+   "instrument": "spermwhale"
   },
   {
    "id": "indian-ocean",
@@ -503,7 +495,7 @@
    "region": "Indian Ocean",
    "lat": -25.0,
    "lon": 80.0,
-   "instrument": "ocean"
+   "instrument": "pygmyblue"
   },
   {
    "id": "southern-ocean",
@@ -511,7 +503,23 @@
    "region": "Southern Ocean",
    "lat": -62.0,
    "lon": 60.0,
-   "instrument": "ocean"
+   "instrument": "orca"
+  },
+  {
+   "id": "japan",
+   "label": "Northern Japan",
+   "region": "Tohoku",
+   "lat": 39.5,
+   "lon": 140.8,
+   "instrument": "shakuhachi"
+  },
+  {
+   "id": "kansai",
+   "label": "Japan (Kyoto, Osaka)",
+   "region": "Japan",
+   "lat": 34.9,
+   "lon": 135.6,
+   "instrument": "koto"
   }
  ]
 }

@@ -51,5 +51,11 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `shakuhachi-*.mp3`: "Iwashimizu" (Tozan-ryu honkyoku) performed by Iburozan, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/Iwashimizu
 - `charango-*.mp3`: "con mi charango" by pjgrau, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Internet Archive: https://archive.org/details/ConMiCharango_104
 - `talking_drum-*.mp3`: "Talking Drum - Tutu, Akuapim North, Ghana" recorded by Massimo Carozzi (Unfolding Cultural Heritage), drummer Okyeame Fredrick Akuffo, Public Domain Mark 1.0, via Internet Archive / radio aporee: https://archive.org/details/aporee_69353_80706
+- `humpback-*.mp3`: "Humpback whale moo.ogg" by US National Park Service (Glacier Bay hydrophone), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Humpback_whale_moo.ogg
+- `minke-*.mp3`: "Atlantic minke whale call.ogg" by NOAA PMEL acoustics, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Atlantic_minke_whale_call.ogg
+- `blue_whale-*.mp3`: "Blue Whale South Pacific.ogg" by NOAA PMEL acoustics (sped up to be audible), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Blue_Whale_South_Pacific.ogg
+- `pygmy_blue-*.mp3`: "Blue Whale West Pacific.ogg" by NOAA PMEL acoustics (sped up to be audible), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Blue_Whale_West_Pacific.ogg
+- `sperm_whale-*.mp3`: "Sperm Whale Slow Clicks.ogg" by NOAA Southwest Fisheries Science Center, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sperm_Whale_Slow_Clicks.ogg
+- `orca-*.mp3`: "Killer whale simple.ogg" by US government (NOAA / NPS) hydrophone recording, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Killer_whale_simple.ogg
 
 Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence.

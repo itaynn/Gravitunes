@@ -3699,6 +3699,326 @@
     "about": "huayno pentatonic, quick strummed figure"
    },
    "sample": "charango"
+  },
+  "humpback": {
+   "label": "humpback whale",
+   "inspiredBy": "humpback whale song, North Pacific (NPS Glacier Bay hydrophone)",
+   "family": "low moaning whale song",
+   "harmonics": [
+    1,
+    0.5,
+    0.2
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     2,
+     1
+    ],
+    "gap": 0.9,
+    "dur": 1.4,
+    "hold": false
+   },
+   "sample": "humpback"
+  },
+  "minke": {
+   "label": "minke whale",
+   "inspiredBy": "Atlantic minke whale call (NOAA)",
+   "family": "pulsed whale call",
+   "harmonics": [
+    1,
+    0.1,
+    0.5
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     0,
+     1
+    ],
+    "gap": 0.9,
+    "dur": 1.4,
+    "hold": false
+   },
+   "sample": "minke"
+  },
+  "bluewhale": {
+   "label": "blue whale",
+   "inspiredBy": "blue whale call, South Pacific (NOAA, sped up)",
+   "family": "deep tonal whale call",
+   "harmonics": [
+    1,
+    0.05,
+    0.05,
+    0.3
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     -1
+    ],
+    "gap": 0.9,
+    "dur": 1.4,
+    "hold": false
+   },
+   "sample": "blue_whale"
+  },
+  "pygmyblue": {
+   "label": "pygmy blue whale",
+   "inspiredBy": "blue whale call, Indo-West Pacific (NOAA, sped up)",
+   "family": "tonal whale call",
+   "harmonics": [
+    1,
+    0.7,
+    0.05
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     1,
+     0
+    ],
+    "gap": 0.9,
+    "dur": 1.4,
+    "hold": false
+   },
+   "sample": "pygmy_blue"
+  },
+  "spermwhale": {
+   "label": "sperm whale",
+   "inspiredBy": "sperm whale clicks (NOAA)",
+   "family": "echolocation clicks",
+   "harmonics": [
+    1,
+    0.9,
+    0.8,
+    0.7
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0
+    ],
+    "steps": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "gap": 0.35,
+    "dur": 0.2,
+    "hold": false,
+    "rhythm": [
+     0,
+     1,
+     2,
+     2.5,
+     3
+    ],
+    "fixedHz": 130.813
+   },
+   "sample": "sperm_whale"
+  },
+  "orca": {
+   "label": "orca",
+   "inspiredBy": "killer whale calls (US government hydrophone)",
+   "family": "whistles and pulsed calls",
+   "harmonics": [
+    1,
+    0.3,
+    0.6,
+    0.2
+   ],
+   "partials": [
+    {
+     "ratio": 1.005,
+     "amp": 0.7
+    },
+    {
+     "ratio": 0.5,
+     "amp": 0.3
+    }
+   ],
+   "envelope": {
+    "attack": 0.6,
+    "decay": 0.5,
+    "sustain": 0.7,
+    "release": 1.5
+   },
+   "noise": {
+    "amount": 0.35,
+    "attack": 0.6,
+    "decay": 1.4,
+    "cutoff": 600
+   },
+   "brightness": 0.2,
+   "dur": 1.4,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     1000
+    ],
+    "steps": [
+     0,
+     3,
+     1
+    ],
+    "gap": 0.6,
+    "dur": 1.4,
+    "hold": false
+   },
+   "sample": "orca"
   }
  }
 }

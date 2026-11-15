@@ -848,5 +848,95 @@
     "bytes": 1233
    }
   ]
+ },
+ "humpback": {
+  "label": "Humpback whale",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Humpback whale moo.ogg\" by US National Park Service (Glacier Bay hydrophone), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Humpback_whale_moo.ogg",
+  "zones": [
+   {
+    "file": "humpback-0.mp3",
+    "f0": 74.4,
+    "bytes": 6993
+   }
+  ]
+ },
+ "minke": {
+  "label": "Minke whale",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Atlantic minke whale call.ogg\" by NOAA PMEL acoustics, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Atlantic_minke_whale_call.ogg",
+  "zones": [
+   {
+    "file": "minke-0.mp3",
+    "f0": 434.1,
+    "bytes": 5409
+   }
+  ]
+ },
+ "blue_whale": {
+  "label": "Blue whale",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Blue Whale South Pacific.ogg\" by NOAA PMEL acoustics (sped up to be audible), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Blue_Whale_South_Pacific.ogg",
+  "zones": [
+   {
+    "file": "blue_whale-0.mp3",
+    "f0": 261.6,
+    "bytes": 6561
+   }
+  ]
+ },
+ "pygmy_blue": {
+  "label": "Blue whale (West Pacific)",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Blue Whale West Pacific.ogg\" by NOAA PMEL acoustics (sped up to be audible), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Blue_Whale_West_Pacific.ogg",
+  "zones": [
+   {
+    "file": "pygmy_blue-0.mp3",
+    "f0": 197.1,
+    "bytes": 6129
+   }
+  ]
+ },
+ "sperm_whale": {
+  "label": "Sperm whale",
+  "kind": "hit",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Sperm Whale Slow Clicks.ogg\" by NOAA Southwest Fisheries Science Center, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sperm_Whale_Slow_Clicks.ogg",
+  "zones": [
+   {
+    "file": "sperm_whale-0.mp3",
+    "f0": 130.813,
+    "bytes": 1521
+   }
+  ]
+ },
+ "orca": {
+  "label": "Killer whale",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons (US government recording)",
+  "attribution": "\"Killer whale simple.ogg\" by US government (NOAA / NPS) hydrophone recording, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Killer_whale_simple.ogg",
+  "zones": [
+   {
+    "file": "orca-0.mp3",
+    "f0": 580.2,
+    "bytes": 4113
+   }
+  ]
  }
 }
