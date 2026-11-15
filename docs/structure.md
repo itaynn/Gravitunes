@@ -4,8 +4,8 @@
 - `analysis/`: Python computer vision; `scripts/<mode>/` writes into `app/modes/<mode>/data/`
 - `sound-engine/`: all sound synthesis (JS); Python drives it with JSON scores
 - `app/`: browser front end; `core/` is shared, `modes/<name>/` holds one idea each
-- `data/`: local downloads (git-ignored); `data/derived/<id>/...` holds analysis outputs
-- `dist/`: generated standalone demos, one offline HTML file each (`python3 app/tools/build-standalone.py`; git-ignored)
+- `data/`: local downloads (git-ignored, except `data/earth/*.json` and `data/nasa-svs/4285/`); `data/derived/<id>/...` holds analysis outputs
+- `dist/`: generated standalone demos, one offline HTML file each (git-ignored; how to rebuild: README "Build the demos")
 
 Flow: data-tools → analysis → app → sound-engine.
 
