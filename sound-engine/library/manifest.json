@@ -531,24 +531,38 @@
     },
     {
       "id": "bagpipe",
-      "label": "Bagpipe",
+      "label": "Highland bagpipe",
       "kind": "sustain",
-      "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-      "license": "MIT",
-      "author": "Frank Wen (FluidR3_GM); renders by Benjamin Gleitzman",
-      "page": "https://member.keymusician.com/Member/FluidR3_GM/index.html",
-      "gm_program": "bagpipe",
-      "attribution": "Bagpipe: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+      "source": "Internet Archive",
+      "license": "Public domain",
+      "author": "US Air Force Bands Program (US government work)",
+      "page": "https://archive.org/details/AmazingGraceBagpipes",
+      "clean": true,
+      "realism": "recorded",
+      "attribution": "\"Amazing Grace (Bagpipes)\" by the US Air Force Bands Program, public domain (work of the US government), via Internet Archive: https://archive.org/details/AmazingGraceBagpipes",
       "zones": [
         {
-          "url": "https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@master/FluidR3_GM/bagpipe-mp3/C4.mp3",
-          "note": "C4",
-          "f0": 261.626,
-          "start": 0,
-          "dur": 2.0
+          "url": "https://archive.org/download/AmazingGraceBagpipes/amazing_grace.mp3",
+          "note": null,
+          "f0": 236.9,
+          "start": 27.25,
+          "dur": 0.8
+        },
+        {
+          "url": "https://archive.org/download/AmazingGraceBagpipes/amazing_grace.mp3",
+          "note": null,
+          "f0": 472.6,
+          "start": 12.75,
+          "dur": 1.4
+        },
+        {
+          "url": "https://archive.org/download/AmazingGraceBagpipes/amazing_grace.mp3",
+          "note": null,
+          "f0": 709.6,
+          "start": 48.45,
+          "dur": 1.4
         }
-      ],
-      "realism": "soundfont"
+      ]
     },
     {
       "id": "fiddle",

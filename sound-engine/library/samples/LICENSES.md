@@ -7,7 +7,7 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `shamisen-*.mp3`: Shamisen: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `koto-*.mp3`: Koto: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `kalimba-*.mp3`: Kalimba: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
-- `bagpipe-*.mp3`: Bagpipe: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
+- `bagpipe-*.mp3`: "Amazing Grace (Bagpipes)" by the US Air Force Bands Program, public domain (work of the US government), via Internet Archive: https://archive.org/details/AmazingGraceBagpipes
 - `fiddle-*.mp3`: Fiddle: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `shanai-*.mp3`: Shehnai: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts
 - `steel_drums-*.mp3`: Steel drum: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts

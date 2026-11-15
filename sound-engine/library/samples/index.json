@@ -100,17 +100,27 @@
   ]
  },
  "bagpipe": {
-  "label": "Bagpipe",
+  "label": "Highland bagpipe",
   "kind": "sustain",
-  "realism": "soundfont",
-  "license": "MIT",
-  "source": "FluidR3_GM soundfont (Frank Wen), rendered per note by midi-js-soundfonts (gleitz)",
-  "attribution": "Bagpipe: FluidR3_GM soundfont by Frank Wen (MIT), note renders by Benjamin Gleitzman's midi-js-soundfonts",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Internet Archive",
+  "attribution": "\"Amazing Grace (Bagpipes)\" by the US Air Force Bands Program, public domain (work of the US government), via Internet Archive: https://archive.org/details/AmazingGraceBagpipes",
   "zones": [
    {
     "file": "bagpipe-0.mp3",
-    "f0": 261.626,
-    "bytes": 12573
+    "f0": 236.9,
+    "bytes": 3825
+   },
+   {
+    "file": "bagpipe-1.mp3",
+    "f0": 472.6,
+    "bytes": 6129
+   },
+   {
+    "file": "bagpipe-2.mp3",
+    "f0": 709.6,
+    "bytes": 6129
    }
   ]
  },
