@@ -57,5 +57,8 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `pygmy_blue-*.mp3`: "Blue Whale West Pacific.ogg" by NOAA PMEL acoustics (sped up to be audible), public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Blue_Whale_West_Pacific.ogg
 - `sperm_whale-*.mp3`: "Sperm Whale Slow Clicks.ogg" by NOAA Southwest Fisheries Science Center, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sperm_Whale_Slow_Clicks.ogg
 - `orca-*.mp3`: "Killer whale simple.ogg" by US government (NOAA / NPS) hydrophone recording, public domain (work of the US government), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Killer_whale_simple.ogg
+- `gamelan-*.mp3`: "Gamelan Gong Lagu Kebiar (1931).ogg", Balinese court gamelan, from 'Musik des Orients' (E. M. von Hornbostel, Lindström 1931), public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg
+- `duduk-*.mp3`: "Sound of Armenian Duduk.ogg" by I. Mazia, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sound_of_Armenian_Duduk.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
+- `guqin-*.mp3`: "Zheng diao.ogg" (guqin in standard tuning) by Charlie Huang, public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Zheng_diao.ogg
 
 Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence.

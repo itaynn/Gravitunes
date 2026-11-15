@@ -1703,6 +1703,97 @@
       ],
       "realism": "recorded",
       "clean": true
+    },
+    {
+      "id": "gamelan",
+      "label": "Gamelan (gong kebyar)",
+      "kind": "pluck",
+      "source": "Wikimedia Commons",
+      "license": "Public domain",
+      "author": "Unknown Balinese court gamelan; recorded 1931 for 'Musik des Orients' (E. M. von Hornbostel, Lindström)",
+      "page": "https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
+      "attribution": "\"Gamelan Gong Lagu Kebiar (1931).ogg\", Balinese court gamelan, from 'Musik des Orients' (E. M. von Hornbostel, Lindström 1931), public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "note": null,
+          "f0": 153.3,
+          "start": 9.78,
+          "dur": 0.75
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "note": null,
+          "f0": 285.5,
+          "start": 123.3,
+          "dur": 0.6
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "note": null,
+          "f0": 429.3,
+          "start": 8.45,
+          "dur": 0.9
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
+    },
+    {
+      "id": "duduk",
+      "label": "Duduk",
+      "kind": "sustain",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "author": "I. Mazia",
+      "page": "https://commons.wikimedia.org/wiki/File:Sound_of_Armenian_Duduk.ogg",
+      "attribution": "\"Sound of Armenian Duduk.ogg\" by I. Mazia, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sound_of_Armenian_Duduk.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Sound_of_Armenian_Duduk.ogg",
+          "note": null,
+          "f0": 297.8,
+          "start": 39.2,
+          "dur": 1.5
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Sound_of_Armenian_Duduk.ogg",
+          "note": null,
+          "f0": 375.3,
+          "start": 7.7,
+          "dur": 1.5
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
+    },
+    {
+      "id": "guqin",
+      "label": "Guqin",
+      "kind": "pluck",
+      "source": "Wikimedia Commons",
+      "license": "Public domain",
+      "author": "Charlie Huang",
+      "page": "https://commons.wikimedia.org/wiki/File:Zheng_diao.ogg",
+      "attribution": "\"Zheng diao.ogg\" (guqin in standard tuning) by Charlie Huang, public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Zheng_diao.ogg",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Zheng_diao.ogg",
+          "note": null,
+          "f0": 96.2,
+          "start": 4.28,
+          "dur": 1.2
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Zheng_diao.ogg",
+          "note": null,
+          "f0": 144.3,
+          "start": 8.19,
+          "dur": 1.3
+        }
+      ],
+      "realism": "recorded",
+      "clean": true
     }
   ]
 }

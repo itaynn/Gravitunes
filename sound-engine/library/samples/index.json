@@ -943,5 +943,70 @@
     "bytes": 4113
    }
   ]
+ },
+ "gamelan": {
+  "label": "Gamelan (gong kebyar)",
+  "kind": "pluck",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Gamelan Gong Lagu Kebiar (1931).ogg\", Balinese court gamelan, from 'Musik des Orients' (E. M. von Hornbostel, Lindström 1931), public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
+  "zones": [
+   {
+    "file": "gamelan-0.mp3",
+    "f0": 153.3,
+    "bytes": 3537
+   },
+   {
+    "file": "gamelan-1.mp3",
+    "f0": 285.5,
+    "bytes": 2961
+   },
+   {
+    "file": "gamelan-2.mp3",
+    "f0": 429.3,
+    "bytes": 4113
+   }
+  ]
+ },
+ "duduk": {
+  "label": "Duduk",
+  "kind": "sustain",
+  "realism": "recorded",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Sound of Armenian Duduk.ogg\" by I. Mazia, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Sound_of_Armenian_Duduk.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+  "zones": [
+   {
+    "file": "duduk-0.mp3",
+    "f0": 297.8,
+    "bytes": 6561
+   },
+   {
+    "file": "duduk-1.mp3",
+    "f0": 375.3,
+    "bytes": 6561
+   }
+  ]
+ },
+ "guqin": {
+  "label": "Guqin",
+  "kind": "pluck",
+  "realism": "recorded",
+  "license": "Public domain",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Zheng diao.ogg\" (guqin in standard tuning) by Charlie Huang, public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Zheng_diao.ogg",
+  "zones": [
+   {
+    "file": "guqin-0.mp3",
+    "f0": 96.2,
+    "bytes": 5409
+   },
+   {
+    "file": "guqin-1.mp3",
+    "f0": 144.3,
+    "bytes": 5841
+   }
+  ]
  }
 }

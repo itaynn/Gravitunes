@@ -131,7 +131,7 @@
   },
   "gamelan": {
    "label": "gamelan metallophone",
-   "inspiredBy": "Javanese saron (heard on a vibraphone sample)",
+   "inspiredBy": "Balinese / Javanese gamelan (recorded: Balinese gong kebyar, 1931)",
    "family": "struck bronze bar, inharmonic, beating",
    "harmonics": [
     1
@@ -191,7 +191,7 @@
     ],
     "gap": 0.28
    },
-   "sample": "vibraphone"
+   "sample": "gamelan"
   },
   "sitar": {
    "label": "sitar",
@@ -954,7 +954,7 @@
   },
   "duduk": {
    "label": "duduk",
-   "inspiredBy": "Armenian duduk",
+   "inspiredBy": "Armenian duduk (apricot-wood double-reed)",
    "family": "double reed, slow breathy swell, mournful slides",
    "harmonics": [
     1,
@@ -1008,7 +1008,7 @@
     "gap": 0.42,
     "dur": 0.5
    },
-   "sample": "english_horn"
+   "sample": "duduk"
   },
   "bouzouki": {
    "label": "bouzouki",
@@ -4019,6 +4019,86 @@
     "hold": false
    },
    "sample": "orca"
+  },
+  "guqin": {
+   "label": "guqin",
+   "inspiredBy": "Chinese guqin (seven-string zither)",
+   "family": "plucked silk-string zither, deep and quiet",
+   "harmonics": [
+    1,
+    0.35,
+    0.1
+   ],
+   "envelope": {
+    "attack": 0.002,
+    "decay": 1.4,
+    "sustain": 0,
+    "release": 0.7
+   },
+   "partials": [
+    {
+     "ratio": 3,
+     "amp": 0.45,
+     "decay": 0.5
+    },
+    {
+     "ratio": 4,
+     "amp": 0.35,
+     "decay": 0.32
+    },
+    {
+     "ratio": 5,
+     "amp": 0.28,
+     "decay": 0.2
+    },
+    {
+     "ratio": 6,
+     "amp": 0.2,
+     "decay": 0.13
+    },
+    {
+     "ratio": 7,
+     "amp": 0.14,
+     "decay": 0.09
+    },
+    {
+     "ratio": 1.003,
+     "amp": 0.25,
+     "decay": 1.6
+    }
+   ],
+   "noise": {
+    "amount": 0.18,
+    "attack": 0.001,
+    "decay": 0.025,
+    "cutoff": 3200
+   },
+   "brightness": 0.65,
+   "dur": 0.6,
+   "gesture": {
+    "scale": [
+     0,
+     200,
+     500,
+     700,
+     900
+    ],
+    "steps": [
+     0,
+     1,
+     2,
+     4,
+     2
+    ],
+    "gap": 0.45,
+    "bend": {
+     "cents": 200,
+     "at": 0.18,
+     "time": 0.22
+    },
+    "about": "pentatonic, slow plucks with slides"
+   },
+   "sample": "guqin"
   }
  }
 }
