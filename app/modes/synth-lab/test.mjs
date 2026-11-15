@@ -50,4 +50,17 @@ assert.equal(oneLine('One. Two.'), 'One.');
   const { centers } = JSON.parse(readFileSync(join(root, 'data/earth/musical-centers.json'), 'utf8'));
   for (const c of centers) for (const d of ['left', 'right']) assert.ok(neighbor(centers, c, d), `${c.id} ${d}`);
 }
+{
+  const { waveHarmonics, builderFromVoice, builderSynth, brightHz, NH } = await import('./tones.js');
+  assert.deepEqual(waveHarmonics('sine').slice(0, 2), [1, 0]);
+  assert.equal(waveHarmonics('square')[1], 0);
+  assert.equal(brightHz(1), 12000);
+  for (const v of [{}, ...Object.values(instruments)]) {
+    const b = builderFromVoice(v);
+    assert.equal(b.harmonics.length, NH);
+    const s = builderSynth(b);
+    assert.ok(s.lowpass >= 600 && s.lowpass <= 12000 && s.envelope.attack > 0);
+    if (v.sample && !v.samples) assert.equal(b.sample, v.sample);
+  }
+}
 console.log('tone lab tests ok');
