@@ -1,5 +1,5 @@
 import "../../core/switcher.js";
-import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../core/imerg.js";
+import { rainFromColor, rainLevel as rainWords, midiHz } from "../../core/imerg.js";
 
 (() => {
   "use strict";
@@ -42,8 +42,9 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
   const pitchSourceControl = document.querySelector("#pitch-source-control");
   const loudnessSourceControl = document.querySelector("#loudness-source-control");
   const scaleControl = document.querySelector("#scale-control");
-  const waveformControl = document.querySelector("#waveform-control");
+  const instrumentControl = document.querySelector("#instrument-control");
   const harmonyControl = document.querySelector("#harmony-control");
+  const rhythmControl = document.querySelector("#rhythm-control");
   const stormTextureControl = document.querySelector("#storm-texture-control");
   const stereoControl = document.querySelector("#stereo-control");
   const prompt = document.querySelector("#stage-prompt");
@@ -73,8 +74,9 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     pitchSource: pitchSourceControl.value,
     loudnessSource: loudnessSourceControl.value,
     scale: scaleControl.value,
-    waveform: waveformControl.value,
+    instrument: instrumentControl.value,
     harmony: harmonyControl.value,
+    rhythm: rhythmControl.value,
     stormTexture: stormTextureControl.value,
     stereo: stereoControl.value,
   };
@@ -89,8 +91,23 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     name,
     Array.from({ length: 25 }, (_, i) => i + 48).filter((midi) => steps.includes(midi % 12)),
   ]));
-  const HARMONY_RATIOS = { octave: 0.5, fifth: 2 / 3, third: 0.8, off: 1 };
+  const INSTRUMENTS = {
+    soft: { waveform: "sine", overtones: [0.02, 0.005] },
+    warm: { waveform: "triangle", overtones: [0.14, 0.035] },
+    bell: { waveform: "sine", overtones: [0.38, 0.16] },
+    reed: { waveform: "square", overtones: [0.1, 0.025] },
+    pluck: { waveform: "sawtooth", overtones: [0.22, 0.06] },
+  };
+  const CHORDS = {
+    major: { ratios: [0.62996, 0.75], levels: [0.2, 0.16] },
+    minor: { ratios: [0.5946, 0.75], levels: [0.2, 0.16] },
+    fifth: { ratios: [2 / 3, 0.5], levels: [0.22, 0.12] },
+    octave: { ratios: [0.5, 1], levels: [0.22, 0] },
+    off: { ratios: [1, 1], levels: [0, 0] },
+  };
+  const RHYTHMS = { flowing: 0, slow: 0.7, steady: 1.4, rolling: 2.8 };
   const STORM_TEXTURES = {
+    off: { cutoff: 360, waveform: "sine", rumble: 48 },
     rain: { cutoff: 360, waveform: "sine", rumble: 48 },
     rumble: { cutoff: 180, waveform: "triangle", rumble: 42 },
     wind: { cutoff: 340, waveform: "sawtooth", rumble: 70 },
@@ -106,6 +123,23 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     setAudioTarget(audioNodes.stormFilter.frequency, texture.cutoff);
     audioNodes.stormRumble.type = texture.waveform;
     setAudioTarget(audioNodes.stormRumble.frequency, texture.rumble);
+  }
+
+  function applyInstrument() {
+    if (!audioNodes) return;
+    const instrument = INSTRUMENTS[soundSettings.instrument];
+    for (const oscillator of [audioNodes.tone, audioNodes.harmony, audioNodes.third, audioNodes.overtone2, audioNodes.overtone3]) {
+      oscillator.type = instrument.waveform;
+    }
+    setAudioTarget(audioNodes.overtone2Gain.gain, instrument.overtones[0]);
+    setAudioTarget(audioNodes.overtone3Gain.gain, instrument.overtones[1]);
+  }
+
+  function applyChord() {
+    if (!audioNodes) return;
+    const chord = CHORDS[soundSettings.harmony];
+    setAudioTarget(audioNodes.harmonyGain.gain, chord.levels[0]);
+    setAudioTarget(audioNodes.thirdGain.gain, chord.levels[1]);
   }
 
   function createAudioGraph() {
@@ -153,22 +187,54 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     toneGain.gain.value = 0;
     toneGain.connect(masterGain);
     const tone = audio.createOscillator();
-    tone.type = soundSettings.waveform;
+    tone.type = INSTRUMENTS[soundSettings.instrument].waveform;
     tone.frequency.value = 180;
     tone.connect(toneGain);
     tone.start();
 
     const harmonyGain = audio.createGain();
-    harmonyGain.gain.value = 0.22;
+    harmonyGain.gain.value = 0;
     harmonyGain.connect(toneGain);
     const harmony = audio.createOscillator();
-    harmony.type = soundSettings.waveform;
-    harmony.frequency.value = 90;
+    harmony.type = INSTRUMENTS[soundSettings.instrument].waveform;
+    harmony.frequency.value = 114;
     harmony.connect(harmonyGain);
     harmony.start();
 
+    const thirdGain = audio.createGain();
+    thirdGain.gain.value = 0;
+    thirdGain.connect(toneGain);
+    const third = audio.createOscillator();
+    third.type = INSTRUMENTS[soundSettings.instrument].waveform;
+    third.frequency.value = 135;
+    third.connect(thirdGain);
+    third.start();
+
+    const overtone2Gain = audio.createGain();
+    overtone2Gain.gain.value = INSTRUMENTS[soundSettings.instrument].overtones[0];
+    overtone2Gain.connect(toneGain);
+    const overtone2 = audio.createOscillator();
+    overtone2.type = INSTRUMENTS[soundSettings.instrument].waveform;
+    overtone2.frequency.value = 360;
+    overtone2.connect(overtone2Gain);
+    overtone2.start();
+
+    const overtone3Gain = audio.createGain();
+    overtone3Gain.gain.value = INSTRUMENTS[soundSettings.instrument].overtones[1];
+    overtone3Gain.connect(toneGain);
+    const overtone3 = audio.createOscillator();
+    overtone3.type = INSTRUMENTS[soundSettings.instrument].waveform;
+    overtone3.frequency.value = 540;
+    overtone3.connect(overtone3Gain);
+    overtone3.start();
+
     audioContext = audio;
-    audioNodes = { masterGain, masterPanner, stormGain, stormFilter, stormRumble, tone, harmony, toneGain, harmonyGain };
+    audioNodes = {
+      masterGain, masterPanner, stormGain, stormFilter, stormRumble,
+      tone, harmony, third, overtone2, overtone3, toneGain,
+      harmonyGain, thirdGain, overtone2Gain, overtone3Gain,
+    };
+    applyChord();
   }
 
   async function toggleSound() {
@@ -200,11 +266,11 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     return Math.max(0, Math.min(1, value));
   }
 
-  function rainFrequency(rain, speedRatio, accelerationRatio) {
+  function rainFrequency(rain, speedRatio, slopeRatio) {
     const source = {
       rain: rain,
       speed: speedRatio,
-      slope: accelerationRatio,
+      slope: slopeRatio,
     }[soundSettings.pitchSource];
     const responsive = Math.pow(clamp01(source), 1 / pitchResponse);
     const notes = SCALE_NOTES[soundSettings.scale];
@@ -231,29 +297,31 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     const rain = ball ? heightAt(ball.x, ball.y) : 0;
     const frequency = rainFrequency(rain, speedRatio, slopeRatio);
     const loudness = {
-      motion: 0.025 + speedRatio * 0.18 + accelerationRatio * 0.035,
-      rain: 0.025 + rain * 0.215,
-      speed: 0.025 + speedRatio * 0.215,
-      slope: 0.025 + slopeRatio * 0.215,
+      motion: 0.1 + speedRatio * 0.3 + accelerationRatio * 0.1,
+      rain: 0.04 + rain * 0.28,
+      speed: 0.04 + speedRatio * 0.28,
+      slope: 0.04 + slopeRatio * 0.28,
     }[soundSettings.loudnessSource];
-    const harmonyRatio = HARMONY_RATIOS[soundSettings.harmony];
-    audioNodes.tone.type = soundSettings.waveform;
-    audioNodes.harmony.type = soundSettings.waveform;
+    const chord = CHORDS[soundSettings.harmony];
+    const pulseRate = RHYTHMS[soundSettings.rhythm];
+    const pulse = pulseRate ? 0.18 + 0.82 * (0.5 + 0.5 * Math.cos(2 * Math.PI * now * pulseRate)) : 1;
     audioNodes.tone.frequency.setTargetAtTime(frequency, now, 0.06);
-    audioNodes.harmony.frequency.setTargetAtTime(frequency * harmonyRatio, now, 0.06);
-    audioNodes.harmonyGain.gain.setTargetAtTime(soundSettings.harmony === "off" ? 0 : 0.22, now, 0.08);
+    audioNodes.harmony.frequency.setTargetAtTime(frequency * chord.ratios[0], now, 0.06);
+    audioNodes.third.frequency.setTargetAtTime(frequency * chord.ratios[1], now, 0.06);
+    audioNodes.overtone2.frequency.setTargetAtTime(frequency * 2, now, 0.06);
+    audioNodes.overtone3.frequency.setTargetAtTime(frequency * 3, now, 0.06);
     audioNodes.masterPanner.pan.setTargetAtTime(
       soundSettings.stereo === "map" && ball ? (ball.x / WORLD_WIDTH) * 2 - 1 : 0,
       now,
       0.08,
     );
     audioNodes.toneGain.gain.setTargetAtTime(
-      soundEnabled ? motionVolume * loudness : 0,
+      soundEnabled ? motionVolume * loudness * pulse : 0,
       now,
-      0.08,
+      0.012,
     );
     audioNodes.stormGain.gain.setTargetAtTime(
-      soundEnabled && inStorm ? stormVolume * 0.22 : 0,
+      soundEnabled && inStorm && soundSettings.stormTexture !== "off" ? stormVolume * 0.12 : 0,
       now,
       inStorm ? 0.24 : 0.4,
     );
@@ -582,8 +650,15 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
   pitchSourceControl.addEventListener("change", () => { soundSettings.pitchSource = pitchSourceControl.value; });
   loudnessSourceControl.addEventListener("change", () => { soundSettings.loudnessSource = loudnessSourceControl.value; });
   scaleControl.addEventListener("change", () => { soundSettings.scale = scaleControl.value; });
-  waveformControl.addEventListener("change", () => { soundSettings.waveform = waveformControl.value; });
-  harmonyControl.addEventListener("change", () => { soundSettings.harmony = harmonyControl.value; });
+  instrumentControl.addEventListener("change", () => {
+    soundSettings.instrument = instrumentControl.value;
+    applyInstrument();
+  });
+  harmonyControl.addEventListener("change", () => {
+    soundSettings.harmony = harmonyControl.value;
+    applyChord();
+  });
+  rhythmControl.addEventListener("change", () => { soundSettings.rhythm = rhythmControl.value; });
   stormTextureControl.addEventListener("change", () => {
     soundSettings.stormTexture = stormTextureControl.value;
     applyStormTexture();

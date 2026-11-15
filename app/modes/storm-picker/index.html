@@ -4,169 +4,222 @@
     <meta charset="utf-8">
     <link rel="icon" href="data:,">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#090d18">
+    <meta name="theme-color" content="#06080c">
     <meta
       name="description"
-      content="Sound lab: choose which parts of the moving NASA IMERG rain and snow map drive pitch, loudness, overtones, instrument, chord and rhythm, and hear it live."
+      content="Hear the storm: listen to a week of NASA IMERG rain and snow. Move over the map to listen, pick storms and follow their sound over time."
     >
-    <title>Storm picker — Earth Jukebox</title>
+    <title>Hear the storm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./sonification.css">
-    <link rel="stylesheet" href="./soundlab.css?v=picker-13">
+    <link rel="stylesheet" href="./soundlab.css?v=picker-5">
+    <link rel="stylesheet" href="./hear.css?v=1">
     <script type="module" src="../../core/switcher.js"></script>
-    <script src="./soundlab.js?v=picker-13" defer></script>
+    <script src="./soundlab.js?v=picker-5" defer></script>
+    <script src="./hear.js?v=1" defer></script>
   </head>
-  <body>
-    <nav id="gt-switcher" aria-label="Demos"><a href="../../">All demos</a></nav>
-    <main class="page">
-      <header class="masthead">
-        <a class="brand" href="../../" aria-label="Back to the Gravitunes gallery">
-          <span class="brand-mark" aria-hidden="true">E</span>
-          <span>EARTH JUKEBOX <span class="brand-divider">/</span> STORM PICKER</span>
-        </a>
-        <nav class="masthead-links" aria-label="Related experiments">
-          <a class="source-link" href="../scanning-line/">Scanning line <span aria-hidden="true">↗</span></a>
-          <a
-            class="source-link"
-            href="https://svs.gsfc.nasa.gov/4285/"
-            target="_blank"
-            rel="noreferrer"
-          >NASA SVS 4285 <span aria-hidden="true">↗</span></a>
-        </nav>
-      </header>
-
-      <section class="lab" id="sound-lab" aria-labelledby="lab-title">
-        <div class="sonification-heading">
-          <div>
-            <p class="eyebrow">STORM PICKER / SOUND LAB ON THE MOVING MAP</p>
-            <h2 id="lab-title" class="lab-title">Pick it,<br><em>play it.</em></h2>
-          </div>
-          <p class="sonification-copy">
-            The moving NASA rain and snow map waits on its first frame. Move
-            over it to listen: a soft pulsing tone tells you where you are
-            (left and right is which ear, up and down is the pitch), and storms
-            sound their rain or snowstorm, as loud as the storm is big and
-            heavy. Click storms to pick spots; type a spot's
-            number to drop it. Then press
-            <strong>Space</strong>: the day plays once, the storm sounds stop,
-            and every pick drifts with its storm through the Sound lab mapping
-            below. A spinning storm adds vibrato (faster spin, faster vibrato;
-            taller spiral, wider), a spreading storm adds overtones and a
-            gathering one adds undertones.
-          </p>
-        </div>
-
-        <div class="lab-stage">
-          <video
-            id="lab-video"
-            class="lab-video"
-            src="../../../data/nasa-svs/4285/4285-imergert-current.mp4"
-            muted
-            playsinline
-            preload="auto"
-            aria-hidden="true"
-          ></video>
-          <canvas
-            id="lab-canvas"
-            class="lab-canvas"
-            width="1200"
-            height="600"
-            tabindex="0"
-            role="img"
-            aria-label="Moving NASA precipitation map. Numbered circles are the voices that make sound. Click to place a listening probe; press Enter to place one near the center."
-          ></canvas>
-          <div class="lab-stage-top" aria-hidden="true">
-            <span><span class="live-dot"></span> <span id="lab-source">IMERG / 7 DAYS OF RAIN &amp; SNOW</span></span>
-            <span id="lab-time">LOADING</span>
-          </div>
-          <div class="lab-stage-key" aria-hidden="true">
-            <span><b class="key-shape key-rain">●</b> RAIN <span aria-hidden="true">→</span> <b class="key-shape key-snow">◆</b> SNOW (SHAPE &amp; COLOR BLEND)</span>
-            <span><i class="key-arrow"></i> MOTION</span>
-            <span><i class="key-ccw"></i> SPIN ↺</span>
-            <span><i class="key-cw"></i> SPIN ↻</span>
-          </div>
-        </div>
-
-        <div class="lab-deck">
-          <div class="sonification-buttons">
-            <button class="button button-primary" id="lab-play" type="button" disabled>
-              <span class="button-icon" aria-hidden="true">▶</span>
-              <span id="lab-play-label">Loading map</span>
-            </button>
-            <button class="button button-secondary" id="lab-stop" type="button" disabled>Stop</button>
-          </div>
-          <div class="lab-deck-tools">
-            <select class="lab-select" id="lab-preset" aria-label="Load a preset"></select>
-            <button class="button button-secondary" id="lab-random" type="button">Randomize</button>
-            <button class="button button-secondary" id="lab-copy" type="button">Copy mapping</button>
-            <button class="button button-secondary" id="lab-reset" type="button">Reset</button>
-            <button class="button button-secondary" id="lab-restart" type="button" hidden>Back to the first frame</button>
-            <button class="button button-secondary" id="lab-clear-probes" type="button" hidden>Clear picks</button>
-          </div>
-        </div>
-        <p class="sonification-status" id="lab-status" role="status" aria-live="polite">Loading the moving map…</p>
-
-        <h3 class="lab-subhead">01 / MAPPING: WHICH INPUT DRIVES EACH SOUND</h3>
-        <p class="lab-help lab-help-top">
-          Rain and snow each have their own sound. Pick the tab to edit it: its
-          own key, scale, instrument and ranges. Every voice plays both sounds,
-          mixed by how much snow it is sitting on, so crossing from rain into
-          snow fades one sound into the other (set how gradual under Global sound).
-          With <strong>Notes: Flowing</strong>, sustained instruments hold one
-          continuous tone that glides with the map, and struck ones ring each
-          time the voice reaches a new note.
-        </p>
-        <div class="lab-profile-bar" id="lab-profile-bar"></div>
-        <div class="lab-table-wrap" id="lab-matrix-wrap">
-          <table class="lab-matrix" id="lab-matrix"></table>
-        </div>
-        <p class="lab-help">
-          <strong>Shape</strong>: <em>Normal</em> maps the input's low end to <em>From</em>
-          and its high end to <em>To</em>. <em>Inverted</em> flips that.
-          <em>Strength</em> ignores direction, so a fast storm moving west counts
-          the same as a fast storm moving east. <em>Calmness</em> is the
-          opposite of Strength. <strong>Notes</strong> sets how often a voice
-          strikes, on a tempo grid; <strong>Chord</strong> stacks notes on top of
-          the pitch.
-        </p>
-
-        <h3 class="lab-subhead">02 / VOICES: WHAT EACH ONE IS HEARING</h3>
-        <div class="lab-table-wrap">
-          <table class="lab-voices">
-            <thead>
-              <tr>
-                <th scope="col">Voice</th>
-                <th scope="col">X</th>
-                <th scope="col">Y</th>
-                <th scope="col">X speed</th>
-                <th scope="col">Y speed</th>
-                <th scope="col">Spin</th>
-                <th scope="col">Spread</th>
-                <th scope="col">Color</th>
-                <th scope="col">Size</th>
-                <th scope="col">Rain/Snow</th>
-                <th scope="col">Sound</th>
-                <th scope="col">Playing</th>
-              </tr>
-            </thead>
-            <tbody id="lab-voices-body"></tbody>
-          </table>
-        </div>
-
-        <h3 class="lab-subhead">03 / GLOBAL SOUND</h3>
-        <div class="lab-globals" id="lab-globals"></div>
-        <p class="lab-help">
-          Speed and spin come from how the colored patches move between frames,
-          scaled to how active the map is right now, so the middle of a bar means
-          still. Color follows the NASA legend: rain runs from green to red, and
-          snow from cyan to purple. Your settings are saved in this browser.
-        </p>
-      </section>
-
-      <footer class="footer">
-        <span>AN EXPERIMENT IN DATA, SOUND & MOTION</span>
-        <span>NASA SVS 4285 · IMERG</span>
-      </footer>
+  <body class="hts is-intro">
+    <!-- The map fills the window. soundlab.js drives everything inside #sound-lab and the lab-* controls. -->
+    <main class="hts-stage-wrap" id="sound-lab">
+      <h1 class="visually-hidden">Hear the storm</h1>
+      <div class="lab-stage">
+        <video
+          id="lab-video"
+          class="lab-video"
+          src="../../../data/nasa-svs/4285/4285-imergert-current.mp4"
+          muted
+          loop
+          playsinline
+          preload="auto"
+          aria-hidden="true"
+        ></video>
+        <canvas
+          id="lab-canvas"
+          class="lab-canvas"
+          width="1200"
+          height="600"
+          tabindex="0"
+          role="img"
+          aria-label="Moving NASA rain and snow map. Move over it to listen. Arrow keys move the listening point, Enter picks or drops a storm, Space plays the week, I explains the sounds."
+        ></canvas>
+      </div>
     </main>
+
+    <header class="hts-top">
+      <a class="hts-wordmark" href="../../" aria-label="Hear the storm, back to all demos">Hear the storm</a>
+      <div class="hts-top-actions">
+        <button class="hts-icon" id="hts-details-btn" type="button" aria-label="How the sound is made (I)" title="How the sound is made (I)">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.01"></path></svg>
+        </button>
+        <button class="hts-icon" id="hts-tutorial-btn" type="button" aria-label="Play the tutorial" title="Tutorial">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.01"></path></svg>
+        </button>
+        <button class="hts-icon" id="hts-controls-btn" type="button" aria-label="Show sound controls" aria-expanded="false" aria-controls="hts-drawer" title="Sound controls">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="hts-bar">
+      <button class="hts-play" id="lab-play" type="button" disabled>
+        <span class="button-icon" aria-hidden="true">▶</span>
+        <span class="visually-hidden" id="lab-play-label">Loading map</span>
+      </button>
+      <div class="hts-timeline">
+        <div class="hts-track" aria-hidden="true"><div class="hts-fill" id="hts-fill"></div><div class="hts-head" id="hts-head"></div></div>
+        <div class="hts-ticks" aria-hidden="true"><span>DAY 1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
+      </div>
+      <span class="hts-kbd" aria-hidden="true">SPACE</span>
+    </div>
+
+    <p class="visually-hidden" id="lab-status" role="status" aria-live="polite">Loading the moving map…</p>
+
+    <!-- Intro: title, tutorial (Space) and the audio introduction. -->
+    <section class="hts-intro" id="hts-intro" aria-labelledby="hts-intro-title">
+      <svg class="hts-mark" aria-hidden="true" width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 22h4M14 14v16M20 8v28M26 16v12M32 11v22M38 22h0"></path></svg>
+      <h2 class="hts-title" id="hts-intro-title">Hear the storm</h2>
+      <div class="hts-intro-actions">
+        <button class="hts-cta" id="hts-start-tutorial" type="button">
+          <svg aria-hidden="true" width="14" height="16" viewBox="0 0 14 16"><path d="M1 1l12 7-12 7z" fill="currentColor"></path></svg>
+          <span>Tutorial</span>
+          <span class="hts-cta-kbd" aria-hidden="true">SPACE</span>
+        </button>
+        <button class="hts-voice" id="hts-intro-audio" type="button" aria-label="Play audio introduction" aria-pressed="false">
+          <span class="hts-voice-ring" aria-hidden="true"></span>
+          <svg class="hts-voice-icon" aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"></path></svg>
+          <span class="hts-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        </button>
+      </div>
+      <button class="hts-skip" id="hts-skip" type="button">Skip →</button>
+    </section>
+
+    <!-- Tutorial: frosted card, auto-advances; the bars show the time left on each slide. -->
+    <section class="hts-card hts-tutorial" id="hts-tutorial" aria-labelledby="hts-tut-title" hidden>
+      <div class="hts-card-head">
+        <span class="hts-card-name">Hear the storm</span>
+        <button class="hts-close" id="hts-tut-close" type="button" aria-label="Close the tutorial">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"></path></svg>
+        </button>
+      </div>
+      <div class="hts-illus" id="hts-illus" data-step="0" aria-hidden="true">
+        <div class="hts-il hts-il-0"><span class="hts-il-l">L</span><span class="hts-il-r">R</span><span class="hts-il-u">↑</span>
+          <svg class="hts-glide" width="34" height="34" viewBox="0 0 24 24"><path d="M5 3l6 16 2.5-6.5L20 10z" fill="#F4F6FA" stroke="#06080C" stroke-width="1"></path></svg></div>
+        <div class="hts-il hts-il-1"><span class="hts-rip"></span><span class="hts-rip hts-rip-d"></span><span class="hts-dot"></span></div>
+        <div class="hts-il hts-il-2"><span class="hts-keycap">I</span></div>
+        <div class="hts-il hts-il-3"><svg width="120" height="60" viewBox="0 0 120 60" fill="none" stroke="#F4F6FA" stroke-width="3" stroke-linecap="round"><path d="M6 30h6M20 20v20M32 10v40M44 22v16M56 6v48M68 16v28M80 24v12M92 12v36M104 22v16M114 30h0"></path></svg></div>
+      </div>
+      <div class="hts-tut-copy" aria-live="polite">
+        <h2 id="hts-tut-title">Move to listen</h2>
+        <p id="hts-tut-hint">TRY TO FIND A STORM</p>
+      </div>
+      <div class="hts-tut-foot">
+        <div class="hts-tut-progress">
+          <div class="hts-segs" id="hts-segs" role="group" aria-label="Tutorial slides"></div>
+          <span class="hts-left" id="hts-left" aria-hidden="true">6s</span>
+        </div>
+        <button class="hts-next" id="hts-next" type="button">Next</button>
+      </div>
+    </section>
+
+    <!-- I: how the sound is made (spoken too). -->
+    <section class="hts-card hts-details" id="hts-details" aria-labelledby="hts-details-title" hidden>
+      <div class="hts-card-head">
+        <h2 id="hts-details-title">How the sound is made</h2>
+        <button class="hts-close" id="hts-details-close" type="button" aria-label="Close">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"></path></svg>
+        </button>
+      </div>
+      <ul class="hts-facts">
+        <li><b aria-hidden="true">↔</b><span>West to east moves the sound from your left ear to your right</span></li>
+        <li><b aria-hidden="true">↕</b><span>Further north, higher pitch</span></li>
+        <li><b aria-hidden="true" class="hts-rs">●◆</b><span>Rain and snow each play their own instrument</span></li>
+        <li><b aria-hidden="true">↻</b><span>A spinning storm adds vibrato</span></li>
+        <li><b aria-hidden="true">⇹</b><span>Spreading adds overtones, gathering adds undertones</span></li>
+      </ul>
+      <p class="hts-foot-note">DEFAULT MAPPING · CHANGE IT IN SOUND CONTROLS</p>
+    </section>
+
+    <!-- Controls: hidden until the sliders button opens them. -->
+    <aside class="hts-drawer" id="hts-drawer" aria-label="Sound controls" hidden>
+      <div class="hts-drawer-head">
+        <h2>Sound</h2>
+        <button class="hts-close hts-close-lg" id="hts-drawer-close" type="button" aria-label="Hide sound controls">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="hts-drawer-body">
+        <div class="lab-deck">
+          <select class="lab-select" id="lab-preset" aria-label="Load a preset"></select>
+          <div class="lab-deck-tools">
+            <button class="button button-secondary" id="lab-stop" type="button" disabled>Stop</button>
+            <button class="button button-secondary" id="lab-restart" type="button" hidden>First frame</button>
+            <button class="button button-secondary" id="lab-clear-probes" type="button" hidden>Clear picks</button>
+            <button class="button button-secondary" id="lab-random" type="button">Randomize</button>
+            <button class="button button-secondary" id="lab-copy" type="button">Copy</button>
+            <button class="button button-secondary" id="lab-reset" type="button">Reset</button>
+          </div>
+        </div>
+
+        <div class="lab-globals" id="lab-globals"></div>
+
+        <details class="hts-adv" id="hts-adv">
+          <summary>Advanced mapping</summary>
+          <p class="lab-help lab-help-top">
+            Rain and snow each have their own sound: pick a tab to edit its key,
+            scale, instrument and ranges. Each row chooses which input drives that sound.
+          </p>
+          <div class="lab-profile-bar" id="lab-profile-bar"></div>
+          <div class="lab-table-wrap" id="lab-matrix-wrap">
+            <table class="lab-matrix" id="lab-matrix"></table>
+          </div>
+          <p class="lab-help">
+            <strong>Shape</strong>: <em>Normal</em> maps the input's low end to <em>From</em>
+            and its high end to <em>To</em>; <em>Inverted</em> flips it; <em>Strength</em>
+            ignores direction; <em>Calmness</em> is its opposite.
+          </p>
+          <h3 class="lab-subhead">Voices</h3>
+          <div class="lab-table-wrap">
+            <table class="lab-voices">
+              <thead>
+                <tr>
+                  <th scope="col">Voice</th>
+                  <th scope="col">X</th>
+                  <th scope="col">Y</th>
+                  <th scope="col">X speed</th>
+                  <th scope="col">Y speed</th>
+                  <th scope="col">Spin</th>
+                  <th scope="col">Spread</th>
+                  <th scope="col">Color</th>
+                  <th scope="col">Size</th>
+                  <th scope="col">Rain/Snow</th>
+                  <th scope="col">Sound</th>
+                  <th scope="col">Playing</th>
+                </tr>
+              </thead>
+              <tbody id="lab-voices-body"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <div class="lab-stage-key" aria-hidden="true">
+          <span><b class="key-shape key-rain">●</b> RAIN <span>→</span> <b class="key-shape key-snow">◆</b> SNOW</span>
+          <span><i class="key-arrow"></i> MOTION</span>
+          <span><i class="key-ccw"></i> SPIN ↺</span>
+          <span><i class="key-cw"></i> SPIN ↻</span>
+        </div>
+
+        <div class="hts-drawer-foot">
+          <span class="hts-meta"><span id="lab-source">IMERG / 7 DAYS OF RAIN &amp; SNOW</span> · <span id="lab-time">LOADING</span></span>
+          <span class="hts-links">
+            <a href="../scanning-line/">Scanning line ↗</a>
+            <a href="https://svs.gsfc.nasa.gov/4285/" target="_blank" rel="noreferrer">NASA SVS 4285 ↗</a>
+          </span>
+          <nav id="gt-switcher" aria-label="Demos"><a href="../../">All demos</a></nav>
+        </div>
+      </div>
+    </aside>
   </body>
 </html>

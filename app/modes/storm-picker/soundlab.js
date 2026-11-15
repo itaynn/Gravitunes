@@ -189,7 +189,6 @@
     { key: "spinVib", label: "Spin → vibrato", min: 0, max: 1, step: 0.01, value: 1, format: pct, scale: ["OFF", "FULL"] },
     { key: "divTones", label: "Spread → over/undertones", min: 0, max: 1.5, step: 0.01, value: 1, format: pct, scale: ["OFF", "STRONG"] },
     { key: "weather", label: "Storm sounds while picking", min: 0, max: 1.5, step: 0.01, value: 1, format: pct, scale: ["OFF", "LOUD"] },
-    { key: "guide", label: "Cursor tone while picking", min: 0, max: 1.5, step: 0.01, value: 1, format: pct, scale: ["OFF", "LOUD"] },
   ];
 
   const PRESETS = [
@@ -637,28 +636,11 @@
   async function learnBackground() {
     const frames = 9;
     const stack = [];
-    let missed = 0;
     for (let k = 0; k < frames; k += 1) {
-      const target = ((k + 0.5) / frames) * video.duration;
-      await seekTo(target);
-      // A server that can't jump inside the video (no byte ranges) leaves it on the first frame. Learning the
-      // "background" from copies of one frame would erase every storm on that frame, so notice it and skip it.
-      if (Math.abs(video.currentTime - target) > 0.5) missed += 1;
+      await seekTo(((k + 0.5) / frames) * video.duration);
       classCtx.drawImage(video, 0, 0, SRC_MAP_W, SRC_MAP_H, 0, 0, CW, CH);
       stack.push(classCtx.getImageData(0, 0, CW, CH).data.slice());
       setStatus(`Learning the static map so only rain and snow count… ${k + 1}/${frames}`);
-    }
-    // Also catch frames that came back identical (the seek "worked" but no new picture was decoded).
-    let same = 0;
-    for (let k = 1; k < frames; k += 1) {
-      let diff = 0;
-      for (let i = 0; i < stack[0].length; i += 64) diff += Math.abs(stack[k][i] - stack[0][i]);
-      if (diff / (stack[0].length / 64) < 0.5) same += 1;
-    }
-    if (missed > frames / 3 || same > frames / 3) {
-      background = null;
-      console.warn(`Sound lab: the video could not be stepped through (missed ${missed}, identical ${same}); reading colors without a learned background.`);
-      return;
     }
     const bg = new Uint8Array(CW * CH * 3);
     const values = new Uint8Array(frames);
@@ -1140,17 +1122,10 @@
   }
 
   // Space (or the main button): start or stop the day.
-  // The day plays once. Playing again after the end starts over from the first frame, picks back where you placed them.
-  const atEnd = () => video.ended || (Number.isFinite(video.duration) && video.currentTime >= video.duration - 0.05);
   async function setPickerRunning(on) {
-    if (on && atEnd()) await restartPicker();
     pickerRunning = on;
-    // Either way the sound changes at once: the hover preview's ringing notes stop when the day starts, and the
-    // day's music stops dead (no ringing tail) when it is stopped.
-    hushMusic();
     if (on) {
       if (!playing) await startSound();
-      if (!pickerRunning) return; // stopped again while the sound was starting
       video.play().catch(() => {});
       setStatus(probes.length
         ? `Playing the day · ${probes.length} picked spot${probes.length > 1 ? "s" : ""} drift with their storms. Space stops; change any row below while it plays.`
@@ -1165,7 +1140,6 @@
   async function restartPicker() {
     pickerRunning = false;
     video.pause();
-    hushMusic();
     await seekTo(0);
     analyzeFrame(video.currentTime);
     for (const probe of probes) {
@@ -1629,11 +1603,6 @@
     const local = Math.max(blurAt(voice.fx, voice.fy, fieldI), blurAt(voice.fx, voice.fy));
     const p = clamp((local - threshold * 0.25) / (threshold * 0.75 + 0.15), 0, 1);
     voice.presenceTarget = p * p * (3 - 2 * p);
-    // How much storm is really here (for the storm sounds while picking): mostly how heavy the color is right
-    // around the spot, partly how much of the area around it is covered; it fades to nothing at the storm's edge.
-    const heavy = clamp((local - 0.03) / 0.6, 0, 1);
-    const cover = clamp(cellSample(cellMass, voice.fx, voice.fy) / 0.12, 0, 1);
-    voice.stormAmount = clamp(0.7 * heavy + 0.3 * cover, 0, 1) * Math.min(1, voice.presenceTarget * 3);
     voice.active = voice.kind === "hover" ? true
       : voice.waiting ? false // a pick waiting for Space: measured and labeled, but silent
         : state.mode === "probes" || state.mode === "picker" ? true
@@ -1733,15 +1702,14 @@
     if (voice.presenceTarget !== undefined) {
       if (voice.presence === undefined) voice.presence = voice.presenceTarget;
       else voice.presence += (voice.presenceTarget - voice.presence) * (1 - Math.exp(-dt / 0.3));
-      // The hover preview plays what a pick here would play: silent on dry spots, like a pick would be.
-      // The cursor tone (updateGuide) is what always tells you where you are.
       voice.weight = voice.presence;
+      // The picker's hover preview is never silent: dry spots still sound (quieter), so you always hear where you are.
+      if (voice.kind === "hover") voice.weight = Math.max(voice.weight, 0.4);
     }
     // Smooth the snow share over ~1 s so crossing a rain/snow edge is a fade, not a jump.
     if (inputs.snow !== null) {
       if (voice.snowSmooth === null) voice.snowSmooth = inputs.snow;
-      // (the cursor answers quickly, so rain → snow is heard as soon as you get there)
-      else voice.snowSmooth += (inputs.snow - voice.snowSmooth) * (1 - Math.exp(-dt / (voice.kind === "hover" ? 0.2 : 1.1)));
+      else voice.snowSmooth += (inputs.snow - voice.snowSmooth) * (1 - Math.exp(-dt / 1.1));
     }
     inputs.snow = voice.snowSmooth ?? 0;
     voice.inputs = inputs;
@@ -2475,18 +2443,12 @@
     };
     const pan = ac.createStereoPanner();
     pan.connect(master);
-    // Easy on the ear: take the sharpest edge off the drop ticks.
-    const soft = ac.createBiquadFilter();
-    soft.type = "lowpass";
-    soft.frequency.value = 7000;
-    soft.Q.value = 0.5;
-    soft.connect(pan);
     const rainL = gainNode(0);
     const rainH = gainNode(0);
     // The rain recordings are made once and shared by every storm sound.
     weatherLoops ||= { light: rainLoop(140, 0.05, 0), heavy: rainLoop(900, 0.16, 25) };
-    loop(weatherLoops.light).connect(rainL).connect(soft);
-    loop(weatherLoops.heavy).connect(rainH).connect(soft);
+    loop(weatherLoops.light).connect(rainL).connect(pan);
+    loop(weatherLoops.heavy).connect(rainH).connect(pan);
     // Snowstorm: a low howl and a high whistling wind, wandering and gusting; icy sparkles come from tick().
     const wind = gainNode(0);
     const howl = ac.createBiquadFilter();
@@ -2516,22 +2478,16 @@
     gust.connect(wind).connect(pan);
     return {
       rainL, rainH, wind, pan, snow: 0,
-      // rain, snow = how much storm of each kind is here (0 = none, 1 = the heaviest, widest storms). The loudness
-      // follows it smoothly from silence (no jump at the edge of a storm); a heavier storm also turns light rain
-      // into a downpour. level scales the whole sound (the slider, and quieter for picks than for the cursor).
-      set(rain, snow, panV, level = 1) {
+      set(rain, snow, panV) {
         const now = ac.currentTime;
-        const k = state.globals.weather * level;
-        // ^0.7: our ears hear loudness roughly like this, so a storm twice the size sounds clearly bigger and an
-        // ordinary storm is still plainly audible over the cursor tone.
-        const r = rain ** 0.7;
-        const heavy = clamp((rain - 0.3) / 0.5, 0, 1);
-        const sn = snow ** 0.7;
-        rainL.gain.setTargetAtTime(k * 0.5 * r * (1 - 0.65 * heavy), now, 0.15);
-        rainH.gain.setTargetAtTime(k * 0.6 * r * heavy, now, 0.15);
-        wind.gain.setTargetAtTime(k * 0.75 * sn, now, 0.2);
+        const level = state.globals.weather;
+        const r = rain > 0.01 ? Math.min(1.6, 0.35 + rain) * level : 0;
+        const sn = snow > 0.01 ? Math.min(1.6, 0.4 + 1.1 * snow) * level : 0;
+        rainL.gain.setTargetAtTime(r * 0.5 * (1 - clamp((rain - 0.45) / 0.5, 0, 0.7)), now, 0.12);
+        rainH.gain.setTargetAtTime(r * 0.65 * clamp((rain - 0.3) / 0.6, 0, 1), now, 0.12);
+        wind.gain.setTargetAtTime(sn * 0.8, now, 0.2);
         pan.pan.setTargetAtTime(earPan(panV), now, 0.05);
-        this.snow = k * sn;
+        this.snow = sn;
       },
       // Icy sparkles while over snow, a few per second.
       tick(dt) {
@@ -2549,100 +2505,34 @@
       },
     };
   }
-  // Called every animation frame. While picking: the cursor sounds the storm under it (rain for rain, a snowstorm
-  // for snow). Once the day plays: it stops.
+  // Called every animation frame. While picking: the cursor sounds the storm under it, and every pick keeps sounding
+  // its own storm (rain for rain, a snowstorm for snow) from where it sits. Once the day plays: all of them stop.
   function updateWeather(dt) {
     if (!ac || !playing) return;
     weather ||= makeWeather();
     const picking = state.mode === "picker" && !pickerRunning;
-    // Rain or snowstorm by the spot's snow share, as loud as the storm is big and heavy; panned with the cursor tone.
-    const stormOf = (w, voice, level) => {
-      const amount = voice.stormAmount ?? 0;
-      const snow = voice.snowShare ?? voice.inputs.snow; // the same rain ↔ snow balance the music uses
-      w.set(amount * (1 - snow), amount * snow, voice.fx / FW * 2 - 1, level);
-    };
-    // Only the storm under the cursor sounds: it stops as soon as the cursor leaves it (picks stay quiet until Space).
-    const onStorm = picking && hoverOver && hoverVoice.inputs && (hoverVoice.presenceTarget ?? 0) > 0.02;
-    if (onStorm) stormOf(weather, hoverVoice, 1);
+    const stormOf = (w, inp, level) => w.set(inp.color * (1 - inp.snow) * level, inp.color * inp.snow * level, inp.x * 2 - 1);
+    if (picking && hoverOver && hoverVoice.inputs) stormOf(weather, hoverVoice.inputs, 1);
     else weather.set(0, 0, 0);
     weather.tick(dt);
-    // The preview's music notes stop with it too (while picking, the cursor is the only thing playing music).
-    if (picking && cursorWasOnStorm && !onStorm) hushMusic();
-    cursorWasOnStorm = onStorm;
-  }
-  let cursorWasOnStorm = false;
-
-  // ---------- Cursor tone: while picking, always tells you where the cursor is ----------
-  // A soft, gently pulsing tone (pulses are much easier to place between the ears than a steady tone).
-  // Left/right = which ear; up/down = pitch, one scale note per step so you can count your way up.
-  // It plays on dry spots too, it skips the reverb so its place stays sharp, and it dips a little under a
-  // storm so the rain or snowstorm stays clear. Silent once the day plays.
-  let guide = null;
-  const GUIDE_LOW = 48; // C3 at the bottom of the map
-  const GUIDE_HIGH = 84; // C6 at the top
-  function makeGuide() {
-    const now = ac.currentTime;
-    const pan = ac.createStereoPanner();
-    pan.connect(master);
-    const level = gainNode(0);
-    const pulse = gainNode(0.68);
-    const lfo = ac.createOscillator();
-    lfo.frequency.value = 3;
-    lfo.connect(gainNode(0.32)).connect(pulse.gain);
-    lfo.start(now);
-    const tone = ac.createBiquadFilter();
-    tone.type = "lowpass";
-    tone.frequency.value = 2400;
-    const main = ac.createOscillator();
-    main.type = "triangle";
-    const octave = ac.createOscillator();
-    octave.type = "sine";
-    main.frequency.value = 220;
-    octave.frequency.value = 440;
-    main.connect(tone);
-    octave.connect(gainNode(0.18)).connect(tone);
-    tone.connect(pulse).connect(level).connect(pan);
-    main.start(now);
-    octave.start(now);
-    return { pan, level, main, octave, midi: null, gain: 0 };
-  }
-  function guideMidi(fy) {
-    const y = clamp(1 - fy / (FH - 1), 0, 1);
-    const profile = state.profiles.rain;
-    // When the rain's pitch row follows up/down (the default), the tone is exactly the note a rain pick here plays,
-    // moved by octaves into a comfortable range, so it never clashes with the preview.
-    const row = profile.rows.pitch;
-    if (row.src === "y" && row.curve === "up" && row.hi - row.lo >= 12) {
-      let m = snappedRoot(resolve("pitch", { y }, profile), profile);
-      while (m < GUIDE_LOW - 6) m += 12;
-      while (m > GUIDE_HIGH + 6) m -= 12;
-      return m;
-    }
-    const lad = getLadder(profile).filter((m) => m >= GUIDE_LOW && m <= GUIDE_HIGH);
-    return lad[Math.min(lad.length - 1, Math.floor(y * lad.length))];
-  }
-  function updateGuide() {
-    if (!ac || !playing) return;
-    const on = state.mode === "picker" && !pickerRunning && hoverOver && state.globals.guide > 0;
-    if (!guide && !on) return;
-    guide ||= makeGuide();
-    const now = ac.currentTime;
-    let target = 0;
-    if (on) {
-      const midi = guideMidi(hoverVoice.fy);
-      if (midi !== guide.midi) {
-        const f = midiFreq(midi);
-        guide.main.frequency.setTargetAtTime(f, now, guide.midi === null ? 0.001 : 0.02);
-        guide.octave.frequency.setTargetAtTime(f * 2, now, guide.midi === null ? 0.001 : 0.02);
-        guide.midi = midi;
+    const alive = new Set();
+    for (const probe of probes) {
+      alive.add(probe.id);
+      let w = pickWeather.get(probe.id);
+      if (!w) {
+        if (!picking) continue;
+        w = makeWeather();
+        pickWeather.set(probe.id, w);
       }
-      const duck = 1 - 0.5 * Math.min(1, (hoverVoice.stormAmount ?? 0) * 2);
-      target = 0.13 * state.globals.guide * lowBoost(midiFreq(midi)) * duck;
-      guide.pan.pan.setTargetAtTime(earPan(hoverVoice.fx / FW * 2 - 1), now, 0.03);
+      if (picking && probe.inputs) stormOf(w, probe.inputs, 0.7);
+      else w.set(0, 0, 0);
+      w.tick(dt);
     }
-    if (Math.abs(target - guide.gain) > 1e-4) {
-      guide.level.gain.setTargetAtTime(target, now, target > guide.gain ? 0.05 : 0.12);
-      guide.gain = target;
+    for (const [id, w] of pickWeather) {
+      if (alive.has(id)) continue;
+      w.set(0, 0, 0); // a dropped pick: fade out, then let it go
+      setTimeout(() => { try { w.pan.disconnect(); } catch (error) { /* already gone */ } }, 800);
+      pickWeather.delete(id);
     }
   }
 
@@ -2904,7 +2794,6 @@
   function pauseSound() {
     playing = false;
     window.clearInterval(schedulerTimer);
-    silencePickingSounds();
     syncPlayButton();
     setStatus("Paused · ringing notes fade out naturally.");
   }
@@ -2916,37 +2805,17 @@
     playButton.querySelector(".button-icon").textContent = on ? "Ⅱ" : "▶";
   }
 
-  // The storm sounds and the cursor tone skip the music bus, so they are silenced on their own.
-  function silencePickingSounds() {
-    if (!ac) return;
-    weather?.set(0, 0, 0);
-    for (const w of pickWeather.values()) w.set(0, 0, 0);
-    if (guide) {
-      guide.level.gain.setTargetAtTime(0, ac.currentTime, 0.05);
-      guide.gain = 0;
-    }
-  }
-
-  // Cut every music note right now, including ones still ringing or already scheduled a moment ahead: their bus
-  // fades out in ~0.1 s and is dropped, and new notes go to a fresh one.
-  function hushMusic() {
-    if (!ac) return;
-    clearDrones();
-    const old = bus;
-    old.gain.setTargetAtTime(0, ac.currentTime, 0.03);
-    window.setTimeout(() => old.disconnect(), 500);
-    makeBus();
-    // Notes already queued for the next instant would land on the old bus; start the beat again from now.
-    nextStepTime = ac.currentTime + 0.12;
-  }
-
   function stopSound() {
     pauseSound();
     stopButton.disabled = true;
-    hushMusic();
-    setStatus(state.mode === "picker"
-      ? "Stopped · all sound is off. Click the map or press a key to hear it again; Space plays the day."
-      : "Stopped.");
+    if (ac) {
+      clearDrones();
+      const old = bus;
+      old.gain.setTargetAtTime(0, ac.currentTime, 0.04);
+      window.setTimeout(() => old.disconnect(), 500);
+      makeBus();
+    }
+    setStatus("Stopped.");
   }
 
   // =========================================================================
@@ -3896,7 +3765,6 @@
     updateVoices(dtVideo, dtReal);
     updateDrones();
     updateWeather(dtReal);
-    updateGuide();
     drawOverlay();
     if (timestamp - lastMonitor > 120) {
       lastMonitor = timestamp;
@@ -3920,7 +3788,7 @@
     if (playing) return;
     if (state.mode === "picker" && videoReady) {
       syncPlayButton();
-      setStatus("Storm picker · the map waits on its first frame. Click once to turn the sound on, then move over it: the pulsing tone is where you are (left/right = ear, up/down = pitch), storms add rain or a snowstorm. Click storms to pick spots, type a spot's number to drop it, press Space to play the day.");
+      setStatus("Storm picker · the map waits on its first frame. Move over it to listen (left/right = ear, up/down = pitch; rain and snowstorms add their sound). Click storms to pick spots, then press Space to play the day.");
     } else if (state.mode === "tracked" && tracks.ready) {
       setStatus(`Storm Watch ready · ${tracks.byId.size} storms tracked through 7 Nov 2026. Press Play sound: each filled outline is a storm you hear, labeled with its notes. Click a storm to hear it alone.`);
     } else if (state.mode !== "tracked" && videoReady) {
@@ -3973,29 +3841,11 @@
       updateVoices(0, dt);
       updateDrones();
       updateWeather(dt);
-      updateGuide();
       drawOverlay();
       updateMonitor();
     },
-    get audio() { return ac && { state: ac.state, time: ac.currentTime, playing, drones: drones.size, activeNotes }; },
-    get weather() { return weather && { rainLight: weather.rainL.gain.value, rainHeavy: weather.rainH.gain.value, wind: weather.wind.gain.value, amount: hoverVoice.stormAmount }; },
-    get guide() { return guide && { midi: guide.midi, gain: guide.gain, pan: guide.pan.pan.value }; },
-    get picks() { return probes.map((p) => ({ n: p.slot + 1, fx: p.fx, fy: p.fy })); },
-    get pickerRunning() { return pickerRunning; },
-    get background() { return background; },
-    // Debug: classify the current frame with and without the learned background; returns wet pixel counts.
-    probeField() {
-      const saved = background;
-      const count = () => fieldI.reduce((n, v) => n + (v > 0.02 ? 1 : 0), 0);
-      sampleField();
-      const withBg = count();
-      background = null;
-      sampleField();
-      const withoutBg = count();
-      background = saved;
-      sampleField();
-      return { withBg, withoutBg };
-    },
+    get audio() { return ac && { state: ac.state, playing, drones: drones.size, activeNotes }; },
+    get weather() { return weather && { rainLight: weather.rainL.gain.value, rainHeavy: weather.rainH.gain.value, wind: weather.wind.gain.value }; },
     fields: { fieldI, fieldS, cellU, cellV, cellSpin, cellDiv, cellMass, rawOK },
     // Render one note offline and return its peak level (checks an instrument works, silently).
     async renderInstrument(index, midi = 72) {
@@ -4082,18 +3932,12 @@
   };
   window.addEventListener("pointerdown", wakeAudio, { capture: true });
   window.addEventListener("keydown", wakeAudio, { capture: true });
-  // Space plays or stops the day anywhere on the page, even when a button or slider has focus (so it never
-  // presses that button instead, e.g. Randomize). Only a menu, a check box or a text field keeps its own Space.
-  const keepsSpace = (el) => el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.isContentEditable
-    || (el.tagName === "INPUT" && el.type !== "range");
+  // Space plays or stops the day anywhere on the page (except while typing in a field or on a button).
   document.addEventListener("keydown", (event) => {
-    if (event.code !== "Space" || state.mode !== "picker" || !videoReady || keepsSpace(event.target)) return;
+    if (event.code !== "Space" || state.mode !== "picker" || !videoReady) return;
+    if (/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target.tagName)) return;
     event.preventDefault();
-    if (!event.repeat) setPickerRunning(!pickerRunning); // holding Space down doesn't flip it on and off
-  });
-  // A focused button would otherwise "click" when Space comes back up.
-  document.addEventListener("keyup", (event) => {
-    if (event.code === "Space" && state.mode === "picker" && !keepsSpace(event.target)) event.preventDefault();
+    setPickerRunning(!pickerRunning);
   });
   canvas.addEventListener("pointermove", (event) => {
     if (state.mode !== "picker") return;
@@ -4103,18 +3947,6 @@
   });
   canvas.addEventListener("pointerenter", () => { if (state.mode === "picker") hoverOver = true; });
   canvas.addEventListener("pointerleave", () => { hoverOver = false; });
-  // Leaving the page (another window or tab) also stops the cursor's sounds: the mouse may never "leave" the map.
-  window.addEventListener("blur", () => { hoverOver = false; });
-  // A hidden tab stops drawing frames, so nothing would update the sound: silence the picking sounds now, and
-  // stop the day (it can't follow the map while hidden). Space plays on from there.
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden || state.mode !== "picker") return;
-    hoverOver = false;
-    silencePickingSounds();
-    if (pickerRunning) setPickerRunning(false);
-  });
-  // Arrow-key listening stops when the map loses keyboard focus (unless the mouse is over it).
-  canvas.addEventListener("blur", () => { if (!canvas.matches(":hover")) hoverOver = false; });
   presetSelect.addEventListener("change", () => {
     applyPreset(Number(presetSelect.value));
     presetSelect.value = "";
@@ -4129,7 +3961,7 @@
   });
   clearProbesButton.addEventListener("click", () => {
     probes = [];
-    setStatus(state.mode === "picker" ? "Picks cleared · click storms to pick new spots." : "Probes cleared · click the map to place new ones.");
+    setStatus("Probes cleared · click the map to place new ones.");
   });
   modeInputs.forEach((input) => input.addEventListener("change", () => {
     state.mode = input.value;
@@ -4200,31 +4032,6 @@
     if (event.key !== "Enter") return;
     event.preventDefault();
     toggleProbeAt(FW / 2 + (Math.random() - 0.5) * 40, FH / 2 + (Math.random() - 0.5) * 20);
-  });
-
-  // The end of the day: the music stops and the map stays on the last frame.
-  video.addEventListener("ended", () => {
-    if (state.mode !== "picker" || !pickerRunning) return;
-    pickerRunning = false;
-    hushMusic();
-    syncPlayButton();
-    setStatus("The day is over · Space plays it again from the first frame, with your picks where you placed them.");
-  });
-
-  // Typing a pick's number drops that pick (1–7), while picking or while the day plays.
-  document.addEventListener("keydown", (event) => {
-    if (state.mode !== "picker" || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (/^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName)) return;
-    const n = /^Digit([1-9])$/.exec(event.code)?.[1] ?? /^Numpad([1-9])$/.exec(event.code)?.[1];
-    if (!n) return;
-    const at = probes.findIndex((p) => p.slot + 1 === Number(n));
-    event.preventDefault();
-    if (at < 0) {
-      setStatus(`There is no spot ${n} · ${probes.length ? `picked: ${probes.map((p) => p.slot + 1).join(", ")}` : "nothing picked yet"}.`);
-      return;
-    }
-    probes.splice(at, 1);
-    setStatus(`Spot ${n} dropped · ${probes.length} picked.`);
   });
 
   video.addEventListener("error", () => {
