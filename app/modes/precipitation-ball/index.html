@@ -114,18 +114,18 @@
             </label>
             <label class="slider-control" for="storm-volume-control">
               <span class="slider-heading">
-                <span>Storm sound</span>
-                <output id="storm-volume-output" for="storm-volume-control">45%</output>
+                <span>Storm ambience</span>
+                <output id="storm-volume-output" for="storm-volume-control">15%</output>
               </span>
-              <input id="storm-volume-control" type="range" min="0" max="100" step="1" value="45">
+              <input id="storm-volume-control" type="range" min="0" max="100" step="1" value="15">
               <span class="slider-scale"><span>QUIET</span><span>LOUD</span></span>
             </label>
             <label class="slider-control" for="motion-volume-control">
               <span class="slider-heading">
-                <span>Motion sound</span>
-                <output id="motion-volume-output" for="motion-volume-control">50%</output>
+                <span>Musical voice</span>
+                <output id="motion-volume-output" for="motion-volume-control">70%</output>
               </span>
-              <input id="motion-volume-control" type="range" min="0" max="100" step="1" value="50">
+              <input id="motion-volume-control" type="range" min="0" max="100" step="1" value="70">
               <span class="slider-scale"><span>QUIET</span><span>LOUD</span></span>
             </label>
             <label class="slider-control" for="pitch-response-control">
@@ -140,7 +140,7 @@
 
           <details class="sound-design">
             <summary>Shape the sound</summary>
-            <p class="sound-design-note">Choose what the ball listens to and how its motion is voiced. These controls affect sound only, not the terrain physics.</p>
+            <p class="sound-design-note">The ball plays a pitched musical voice; storm ambience is optional. Shape the mapping and arrangement without changing the terrain physics.</p>
             <div class="sound-controls">
               <label class="sound-select" for="pitch-source-control">
                 <span>Pitch follows</span>
@@ -169,28 +169,40 @@
                   <option value="whole-tone">Whole tone</option>
                 </select>
               </label>
-              <label class="sound-select" for="waveform-control">
-                <span>Tone</span>
-                <select id="waveform-control">
-                  <option value="sine" selected>Sine · smooth</option>
-                  <option value="triangle">Triangle · mellow</option>
-                  <option value="sawtooth">Sawtooth · bright</option>
-                  <option value="square">Square · hollow</option>
+              <label class="sound-select" for="instrument-control">
+                <span>Instrument</span>
+                <select id="instrument-control">
+                  <option value="warm" selected>Warm keys</option>
+                  <option value="soft">Soft sine</option>
+                  <option value="bell">Glass bell</option>
+                  <option value="reed">Reed</option>
+                  <option value="pluck">Bright saw</option>
                 </select>
               </label>
               <label class="sound-select" for="harmony-control">
-                <span>Harmony</span>
+                <span>Chord</span>
                 <select id="harmony-control">
-                  <option value="octave" selected>Octave below</option>
-                  <option value="fifth">Fifth below</option>
-                  <option value="third">Major third below</option>
-                  <option value="off">Off</option>
+                  <option value="major" selected>Major triad</option>
+                  <option value="minor">Minor triad</option>
+                  <option value="fifth">Open fifth</option>
+                  <option value="octave">Octave</option>
+                  <option value="off">Single note</option>
+                </select>
+              </label>
+              <label class="sound-select" for="rhythm-control">
+                <span>Notes</span>
+                <select id="rhythm-control">
+                  <option value="flowing" selected>Flowing</option>
+                  <option value="slow">Slow pulse</option>
+                  <option value="steady">Steady beat</option>
+                  <option value="rolling">Rolling</option>
                 </select>
               </label>
               <label class="sound-select" for="storm-texture-control">
-                <span>Storm texture</span>
+                <span>Ambience</span>
                 <select id="storm-texture-control">
-                  <option value="rain" selected>Rain hiss</option>
+                  <option value="off" selected>Off · music only</option>
+                  <option value="rain">Rain hiss</option>
                   <option value="rumble">Deep rumble</option>
                   <option value="wind">Wind</option>
                 </select>
