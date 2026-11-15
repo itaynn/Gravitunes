@@ -40,6 +40,10 @@ try {
 } catch (e) { console.warn(e); status('Could not load the map regions.'); }
 try { library = await getJson(repoUrl('sound-engine/library/presets/index.json')); } catch (e) { console.warn(e); }
 samples = await loadSampleIndex();
+// Stand-in: no real recording yet (synthesized, or a soundfont render); manifest `realism` via samples/index.json.
+const isStandIn = (realism) => realism !== 'recorded';
+const instStandIn = (id) => isStandIn(samples[instruments[id]?.sample]?.realism);
+const SI = ' (stand-in)';
 // Decode every recording now (no user gesture needed); voices without one stay synthesized.
 const sampleLoad = sound.loadSamples?.(Object.keys(samples)).then((r) => {
   console.info(`[tone-lab] samples loaded: ${r.loaded.join(', ') || 'none'}; fallback: ${r.fallback.join(', ') || 'none'}`);
@@ -75,7 +79,7 @@ viewer.addOverlay((g, v) => {
   const hit = (a) => placed.some((b) => a.bx < b.bx + b.w + 2 && b.bx < a.bx + a.w + 2 && a.by < b.by + b.h + 2 && b.by < a.by + a.h + 2);
   for (const c of centers) {
     if (c.instrument === 'ocean' && c !== region) continue;
-    const [x, y0] = v.toPixel(c.lat, c.lon), text = instruments[c.instrument]?.label || c.instrument;
+    const [x, y0] = v.toPixel(c.lat, c.lon), text = (instruments[c.instrument]?.label || c.instrument) + (instStandIn(c.instrument) ? SI : '');
     const w = g.measureText(text).width + h * 1.3;
     const box = { c, text, w, h, bx: Math.min(W - w, Math.max(0, x - w / 2)), by: y0 - h / 2 };
     for (let k = 1; hit(box) && k < 12; k++) box.by = y0 - h / 2 + Math.ceil(k / 2) * (h + 2) * (k % 2 ? 1 : -1);
@@ -101,8 +105,8 @@ const group = (label, items) => {
   og.append(...items.map(([v, t]) => new Option(t, v)));
   sel.append(og);
 };
-group('On the map', Object.entries(instruments).map(([id, v]) => [`w:${id}`, `${cap(v.label)} (${v.inspiredBy})`]));
-group('Sampled', Object.entries(samples).map(([id, v]) => [`s:${id}`, `${v.label}${v.kind === 'hit' ? ' (drum)' : ''}`]));
+group('On the map', Object.entries(instruments).map(([id, v]) => [`w:${id}`, `${cap(v.label)} (${v.inspiredBy})${instStandIn(id) ? SI : ''}`]));
+group('Sampled', Object.entries(samples).map(([id, v]) => [`s:${id}`, `${v.label}${v.kind === 'hit' ? ' (drum)' : ''}${isStandIn(v.realism) ? SI : ''}`]));
 group('Analysed', library.map((p) => [`l:${p.id}`, `${p.name}${p.pitched === false ? ' (unpitched)' : ''}`]));
 if (!sel.options.length) { sel.append(new Option('No instruments found', '')); status('Could not load the instrument lists.'); }
 
@@ -112,7 +116,7 @@ async function choose(value) {
   const [k, id] = [value.slice(0, 1), value.slice(2)];
   if (k === 'w') {
     const v = instruments[id];
-    current = { label: v.label, voice: v };
+    current = { label: v.label, voice: v, standIn: instStandIn(id) };
     await sampleLoad;
     if (token !== chooseSeq) return;
     const rec = v.sample && sound.hasSample?.(v.sample) ? 'Recorded.' : 'Synthesized.';
@@ -122,7 +126,7 @@ async function choose(value) {
     await sampleLoad;
     if (token !== chooseSeq) return;
     const ok = sound.hasSample?.(id);
-    current = { label: v.label, voice: { sample: id, harmonics: [1, 0.5, 0.25], dur: v.kind === 'hit' ? 0.3 : 0.7 } };
+    current = { label: v.label, voice: { sample: id, harmonics: [1, 0.5, 0.25], dur: v.kind === 'hit' ? 0.3 : 0.7 }, standIn: isStandIn(v.realism) };
     about.textContent = `${v.label}: ${ok ? 'recording' : 'recording not loaded, plain tone'}. ${v.source}, ${v.license}.`;
   } else if (k === 'l') {
     const p = library.find((x) => x.id === id);
@@ -147,7 +151,7 @@ async function choose(value) {
 function setRegion(c) {
   region = c;
   const inst = instruments[c.instrument];
-  regionEl.textContent = `${c.label}: ${inst?.label || c.instrument}`;
+  regionEl.textContent = `${c.label}: ${inst?.label || c.instrument}${instStandIn(c.instrument) ? SI : ''}`;
   viewer.redraw();
   sel.value = `w:${c.instrument}`;
   return choose(sel.value);
@@ -169,7 +173,7 @@ async function play() {
   } else {
     playNotes(sound, current.voice, notes, { amp: 0.4, pan });
   }
-  status(`${cap(current.label)}: ${KIND_TEXT[k]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}${loopBox.checked ? ', looping' : ''}`);
+  status(`${cap(current.label)}: ${KIND_TEXT[k]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}${current.standIn ? ', a stand-in sound until a real recording is added' : ''}${loopBox.checked ? ', looping' : ''}`);
   if (loopBox.checked) loopTimer = setTimeout(play, (gestureLength(notes) + 0.6) * 1000);
 }
 
