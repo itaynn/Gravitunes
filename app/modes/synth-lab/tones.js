@@ -43,3 +43,20 @@ export function toneNotes(voice, baseHz, kind, scaleId = null) {
   if (kind === 'chord') for (const x of notes) x.amp = 0.6;
   return notes;
 }
+
+// Arrow-key move on the map: the nearest region center in direction dir ('left' | 'right' | 'up' | 'down') from
+// `from` ({lat, lon}), longitude wrapping. Centers far off the arrow's axis score worse.
+export function neighbor(centers, from, dir) {
+  const [ax, sign] = { left: ['x', -1], right: ['x', 1], up: ['y', 1], down: ['y', -1] }[dir];
+  let best = null, bs = Infinity;
+  for (const c of centers) {
+    if (c.lat === from.lat && c.lon === from.lon) continue;
+    const dx = ((((c.lon - from.lon) + 540) % 360) - 180) * Math.cos(((c.lat + from.lat) / 2) * Math.PI / 180);
+    const dy = c.lat - from.lat;
+    const along = (ax === 'x' ? dx : dy) * sign, across = Math.abs(ax === 'x' ? dy : dx);
+    if (along <= 0) continue;
+    const score = Math.hypot(along, across) + across + (across > along * 1.7 ? 1000 : 0);
+    if (score < bs) { bs = score; best = c; }
+  }
+  return best;
+}

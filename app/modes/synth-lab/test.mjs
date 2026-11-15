@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { toneNotes, chordSteps } from './tones.js';
+import { toneNotes, chordSteps, neighbor } from './tones.js';
 import { noteHz, PLEASANT, SCALES } from '../../core/scales.js';
 for (const id of PLEASANT) assert.ok(SCALES[id].cents.length >= 5 && SCALES[id].label, id);
 import { MAX_FUND_HZ } from '../../core/sound.js';
@@ -39,4 +39,14 @@ const ids = orderModes(modes).map((m) => m.id);
 assert.deepEqual(ids.slice(0, 2), ['synth-lab', 'world-orchestra']);
 assert.equal(ids.length, modes.length);
 assert.equal(oneLine('One. Two.'), 'One.');
+{
+  const cs = [{ id: 'a', lat: 0, lon: 0 }, { id: 'e', lat: 2, lon: 30 }, { id: 'w', lat: 0, lon: -40 }, { id: 'n', lat: 40, lon: 5 }, { id: 'far', lat: 0, lon: 170 }];
+  assert.equal(neighbor(cs, cs[0], 'right').id, 'e');
+  assert.equal(neighbor(cs, cs[0], 'left').id, 'w');
+  assert.equal(neighbor(cs, cs[0], 'up').id, 'n');
+  assert.equal(neighbor(cs, cs[4], 'right').id, 'w');   // wraps across the date line
+  assert.equal(neighbor(cs, cs[0], 'down'), null);
+  const { centers } = JSON.parse(readFileSync(join(root, 'data/earth/musical-centers.json'), 'utf8'));
+  for (const c of centers) for (const d of ['left', 'right']) assert.ok(neighbor(centers, c, d), `${c.id} ${d}`);
+}
 console.log('tone lab tests ok');

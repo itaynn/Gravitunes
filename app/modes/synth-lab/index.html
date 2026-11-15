@@ -7,42 +7,49 @@
   <title>Tone lab - Gravitunes</title>
   <link rel="stylesheet" href="../../core/style.css">
   <style>
-    .tone { max-width: 40rem; }
-    .tone .play { display: flex; flex-wrap: wrap; gap: 8px; margin: .6em 0; }
-    .tone .play button { flex: 1 1 8em; }
-    .tone #about { min-height: 3em; }
+    .tone { max-width: 90rem; margin: 0 auto; }
+    .tone canvas#map { width: 100%; aspect-ratio: 2 / 1; display: block; border-radius: 6px; background: #a8c5dc; cursor: pointer; }
+    .tone #region { font-size: 1.25rem; font-weight: 600; margin: .4em 0 .1em; min-height: 1.5em; }
+    .tone #about { min-height: 1.5em; margin: 0 0 .3em; }
+    .tone .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: .5em 0; }
+    .tone .row button { flex: 0 1 7em; }
+    .tone .row button[aria-pressed="true"] { outline: 2px solid var(--accent, #ffd34d); outline-offset: 1px; }
+    .tone .opts { display: flex; flex-wrap: wrap; gap: 4px 24px; align-items: flex-start; }
+    .tone .opts > * { flex: 1 1 14em; min-width: 0; }
+    .tone label.loop { display: inline-flex; gap: .4em; align-items: center; }
   </style>
 </head>
 <body>
   <nav id="gt-switcher" aria-label="Demos"><a href="../../">All demos</a></nav>
   <header>
     <h1 id="mode-title">Tone lab</h1>
-    <p id="mode-desc">Hear how each instrument sounds before you hear the data. Pick an instrument, then play a note, a scale, a chord or its typical phrase.</p>
+    <p id="mode-desc">Every region of the world has its own instrument. Click a region, or focus the map and use the arrow keys and Enter, to hear it.</p>
   </header>
-  <main>
-    <aside class="tone" aria-label="Tone lab controls">
+  <main class="tone">
+    <canvas id="map" width="1600" height="800" tabindex="0" role="application"
+      aria-label="World map of instruments. Arrow keys move between regions, Enter plays." aria-describedby="region"></canvas>
+    <p id="region" aria-live="polite" aria-atomic="true"></p>
+    <p id="about" class="hint"></p>
+    <div class="row" role="group" aria-label="Play">
+      <button type="button" id="play-note" aria-pressed="false">Note</button>
+      <button type="button" id="play-scale" aria-pressed="false">Scale</button>
+      <button type="button" id="play-chord" aria-pressed="false">Chord</button>
+      <button type="button" id="play-phrase" aria-pressed="true">Phrase</button>
+      <label class="loop"><input type="checkbox" id="loop"> Loop</label>
+      <button type="button" id="stop" hidden>Stop</button>
+    </div>
+    <div class="opts">
       <div class="control">
         <label for="instrument">Instrument</label>
-        <select id="instrument" aria-describedby="about"><option>Loading...</option></select>
+        <select id="instrument"><option>Loading...</option></select>
       </div>
-      <p id="about" class="hint"></p>
       <div class="control">
         <label for="pitch">Pitch</label>
-        <input id="pitch" type="range" min="-24" max="21" step="1" value="0" aria-describedby="pitch-hint">
-        <p id="pitch-hint" class="hint">From C2 to E6. Scales and chords start here and never go above E6.</p>
+        <input id="pitch" type="range" min="-24" max="21" step="1" value="-12">
       </div>
       <div id="tone-scale"></div>
-      <div class="play" role="group" aria-label="Play">
-        <button type="button" id="play-note">Note</button>
-        <button type="button" id="play-scale">Scale</button>
-        <button type="button" id="play-chord">Chord</button>
-        <button type="button" id="play-phrase">Phrase</button>
-      </div>
-      <p class="hint keys">Keys: N note, S scale, C chord, P phrase, Up/Down arrow (outside the lists) change the pitch.</p>
-      <p id="status" role="status" class="hint"></p>
-      <p class="hint">World instruments are the voices of the World orchestra map: recorded samples (open licences) where available, else synthesized impressions. Sampled instruments are the recordings themselves. Analysed recordings use open-licensed files when downloaded, else a tone built from their overtones.
-        <a href="../../../sound-engine/playground.html">Full synth playground</a> (sliders for harmonics, tunings and scales).</p>
-    </aside>
+    </div>
+    <p id="status" role="status" class="hint"></p>
   </main>
   <div id="live" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
   <script type="module" src="tone-lab.js"></script>

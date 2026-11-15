@@ -93,14 +93,18 @@
     {
       "id": "synth-lab",
       "name": "Tone lab",
-      "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to E6.",
+      "summary": "A world map of instruments: click a region to hear its note, scale, chord or phrase, once or on a loop.",
       "author": "moran",
-      "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to E6.",
+      "description": "Every region of the world has its own instrument. Click or tap a region, or use the arrow keys and Enter, to hear a note, a scale, a chord or its typical phrase, once or on a loop. Recorded and analysed instruments are in the Instrument list.",
       "datasets": "none",
       "href": "index.html",
       "standalone": {
         "files": [
           "data/earth/instruments.json",
+          "data/earth/musical-centers.json",
+          "data/earth/coastlines.json",
+          "data/earth/borders.json",
+          "data/earth/land.json",
           "sound-engine/library/presets/*.json",
           "sound-engine/library/samples/*"
         ]
@@ -110,7 +114,7 @@
     {
       "id": "vortex-melodies",
       "name": "Vortex melodies",
-      "summary": "Swirling storms in NASA IMERG rain, found by optical flow. Press Play: each swirl loops a tune, faster spin plays faster.",
+      "summary": "Swirling storms in NASA IMERG rain: press Play and every swirl loops its own tune, faster spin plays faster and the dot circles once per tune. Click or press Enter on a swirl to hear it alone; Escape brings back all.",
       "author": "moran",
       "description": "Swirling storms in NASA real-time precipitation (IMERG), found by optical flow and tracked over the day. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where rain converges.",
       "datasets": [

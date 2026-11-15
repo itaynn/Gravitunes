@@ -1,13 +1,17 @@
 {
   "name": "Tone lab",
-  "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to E6.",
+  "summary": "A world map of instruments: click a region to hear its note, scale, chord or phrase, once or on a loop.",
   "author": "moran",
-  "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to E6.",
+  "description": "Every region of the world has its own instrument. Click or tap a region, or use the arrow keys and Enter, to hear a note, a scale, a chord or its typical phrase, once or on a loop. Recorded and analysed instruments are in the Instrument list.",
   "datasets": "none",
   "href": "index.html",
   "standalone": {
     "files": [
       "data/earth/instruments.json",
+      "data/earth/musical-centers.json",
+      "data/earth/coastlines.json",
+      "data/earth/borders.json",
+      "data/earth/land.json",
       "sound-engine/library/presets/*.json",
       "sound-engine/library/samples/*"
     ]
