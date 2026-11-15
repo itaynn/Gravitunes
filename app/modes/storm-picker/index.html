@@ -15,10 +15,10 @@
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./sonification.css">
     <link rel="stylesheet" href="./soundlab.css?v=picker-14">
-    <link rel="stylesheet" href="./hear.css?v=1">
+    <link rel="stylesheet" href="./hear.css?v=2">
     <script type="module" src="../../core/switcher.js"></script>
     <script src="./soundlab.js?v=picker-14" defer></script>
-    <script src="./hear.js?v=1" defer></script>
+    <script src="./hear.js?v=2" defer></script>
   </head>
   <body class="hts is-intro">
     <!-- The map fills the window. soundlab.js drives everything inside #sound-lab and the lab-* controls. -->
@@ -41,7 +41,7 @@
           height="600"
           tabindex="0"
           role="img"
-          aria-label="Moving NASA rain and snow map. Move over it to listen. Arrow keys move the listening point, Enter picks or drops a storm, Space plays the week, I explains the sounds."
+          aria-label="Moving NASA rain and snow map. Move over it to listen. Arrow keys move the listening point, Enter picks or drops a storm, Space plays the week, I explains the sounds, question mark opens the tutorial."
         ></canvas>
       </div>
     </main>
@@ -52,7 +52,7 @@
         <button class="hts-icon" id="hts-details-btn" type="button" aria-label="How the sound is made (I)" title="How the sound is made (I)">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.01"></path></svg>
         </button>
-        <button class="hts-icon" id="hts-tutorial-btn" type="button" aria-label="Play the tutorial" title="Tutorial">
+        <button class="hts-icon" id="hts-tutorial-btn" type="button" aria-label="Play the tutorial (?)" title="Click or press ? for the tutorial">
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17.5v.01"></path></svg>
         </button>
         <button class="hts-icon" id="hts-controls-btn" type="button" aria-label="Show sound controls" aria-expanded="false" aria-controls="hts-drawer" title="Sound controls">
@@ -80,10 +80,10 @@
       <svg class="hts-mark" aria-hidden="true" width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 22h4M14 14v16M20 8v28M26 16v12M32 11v22M38 22h0"></path></svg>
       <h2 class="hts-title" id="hts-intro-title">Hear the storm</h2>
       <div class="hts-intro-actions">
-        <button class="hts-cta" id="hts-start-tutorial" type="button">
+        <button class="hts-cta" id="hts-start-tutorial" type="button" aria-label="Tutorial (?)" title="Click or press ? for the tutorial">
           <svg aria-hidden="true" width="14" height="16" viewBox="0 0 14 16"><path d="M1 1l12 7-12 7z" fill="currentColor"></path></svg>
           <span>Tutorial</span>
-          <span class="hts-cta-kbd" aria-hidden="true">SPACE</span>
+          <span class="hts-cta-kbd" aria-hidden="true">?</span>
         </button>
         <button class="hts-voice" id="hts-intro-audio" type="button" aria-label="Play audio introduction" aria-pressed="false">
           <span class="hts-voice-ring" aria-hidden="true"></span>
@@ -106,7 +106,7 @@
         <div class="hts-il hts-il-0"><span class="hts-il-l">L</span><span class="hts-il-r">R</span><span class="hts-il-u">↑</span>
           <svg class="hts-glide" width="34" height="34" viewBox="0 0 24 24"><path d="M5 3l6 16 2.5-6.5L20 10z" fill="#F4F6FA" stroke="#06080C" stroke-width="1"></path></svg></div>
         <div class="hts-il hts-il-1"><span class="hts-rip"></span><span class="hts-rip hts-rip-d"></span><span class="hts-dot"></span></div>
-        <div class="hts-il hts-il-2"><span class="hts-keycap">I</span></div>
+        <div class="hts-il hts-il-2"><span class="hts-keycap hts-i">I</span></div>
         <div class="hts-il hts-il-3"><svg width="120" height="60" viewBox="0 0 120 60" fill="none" stroke="#F4F6FA" stroke-width="3" stroke-linecap="round"><path d="M6 30h6M20 20v20M32 10v40M44 22v16M56 6v48M68 16v28M80 24v12M92 12v36M104 22v16M114 30h0"></path></svg></div>
       </div>
       <div class="hts-tut-copy" aria-live="polite">

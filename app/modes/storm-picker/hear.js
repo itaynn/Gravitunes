@@ -1,7 +1,8 @@
 // Hear the storm: the shell around the Sound lab (soundlab.js does all the sound and the map).
 // This file only adds the intro, the tutorial, the "how the sound is made" card (I), the controls drawer,
-// the week timeline and the spoken voice. Keys: Space starts the tutorial from the intro (and steps through it);
-// after that Space plays the week (soundlab.js). I explains the sounds. Escape closes whatever is open.
+// the week timeline and the spoken voice. Keys: ? opens the tutorial (arrows move its slides); Space plays or stops
+// the week (soundlab.js), and on the intro it skips straight in. I explains the sounds. Escape closes what is open.
+// Skipping the intro, or finishing or closing the tutorial, starts the week (hovering is heard while it plays).
 (() => {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
@@ -53,7 +54,7 @@
   }
 
   const LINES = {
-    intro: "Welcome to Hear the storm. Press Space to play the tutorial.",
+    intro: "Welcome to Hear the storm. Press the question mark key to play the tutorial, or Space to start listening.",
     details:
       "Here is how the sound is made. Moving from west to east moves the sound from your left ear to your right. " +
       "Further north, the pitch gets higher, and heavier rain or snow plays louder. Rain plays an organ and snow a glockenspiel. " +
@@ -84,10 +85,29 @@
     body.classList.remove("is-intro");
   }
 
-  $("hts-skip").addEventListener("click", () => {
+  // Starts the week through soundlab.js's own play button (once the map is ready), unless it is already playing.
+  const playButton = $("lab-play");
+  let waitForMap = 0;
+  function startWeek() {
+    window.clearInterval(waitForMap);
+    const press = () => {
+      if (playButton.querySelector(".button-icon").textContent.trim() === "▶") playButton.click();
+    };
+    if (!playButton.disabled) return press();
+    waitForMap = window.setInterval(() => {
+      if (playButton.disabled) return;
+      window.clearInterval(waitForMap);
+      press();
+    }, 200);
+  }
+
+  function skipIntro() {
     leaveIntro();
     canvas.focus({ preventScroll: true });
-  });
+    startWeek();
+  }
+
+  $("hts-skip").addEventListener("click", skipIntro);
 
   if (new URLSearchParams(window.location.search).get("intro") === "0") body.classList.remove("is-intro");
 
@@ -107,7 +127,8 @@
     },
     {
       title: "Press I",
-      hint: "HEAR HOW THE SOUND IS MADE",
+      html: 'Press <span class="hts-i">I</span>',
+      hint: "FOR MORE DETAILS ABOUT HOW THE SOUND IS MADE",
       ms: 6000,
       say: "Press I to hear more details about how the sounds are generated.",
     },
@@ -157,7 +178,8 @@
     elapsed = 0;
     const slide = SLIDES[step];
     illus.dataset.step = String(step);
-    titleEl.textContent = slide.title;
+    if (slide.html) titleEl.innerHTML = slide.html;
+    else titleEl.textContent = slide.title;
     hintEl.textContent = slide.hint;
     nextBtn.textContent = step === LAST ? "Begin" : "Next";
     speaking = true;
@@ -191,7 +213,8 @@
     nextBtn.focus({ preventScroll: true });
   }
 
-  function closeTutorial() {
+  // start: true when the tutorial is finished or skipped (Begin, ×, Escape, Space), so the week starts playing.
+  function closeTutorial(start = false) {
     if (!tutorialOpen) return;
     tutorialOpen = false;
     cancelAnimationFrame(raf);
@@ -199,16 +222,21 @@
     card.hidden = true;
     body.classList.remove("is-tutorial");
     canvas.focus({ preventScroll: true });
+    if (start) startWeek();
   }
 
   function nextSlide() {
-    if (step === LAST) closeTutorial();
+    if (step === LAST) closeTutorial(true);
     else go(step + 1);
+  }
+
+  function prevSlide() {
+    if (step > 0) go(step - 1);
   }
 
   $("hts-start-tutorial").addEventListener("click", startTutorial);
   $("hts-tutorial-btn").addEventListener("click", startTutorial);
-  $("hts-tut-close").addEventListener("click", closeTutorial);
+  $("hts-tut-close").addEventListener("click", () => closeTutorial(true));
   nextBtn.addEventListener("click", nextSlide);
 
   // ---------- I: how the sound is made ----------
@@ -258,25 +286,38 @@
     const tag = event.target.tagName;
     const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(tag) || event.target.isContentEditable;
 
+    if (event.key === "?" && !typing) {
+      event.preventDefault();
+      startTutorial();
+      return;
+    }
+
+    if (tutorialOpen && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.key === "ArrowRight") nextSlide();
+      else prevSlide();
+      return;
+    }
+
     if (event.code === "Space") {
-      if (typing || tag === "BUTTON" || tag === "SUMMARY") return; // let the focused control handle it
-      if (body.classList.contains("is-intro")) {
+      const inCard = tutorialOpen && card.contains(event.target);
+      if (typing || ((tag === "BUTTON" || tag === "SUMMARY") && !inCard)) return; // let the focused control handle it
+      if (body.classList.contains("is-intro") || tutorialOpen) {
+        // On the intro or in the tutorial, Space skips in and starts the week.
         event.preventDefault();
         event.stopImmediatePropagation();
-        startTutorial();
-      } else if (tutorialOpen) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        nextSlide();
+        if (tutorialOpen) closeTutorial(true);
+        else skipIntro();
       }
       return;
     }
 
     if (event.key === "Escape") {
       if (!details.hidden) closeDetails();
-      else if (tutorialOpen) closeTutorial();
+      else if (tutorialOpen) closeTutorial(true);
       else if (!drawer.hidden) setDrawer(false);
-      else if (body.classList.contains("is-intro")) leaveIntro();
+      else if (body.classList.contains("is-intro")) skipIntro();
       return;
     }
 

@@ -870,6 +870,12 @@ body.hts {
   display: none;
 }
 
+/* The I key in a serif face, so its bars show it is a capital I and not an l. */
+.hts-i {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 600;
+}
+
 /* ---------- Motion ---------- */
 
 @keyframes hts-pulse {
