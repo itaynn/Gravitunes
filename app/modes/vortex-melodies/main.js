@@ -11,8 +11,9 @@ import { voiceAt, distKm, compass, formatLatLon, centerColors } from '../../core
 import { getJson, loadEarth } from '../../core/data.js';
 import { volumeSlider, createPanel } from '../../core/ui.js';
 import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
-import { fieldOf } from '../../core/fields.js';
-import { motifFreq, motifSteps, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn } from './vortex.js';
+import { fieldOf, rainText } from '../../core/fields.js';
+import { motifFreq, motifSteps, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn, HOTSPOT_MAP } from './vortex.js';
+import { buildHotspots } from './hotspots.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -29,13 +30,16 @@ export default function start(ctx) {
     setup = run(flowData, vort, mj.centers, ij.instruments);
   })().catch((e) => { console.error(e); describe(`Vortex melodies could not load the swirls in ${NAME}: ${e.message}`); });
 
-  function run({ layers }, data, centers, instruments) {
+  function run({ layers }, vortData, centers, instruments) {
     const flow = layerByPrefix(layers, 'flow_');
     const div = layerByPrefix(layers, 'divergence_');
-    const ranks = buildRanks(data);
-    const trackById = new Map(data.tracks.map((t) => [t.id, t]));
+    // Track: vortices (offline, vortices.json) or hotspots (strong-value clusters, found here on first use).
+    let data = vortData, ranks = buildRanks(data), trackById = new Map(data.tracks.map((t) => [t.id, t])), hotData = null;
+    let kind = 'vortices';
+    const hot = () => kind === 'hotspots';
+    const one = () => (hot() ? 'hotspot' : 'vortex'), many = () => (hot() ? 'hotspots' : 'vortices');
     // Net convergence per frame is small (about -0.1..0.1 on 4285), so the bed follows its rank over the sequence.
-    const rawBed = Array.from({ length: data.frames.length }, (_, t) => convergence(div, t));
+    const rawBed = Array.from({ length: vortData.frames.length }, (_, t) => convergence(div, t));
     const bedRank = rankNormaliser(rawBed);
     const bedByFrame = rawBed.map((c) => 2 * bedRank(c) - 1);
     const instLabel = (id) => instruments[id]?.label || id;
@@ -110,7 +114,7 @@ export default function start(ctx) {
       const ids = new Set(active.map((v) => v.id));
       updateLegend(active);
       for (const id of phase.keys()) if (!ids.has(id)) phase.delete(id);
-      if (soloId != null && !ids.has(soloId)) { soloId = null; describe('The soloed vortex has faded; all vortices play again.'); }
+      if (soloId != null && !ids.has(soloId)) { soloId = null; describe(`The soloed ${one()} has faded; all ${many()} play again.`); }
       if (time.playing && s.bed) {
         const c = bedByFrame[t] || 0, frameDur = 1 / Math.max(0.1, time.fps || 2);
         // Convergence swells and brightens (more upper harmonics); divergence thins. Soft pad on the scale's
@@ -138,7 +142,7 @@ export default function start(ctx) {
       // Debounced so scrubbing does not flood the live region; one merged message after the host's "Paused at".
       clearTimeout(pausedTimer);
       if (!time.playing) pausedTimer = setTimeout(() => {
-        if (alive && !time.playing) describe(`Paused at ${time.label()}: ${(data.frames[t] || []).length} vortices; ${bedText(t)}.`);
+        if (alive && !time.playing) describe(`Paused at ${time.label()}: ${(data.frames[t] || []).length} ${many()}; ${bedText(t)}.`);
       }, 400);
       viewer.redraw();
     });
@@ -154,7 +158,10 @@ export default function start(ctx) {
     const legend = document.createElement('p');
     legend.className = 'hint';
     const legendList = document.createElement('span'), legendNote = document.createElement('span');
-    legendNote.textContent = ` Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum adds a low hum where ${NAME} converges. Arrows show which way the ${NAME} is moving (longer, brighter = faster).`;
+    const noteText = () => hot()
+      ? ` Ring colour = instrument; the filled blob is a hotspot (its size = area). The dot goes round once per tune. Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum adds a low hum where ${NAME} converges. Arrows show which way the ${NAME} is moving (longer, brighter = faster).`
+      : ` Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum adds a low hum where ${NAME} converges. Arrows show which way the ${NAME} is moving (longer, brighter = faster).`;
+    legendNote.textContent = noteText();
     legend.append(legendList, legendNote);
     let legendKey = null;
     function updateLegend(vs) {
@@ -169,7 +176,7 @@ export default function start(ctx) {
         const it = document.createElement('span'); it.style.marginRight = '.7em'; it.append(sw, name);
         legendList.append(it);
       }
-      if (!seen.size) legendList.textContent = 'No vortices on screen.';
+      if (!seen.size) legendList.textContent = `No ${many()} on screen.`;
     }
     // Sound and view options sit right in the control bar (after Play / Data), not in a fold: one word each.
     const barBox = document.createElement('div'); barBox.className = 'bar-item';
@@ -179,20 +186,53 @@ export default function start(ctx) {
     const bedCb = opts.checkbox('Hum', s.bed, (v) => { s.bed = v; });
     bedCb.setAttribute('aria-label', 'Convergence hum (low pad) on or off');
     // Mapping menus: where each sound property gets its value. A new mapping restarts the tunes.
-    const SOURCE_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['strength', 'Strength'], ['spin', 'Spin speed']];
+    const VORT_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['strength', 'Strength'], ['spin', 'Spin speed']];
+    const HOT_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['strength', 'Intensity'], ['spin', 'Peak']];
+    const srcOpts = () => (hot() ? HOT_OPTS : VORT_OPTS);
+    const trackSel = opts.select('Track', [['vortices', 'Vortices'], ['hotspots', 'Hotspots']], (val) => setKind(val), { value: kind });
+    trackSel.setAttribute('aria-label', 'Track vortices (swirls) or hotspots (strongest clusters)');
     const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo', notes: 'Notes' };
+    const hints = (key) => (hot() && key === 'pitch' ? 'bigger = higher' : HINTS[key]);
     const HINTS = { pitch: 'bigger = lower', volume: 'bigger = louder', tempo: 'bigger = faster', notes: 'bigger = more notes, 3 to 8' };
     const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'fixed tempo', notes: 'fixed at 5 notes' };
-    const srcSel = (key) => opts.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
+    const srcSel = (key) => opts.select(`${SOUND_NAMES[key]} \u2190`, VORT_OPTS, (val) => {
       s.map[key] = val; phase.clear();
-      const label = SOURCE_OPTS.find((o) => o[0] === val)[1].toLowerCase();
-      describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.` : `${SOUND_NAMES[key]} now follows ${label} (${HINTS[key]}).`);
+      const label = srcOpts().find((o) => o[0] === val)[1].toLowerCase();
+      describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.` : `${SOUND_NAMES[key]} now follows ${label} (${hints(key)}).`);
     }, { value: s.map[key] });
     const mapSels = ['pitch', 'volume', 'tempo', 'notes'].map(srcSel);
-    mapSels.push(opts.select('Spin \u2192', [['nothing', 'Nothing'], ['updown', 'Tune up/down']], (val) => {
+    const srcSels = mapSels.slice();
+    mapSels.unshift(trackSel);
+    const spinSel = opts.select('Spin \u2192', [['nothing', 'Nothing'], ['updown', 'Tune up/down']], (val) => {
       s.map.direction = val; phase.clear();
       describe(val === 'updown' ? 'Spin direction now turns the tune up (counterclockwise) or down (clockwise).' : 'Spin direction now controls nothing.');
-    }, { value: s.map.direction }));
+    }, { value: s.map.direction });
+    mapSels.push(spinSel);
+    function setKind(val) {
+      if (val === kind) return;
+      kind = val;
+      if (hot() && !hotData) {
+        const n = vortData.frames.length;
+        hotData = buildHotspots((lat, lon, t) => field.level(lat, lon, t), n);
+      }
+      data = hot() ? hotData : vortData;
+      ranks = buildRanks(data); trackById = new Map(data.tracks.map((t) => [t.id, t]));
+      s.map = hot() ? { ...HOTSPOT_MAP } : { ...DEFAULT_MAP };
+      phase.clear(); soloId = null; legendKey = null;
+      ['pitch', 'volume', 'tempo', 'notes'].forEach((key, i) => {
+        const sel = srcSels[i];
+        srcOpts().forEach(([, txt], j) => { sel.options[j].text = txt; });
+        sel.value = s.map[key];
+      });
+      spinSel.value = s.map.direction;
+      const spinRow = spinSel.closest('.control'); if (spinRow) spinRow.hidden = hot();
+      legendNote.textContent = noteText();
+      active = activeVortices(data, ranks, time.now(), Infinity, trackById);
+      updateLegend(active); viewer.redraw();
+      describe(hot()
+        ? `Tracking hotspots: the strongest ${NAME} clusters, ${active.length} now, ${data.tracks.length} over the sequence. Pitch follows intensity (stronger = higher), volume follows size, tempo follows peak.`
+        : `Tracking vortices: ${active.length} swirls now. Pitch follows size, volume strength, tempo spin speed.`);
+    }
     const arrowsCb = opts.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', `Flow arrows: which way the ${NAME} is moving`);
     const streamsCb = opts.checkbox('Streams', s.streams, (v) => {
@@ -218,6 +258,7 @@ export default function start(ctx) {
 
     // ---- click / Enter: solo the vortex there (again, empty map, or Escape: back to all). Mouse hover is silent.
     const vortexText = (v) => {
+      if (hot()) return `hotspot ${v.id}, playing ${voiceFor(v).name}, about ${Math.round(v.area / 1e4) * 1e4} square km, intensity ${field.rain ? rainText(v.mean) : `${Math.round(v.mean * 100)} percent`}, peak ${field.rain ? rainText(v.peak) : `${Math.round(v.peak * 100)} percent`} (stronger than ${Math.round(v.strengthRank * 100)} percent of hotspots)`;
       const dirTxt = v.track?.direction === 'cw' ? 'clockwise' : 'counterclockwise';
       return `vortex ${v.id}, playing ${voiceFor(v).name}, ${dirTxt}, ${periodText(v.spin)} (spins faster than ${Math.round(v.spinRank * 100)} percent of vortices), ${Math.round(v.r * 2 / 50) * 50} km wide`;
     };
@@ -229,16 +270,16 @@ export default function start(ctx) {
     function unsolo() {
       if (soloId == null) return;
       soloId = null; viewer.redraw();
-      describe(`All ${active.length} vortices playing.`);
+      describe(`All ${active.length} ${many()} playing.`);
     }
     function onKeyMove({ lat, lon, keyboard }) {
       if (!keyboard) return;
       const v = hit(lat, lon);
-      describe(`${formatLatLon(lat, lon)}: ${v ? `${vortexText(v)}. Press Enter to solo it` : nearestText(lat, lon, active, distKm, compass)}.`);
+      describe(`${formatLatLon(lat, lon)}: ${v ? `${vortexText(v)}. Press Enter to solo it` : nearestText(lat, lon, active, distKm, compass).replace(/vortex/g, one())}.`);
     }
     function onSelect({ lat, lon }) {
       const v = hit(lat, lon);
-      if (!v) { if (soloId != null) unsolo(); else describe(`No vortex here. ${active.length} vortices at ${time.label()}.`); return; }
+      if (!v) { if (soloId != null) unsolo(); else describe(`No ${one()} here. ${active.length} ${many()} at ${time.label()}.`); return; }
       if (soloId === v.id) { unsolo(); return; }
       soloId = v.id; viewer.redraw();
       describe(`Solo: ${vortexText(v)}. ${time.playing ? '' : 'Press Play to hear it. '}Select it again or press Escape to hear all.`);
@@ -318,7 +359,7 @@ export default function start(ctx) {
         const dLon = nx ? ((nx.lon - v.lon + 540) % 360) - 180 : 0;
         const [x, y] = vw.toPixel(nx ? v.lat + (nx.lat - v.lat) * ph : v.lat, nx ? v.lon + dLon * ph : v.lon);
         const rpx = Math.max(4, (v.r / 40030) * W / Math.max(0.2, Math.cos((v.lat * Math.PI) / 180)));
-        const cw = trackById.get(v.id)?.direction === 'cw';
+        const cw = !hot() && trackById.get(v.id)?.direction === 'cw';
         const av = byId.get(v.id), isSolo = soloId === v.id, col = voiceFor(av || v).color;
         // Mark position: one full turn per melody, landing on note k's tick as note k sounds.
         const p = av ? loopOf(av, sec) : null, n = p ? p.n : 1;
@@ -328,6 +369,7 @@ export default function start(ctx) {
         g.globalAlpha = soloId != null && !isSolo ? 0.3 : 1;
         const lw = isSolo ? 4 : 2;
         if (isSolo) { g.strokeStyle = '#fff'; g.lineWidth = lw + 6; g.beginPath(); g.arc(x, y, rpx, 0, 2 * Math.PI); g.stroke(); soloAt = [x, y, rpx]; }
+        if (hot()) { g.fillStyle = col; g.globalAlpha *= 0.28; g.beginPath(); g.arc(x, y, rpx, 0, 2 * Math.PI); g.fill(); g.globalAlpha = soloId != null && !isSolo ? 0.3 : 1; }
         // Black outline under each ring keeps it visible on the light map.
         for (const [style, w] of [['#000', lw + 2], [col, lw]]) {
           g.strokeStyle = style; g.lineWidth = w;
@@ -357,7 +399,7 @@ export default function start(ctx) {
     describe(`Vortex melodies ready: ${dataset.title}, ${data.tracks.length} tracked swirls in ${NAME}. Press Play to hear them all; select one on the map (click, or arrow keys then Enter) to solo it; choose another dataset with the Data menu.`);
     return () => {
       offFrame(); offPlay(); document.removeEventListener('keydown', onEsc); offHover(); offClick(); clearInterval(sched); clearTimeout(pausedTimer); removeOverlay(); cancelAnimationFrame(raf);
-      more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
+      barBox.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
     };
   }
 

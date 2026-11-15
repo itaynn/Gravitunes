@@ -148,3 +148,38 @@ console.log('vortex-melodies marker ok');
   }
 }
 console.log('vortex-melodies datasets ok');
+
+// ---- hotspots: clustering + tracking
+{
+  const { findHotspots, trackHotspots, buildHotspots, cutoff } = await import('./hotspots.js');
+  const { HOTSPOT_MAP, mapped } = await import('./vortex.js');
+  const W = 64, H = 32, blank = () => new Float32Array(W * H).fill(0.05);
+  const put = (lv, x0, y0, w, h, val) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) lv[y * W + ((x + W) % W)] = val; };
+  const lv = blank();
+  put(lv, 10, 14, 4, 4, 0.9);    // big strong blob near the equator
+  put(lv, 40, 10, 2, 2, 0.6);    // smaller weaker blob
+  put(lv, 62, 20, 4, 2, 0.8);    // wraps across the date line: one blob
+  put(lv, 25, 5, 1, 1, 0.95);    // single cell: dropped as tiny
+  const hs = findHotspots(lv, W, H, { top: 1, minLevel: 0.1, mergeKm: 300 });
+  assert.equal(hs.length, 3);
+  assert.ok(hs[0].mean > 0.85 && Math.abs(hs[0].peak - 0.9) < 1e-4);
+  assert.ok(hs.find((h) => Math.abs(h.lon) > 170), 'date-line blob is one hotspot');
+  assert.ok(hs.every((h) => h.area > 0 && h.r === Math.round(Math.sqrt(h.area / Math.PI))));
+  // merging: two close blobs become one
+  const lv2 = blank(); put(lv2, 10, 14, 3, 3, 0.9); put(lv2, 14, 14, 3, 3, 0.9);
+  assert.equal(findHotspots(lv2, W, H, { top: 0.5, minLevel: 0.1, mergeKm: 0 }).length, 2);
+  assert.equal(findHotspots(lv2, W, H, { top: 0.5, minLevel: 0.1, mergeKm: 3000 }).length, 1);
+  assert.equal(cutoff(blank(), 0.1, 0.1), Infinity);   // nothing above minLevel: no hotspots
+  // tracking keeps ids for a moving blob; a new far one gets its own id
+  const tr = trackHotspots([[{ lat: 0, lon: 0, r: 200 }], [{ lat: 1, lon: 3, r: 200 }, { lat: 50, lon: 100, r: 200 }], [{ lat: 2, lon: 6, r: 200 }, { lat: 50, lon: 101, r: 200 }]], { minTrackFrames: 2 });
+  assert.equal(tr.kind, 'hotspots');
+  assert.deepEqual(tr.frames.map((f) => f[0].id), [1, 1, 1]);
+  assert.equal(tr.frames[1][1].id, 2); assert.equal(tr.frames[2][1].id, 2);
+  // plugs into the mode's ranks / active list; stronger = higher pitch root
+  const data = buildHotspots((lat, lon, t) => (Math.abs(lat - 10) < 8 && Math.abs(lon - 5 * t) < 10 ? 0.9 : Math.abs(lat + 30) < 5 && Math.abs(lon + 90) < 5 ? 0.5 : 0.05), 4, 64, 32, { top: 1, minLevel: 0.1, minCells: 1 });
+  assert.ok(data.tracks.length >= 2, `${data.tracks.length} tracks`);
+  const rk = buildRanks(data), act = activeVortices(data, rk, 1, Infinity, new Map(data.tracks.map((t) => [t.id, t])));
+  const strong = act.find((v) => v.mean > 0.8), weak = act.find((v) => v.mean < 0.6);
+  assert.ok(mapped(strong, HOTSPOT_MAP).root > mapped(weak, HOTSPOT_MAP).root);
+}
+console.log('hotspots ok');

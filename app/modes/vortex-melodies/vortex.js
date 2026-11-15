@@ -31,13 +31,17 @@ export function orient(steps, direction) {
 
 // Rank normalisers over every vortex observation in the sequence. Spin is underestimated by smoothing, so
 // only its rank is used; strength = |circulation| and size = radius are ranked the same way.
+// Hotspots (data.kind 'hotspots') reuse the slots: size = area, strength = mean intensity, spin = peak intensity.
+export const metric = (data) => data.kind === 'hotspots'
+  ? { size: (v) => v.area, strength: (v) => v.mean, spin: (v) => v.peak }
+  : { size: (v) => v.r, strength: (v) => v.circ * v.r, spin: (v) => v.spin };
 export function buildRanks(data) {
   const all = data.frames.flat();
-  const tracks = data.tracks;
+  const tracks = data.tracks, m = metric(data);
   return {
-    spin: rankNormaliser(all.map((v) => v.spin)),
-    size: rankNormaliser(all.map((v) => v.r)),
-    strength: rankNormaliser(all.map((v) => v.circ * v.r)),
+    spin: rankNormaliser(all.map(m.spin)),
+    size: rankNormaliser(all.map(m.size)),
+    strength: rankNormaliser(all.map(m.strength)),
     lifetime: rankNormaliser(tracks.map((t) => t.frames)),
   };
 }
@@ -62,10 +66,11 @@ export function motifIndex(by, { sizeRank = 0.5, regionIndex = 0, lifetimeRank =
 
 // The vortices that sound at frame t: loudness = strength x size rank x life fade; loudest first, capped.
 export function activeVortices(data, ranks, t, maxVoices, trackById) {
+  const m = metric(data);
   const list = (data.frames[t] || []).map((v) => {
-    const tr = trackById.get(v.id);
-    const loud = (0.35 + 0.65 * ranks.strength(v.circ * v.r)) * lifeFade(t, tr);
-    return { ...v, track: tr, loud, fade: lifeFade(t, tr), spinRank: ranks.spin(v.spin), sizeRank: ranks.size(v.r), strengthRank: ranks.strength(v.circ * v.r) };
+    const tr = trackById.get(v.id), st = ranks.strength(m.strength(v));
+    const loud = (0.35 + 0.65 * st) * lifeFade(t, tr);
+    return { ...v, track: tr, loud, fade: lifeFade(t, tr), spinRank: ranks.spin(m.spin(v)), sizeRank: ranks.size(m.size(v)), strengthRank: st };
   });
   return list.sort((a, b) => b.loud - a.loud || a.id - b.id).slice(0, Math.max(0, maxVoices));
 }
@@ -75,6 +80,8 @@ export function activeVortices(data, ranks, t, maxVoices, trackById) {
 // down (cw). Location is always instrument + pan.
 export const SOURCES = ['nothing', 'size', 'strength', 'spin'];
 export const DEFAULT_MAP = { pitch: 'size', volume: 'strength', tempo: 'spin', notes: 'size', direction: 'nothing' };
+// Hotspots: Pitch <- intensity (stronger = higher, pitchUp), Volume <- size, Tempo <- peak, Notes <- size.
+export const HOTSPOT_MAP = { pitch: 'strength', volume: 'size', tempo: 'spin', notes: 'size', direction: 'nothing', pitchUp: true };
 // Rank 0..1 of the source chosen for `target`, or null for nothing.
 export function targetRank(v, map, target) {
   const src = { size: v.sizeRank, strength: v.strengthRank, spin: v.spinRank }[map[target]];
@@ -93,7 +100,7 @@ export const pitchRoot = (rank, low = TUNE_LOW, high = TUNE_HIGH) => Math.round(
 export function mapped(v, map, range = { low: TUNE_LOW, high: TUNE_HIGH }) {
   const p = targetRank(v, map, 'pitch'), vol = targetRank(v, map, 'volume'), tempo = targetRank(v, map, 'tempo');
   return {
-    root: pitchRoot(p, range.low, range.high),
+    root: pitchRoot(p != null && map.pitchUp ? 1 - p : p, range.low, range.high),
     n: noteCount(targetRank(v, map, 'notes')),
     loud: (0.35 + 0.65 * (vol ?? 0.6)) * (v.fade ?? 1),
     loop: loopSeconds(tempo ?? 0.5),
