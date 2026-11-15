@@ -15,7 +15,7 @@
 // lowpass (Hz, needs freq): per-note low-pass. The engine has no per-note filter yet, so the adapter
 // approximates it by attenuating harmonics/partials with a 2nd-order (12 dB/oct) response (applyLowpass).
 
-import { quantize, SCALES, MIN_FUND_HZ, MAX_FUND_HZ } from './scales.js';
+import { quantize, SCALES, MIN_FUND_HZ, MAX_FUND_HZ, CEIL_FUND_HZ } from './scales.js';
 export { MIN_FUND_HZ, MAX_FUND_HZ };
 import { repoUrl } from './data.js';
 
@@ -53,12 +53,12 @@ export function applyLowpass({ harmonics, partials, noise } = {}, freq, cutoff) 
   return out;
 }
 
-// Comfort caps for every mode: fundamentals stay in MIN_FUND_HZ..MAX_FUND_HZ (C2..E6, app/core/scales.js), and no
+// Comfort caps for every mode: fundamentals stay under CEIL_FUND_HZ (C7; the default range is C2..E6, app/core/scales.js), and no
 // harmonic/partial above ~12 kHz (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above). Samples get a SAMPLE_LOWPASS_HZ low-pass.
 export const FADE_HZ = 10000, PARTIAL_CAP_HZ = 12000, SAMPLE_LOWPASS_HZ = 12000;
 export const capGain = (f) => (f >= PARTIAL_CAP_HZ ? 0 : f <= FADE_HZ ? 1 : (PARTIAL_CAP_HZ - f) / (PARTIAL_CAP_HZ - FADE_HZ));
 export function capTimbre({ freq, harmonics, partials } = {}) {
-  const f0 = Math.min(MAX_FUND_HZ, freq);
+  const f0 = Math.min(CEIL_FUND_HZ, freq);
   const hs = harmonicArray(harmonics ?? 1).map((a, k) => a * capGain(f0 * (k + 1)));
   const ps = (partials || []).map((p) => ({ ...p, amp: (p.amp ?? 1) * capGain(f0 * p.ratio) })).filter((p) => p.amp > 0);
   return { freq: f0, harmonics: hs.some((a) => a > 0) ? hs : [1], partials: ps };
@@ -214,6 +214,14 @@ export function pickZone(zones, freq) {
   zones.forEach((z, i) => { const e = Math.abs(Math.log2(freq / z.f0)); if (e < d) { d = e; best = i; } });
   return best;
 }
+// A recording played far below its lowest zone sounds broken (slow, smeared): lift the note by octaves until it is
+// at most SAMPLE_MAX_DOWN octaves under that zone. Pure.
+export const SAMPLE_MAX_DOWN = 1.5;
+export function sampleFloor(zones, freq) {
+  const low = Math.min(...zones.map((z) => z.f0)) * 2 ** -SAMPLE_MAX_DOWN;
+  while (freq < low * 0.999) freq *= 2;
+  return freq;
+}
 // How long a sampled note rings: plucked/struck samples ring past the written duration (up to `ring` s).
 export const SAMPLE_ENV = {
   pluck: { envelope: { attack: 0.003, decay: 0.1, sustain: 1, release: 0.25 }, ring: 1.4 },
@@ -229,7 +237,7 @@ export async function createSound() {
     // Explicit bases: the engine's import.meta.url defaults fail when modules are blob: URLs (standalone
     // builds); repoUrl handles that and sub-path hosting. The pitch / overtone comfort caps live in the engine too.
     engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major',
-      maxNoteFreq: MAX_FUND_HZ, noteLimit: 'clamp', maxFreq: PARTIAL_CAP_HZ,
+      maxNoteFreq: CEIL_FUND_HZ, noteLimit: 'clamp', maxFreq: PARTIAL_CAP_HZ,
       libraryBase: repoUrl('sound-engine/library/presets/'), sampleBase: repoUrl('data/earth/instruments/') });
     name = 'sound-engine';
   } catch (e) {
@@ -260,6 +268,7 @@ export async function createSound() {
       const smp = rest.sample && rest.freq > 0 ? sampled.get(rest.sample) : null;
       delete rest.sample;
       if (smp) {
+        rest.freq = sampleFloor(smp.zones, rest.freq);
         const z = smp.zones[pickZone(smp.zones, rest.freq)], kenv = SAMPLE_ENV[smp.kind] || SAMPLE_ENV.pluck;
         rest.voice = z.name; harmonics = partials = envelope = noise = wah = undefined;
         const d = duration ?? rest.dur ?? 0.3;
@@ -276,7 +285,7 @@ export async function createSound() {
       if (ev.amp != null) ev.amp = clamp(ev.amp, 0, 1);
       // Preset/recorded voices keep their own timbre: cap them with the engine's per-note low-pass instead.
       if (rest.voice && !builtIn) ev.lowpass = Math.min(lowpass > 0 ? lowpass : Infinity, SAMPLE_LOWPASS_HZ);
-      if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(MAX_FUND_HZ, glide.to) };
+      if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(CEIL_FUND_HZ, glide.to) };
       if (builtIn && vibrato) ev.vibrato = vibrato;
       // The real engine maps value+range itself; the fallback quantizes with scales.js.
       let h = null;
@@ -285,7 +294,7 @@ export async function createSound() {
       if (h && vibrato?.rate > 0 && vibrato.depth > 0 && !builtIn && ev.freq > 0) {
         const c = ev.glide?.to || ev.freq;
         modulate(h, t0 + (vibrato.delay ?? 0.2), end, vibrato.rate,
-          (i) => ({ freq: Math.min(MAX_FUND_HZ, c * 2 ** (((i % 2) ? -1 : 1) * vibrato.depth / 1200)) }));
+          (i) => ({ freq: Math.min(CEIL_FUND_HZ, c * 2 ** (((i % 2) ? -1 : 1) * vibrato.depth / 1200)) }));
       }
       if (h && wah?.rate > 0 && wah.harmonics && ev.freq > 0) {
         const alt = capTimbre({ freq: ev.glide?.to || ev.freq, harmonics: wah.harmonics }).harmonics, base = ev.harmonics || [1];

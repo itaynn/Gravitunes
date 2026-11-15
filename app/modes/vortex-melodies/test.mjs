@@ -119,14 +119,15 @@ console.log('vortex-melodies marker ok');
   assert.equal(targetRank(v, DEFAULT_MAP, 'notes'), 1);
   assert.equal(targetRank(v, { ...DEFAULT_MAP, tempo: 'nothing' }, 'tempo'), null);
   const m = mapped(v, DEFAULT_MAP);
-  assert.equal(m.root, 0);                             // big = low
+  assert.equal(m.root, -24);                           // big = low (C2, the default range's bottom)
   assert.equal(m.n, 8);                                // big = more notes
   assert.equal(mapped({ ...v, sizeRank: 0 }, DEFAULT_MAP).n, 3);
   assert.ok(pitchRoot(0) > pitchRoot(1));
   assert.ok(Math.abs(m.loud - 0.35) < 1e-9);          // weakest = quietest
   assert.ok(Math.abs(m.loop - loopSeconds(0.5)) < 1e-9);
   const q = mapped(v, { pitch: 'nothing', volume: 'size', tempo: 'nothing', notes: 'nothing' });
-  assert.equal(q.loud, 1); assert.equal(q.loop, loopSeconds(0.5)); assert.equal(q.n, 5); assert.equal(q.root, 6);
+  assert.equal(q.loud, 1); assert.equal(q.loop, loopSeconds(0.5)); assert.equal(q.n, 5); assert.equal(q.root, -4);
+  assert.equal(pitchRoot(1, -12, 28), -12); assert.equal(pitchRoot(0, -12, 28), 16);   // follows the Low / High range
   for (let n = 3; n <= 8; n++) assert.equal(motifSteps(n).length, n);
   assert.equal(noteCount(null), 5);
   const src = readFileSync(join(here, 'main.js'), 'utf8');

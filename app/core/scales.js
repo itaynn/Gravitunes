@@ -40,10 +40,22 @@ export const SCALES = Object.fromEntries(Object.keys(META).map((id) => [id, buil
 
 export const C4 = 261.6256;
 export const noteHz = (semisFromC4) => C4 * 2 ** (semisFromC4 / 12);
-// The app's global pitch range, in semitones from C4 and in Hz: C2 (65 Hz) to E6 (1319 Hz). Every mode reads these.
-// Melodic data voices start at C3 (MELODIC_LOW_SEMIS) so they stay bright; drums and drones may go down to C2.
-export const LOW_SEMIS = -24, HIGH_SEMIS = 28, MELODIC_LOW_SEMIS = -12;
-export const MIN_FUND_HZ = noteHz(LOW_SEMIS), MAX_FUND_HZ = noteHz(HIGH_SEMIS);
+// The app's default pitch range, in semitones from C4 and in Hz: C2 (65 Hz) to E6 (1319 Hz). Every mode reads these;
+// the Low / High menus (range-control.js) let the listener widen or narrow it, from C1 up to C7 (CEIL_FUND_HZ).
+export const LOW_SEMIS = -24, HIGH_SEMIS = 28;
+export const MIN_FUND_HZ = noteHz(LOW_SEMIS), MAX_FUND_HZ = noteHz(HIGH_SEMIS), CEIL_FUND_HZ = noteHz(36);
+// Choices in the Low / High menus (semitones from C4): C, E and A of each octave, C1..C7.
+export const RANGE_NOTES = [-36, -32, -27, -24, -20, -15, -12, -8, -3, 0, 4, 9, 12, 16, 21, 24, 28, 33, 36];
+// Keep low < high (at least an octave apart): moving one past the other pushes the other along. Returns [low, high].
+export function fixRange(low, high, moved = 'low') {
+  const first = RANGE_NOTES[0], last = RANGE_NOTES.at(-1);
+  low = Math.max(first, Math.min(last - 12, low)); high = Math.max(first + 12, Math.min(last, high));
+  if (high - low < 12) {
+    if (moved === 'low') high = RANGE_NOTES.find((n) => n >= low + 12);
+    else low = [...RANGE_NOTES].reverse().find((n) => n <= high - 12);
+  }
+  return [low, high];
+}
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const noteName = (semisFromC4) => NAMES[((semisFromC4 % 12) + 12) % 12] + (4 + Math.floor(semisFromC4 / 12));
 

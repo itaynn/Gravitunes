@@ -2,9 +2,10 @@
 // Location always picks the instrument (world-orchestra region) and the pan. Each sound property (pitch,
 // volume, tempo) takes its value from one storm property (size, latitude, rain intensity, speed) or nothing,
 // chosen in the More menus. Each storm loops a short tune. Defaults: volume <- size, tempo <- speed, notes <- size, pitch fixed.
-import { noteHz } from '../../core/scales.js';
+import { LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 
-export const PITCH_LOW = -12, PITCH_HIGH = 28;   // semitones from C4: C3..E6
+// Default pitch range, semitones from C4: C2..E6; the Low / High menus change it (app/core/range-control.js).
+export const PITCH_LOW = LOW_SEMIS, PITCH_HIGH = HIGH_SEMIS;
 export const SOURCES = ['nothing', 'size', 'latitude', 'rain', 'speed'];
 export const TARGETS = ['pitch', 'volume', 'tempo', 'notes'];
 export const DEFAULT_MAP = { pitch: 'nothing', volume: 'size', tempo: 'speed', notes: 'size' };
@@ -39,15 +40,16 @@ const ZIGZAG = [0, 2, 1, 3, 2, 4, 3, 5];
 export const tuneSteps = (n) => ZIGZAG.slice(0, Math.max(1, Math.min(ZIGZAG.length, n)));
 // Tempo: seconds per tune loop, 3.6 s (slow) .. 1.4 s (fast); unknown/nothing = middle.
 export const loopSeconds = (rank) => 3.6 - 2.2 * clamp01(rank ?? 0.5);
-// Tune root (semitones from C4) from pitch rank: C3 (low) .. G5 (high), so the tune's top stays under E6; nothing = about E4.
-export const tuneRoot = (rank) => Math.round(PITCH_LOW + 31 * clamp01(rank ?? 0.5));
+// Tune root (semitones from C4) from pitch rank: the range's low note .. 9 semitones under its top (so the tune's top
+// stays in range); nothing = middle.
+export const tuneRoot = (rank, low = PITCH_LOW, high = PITCH_HIGH) => Math.round(low + Math.max(0, high - 9 - low) * clamp01(rank ?? 0.5));
 // A storm's tune: root, notes, loudness and loop length under `map`.
-export function stormTune(r, map) {
+export function stormTune(r, map, range = { low: PITCH_LOW, high: PITCH_HIGH }) {
   const v = targetRank(r, map, 'volume');
-  return { root: tuneRoot(targetRank(r, map, 'pitch')), n: noteCount(targetRank(r, map, 'notes')),
+  return { root: tuneRoot(targetRank(r, map, 'pitch'), range.low, range.high), n: noteCount(targetRank(r, map, 'notes')),
     amp: 0.3 + 0.7 * (v ?? 0.6), loop: loopSeconds(targetRank(r, map, 'tempo')) };
 }
-// Frequency of step `step` above the first scale tone at/above rootHz, within `tones` (C3..E6).
+// Frequency of step `step` above the first scale tone at/above rootHz, within `tones` (the pitch range).
 export function tuneFreq(tones, rootHz, step) {
   const i = Math.max(0, tones.findIndex((f) => f >= rootHz * 0.999));
   return tones[Math.max(0, Math.min(tones.length - 1, i + step))];

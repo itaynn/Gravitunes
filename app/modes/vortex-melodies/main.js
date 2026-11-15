@@ -5,6 +5,7 @@
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows, flowAt, advect } from '../../core/flow.js';
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
+import { rangeControl } from '../../core/range-control.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon, centerColors } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
@@ -54,10 +55,11 @@ export default function start(ctx) {
     let active = [], soloId = null;    // soloId: only this vortex plays (click / Enter toggles, Escape clears)
     let clock = performance.now() / 1000;   // animation clock; frozen while stopped
 
-    const tones = () => scaleFreqs(s.scale, noteHz(TUNE_LOW), noteHz(TUNE_HIGH));   // the tunes: C4..E6
-    const bedTones = () => scaleFreqs(s.scale, noteHz(-12), noteHz(0));             // the hum: C3..C4
+    let range = { low: TUNE_LOW, high: TUNE_HIGH };   // Low / High menus
+    const tones = () => scaleFreqs(s.scale, noteHz(range.low), noteHz(range.high));          // the tunes
+    const bedTones = () => scaleFreqs(s.scale, noteHz(range.low), noteHz(range.low + 12));    // the hum: lowest octave
     function loopOf(v, now) {
-      const { loop, root, n } = mapped(v, s.map);
+      const { loop, root, n } = mapped(v, s.map, range);
       let p = phase.get(v.id);
       if (!p) {
         p = { t0: now, loop, root, n }; phase.set(v.id, p);
@@ -81,7 +83,7 @@ export default function start(ctx) {
       const sh = shapeForPitch(voice, freq);
       // Detached notes (about half a step, quick fade): bowed, blown and whale recordings otherwise join into one held moan.
       const step = loopOf(v, clock).loop / m.steps.length;
-      sound.play({ freq, amp: 0.4 * mapped(v, s.map).loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
+      sound.play({ freq, amp: 0.4 * mapped(v, s.map, range).loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
         dur: Math.min(sh.dur ?? 0.4, step * 0.55), fade: Math.min(0.08, step * 0.25), sample, harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
         vibrato: sh.vibrato, wah: sh.wah });
     }
@@ -112,9 +114,9 @@ export default function start(ctx) {
       if (time.playing && s.bed) {
         const c = bedByFrame[t] || 0, frameDur = 1 / Math.max(0.1, time.fps || 2);
         // Convergence swells and brightens (more upper harmonics); divergence thins. Soft pad on the scale's
-        // root (C3) and the scale tone nearest G3, re-struck each frame, under the tunes.
+        // root (bottom of the range) and the tone a fifth up, re-struck each frame, under the tunes.
         const bed = bedTones(), b = (c + 1) / 2;
-        for (const freq of [bed[0], snapToScale(noteHz(-5), bed)]) {
+        for (const freq of [bed[0], snapToScale(noteHz(range.low + 7), bed)]) {
           sound.play({ freq, amp: 0.03 + 0.1 * b, pan: 0, dur: frameDur * 1.3,
             harmonics: [1, 0.3 + 0.3 * b, 0.1 + 0.25 * b, 0.1 * b], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur } });
         }
@@ -129,7 +131,7 @@ export default function start(ctx) {
           const key = `${Math.round(freq)}|${Math.round(v.lon / 30)}`;
           if (droned.has(key)) continue;
           droned.add(key);
-          sound.play({ freq, amp: 0.04 * mapped(v, s.map).loud, pan: v.lon / 180, dur: frameDur * 1.3,
+          sound.play({ freq, amp: 0.04 * mapped(v, s.map, range).loud, pan: v.lon / 180, dur: frameDur * 1.3,
             harmonics: [1, 0.4, 0.2, 0.1], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur } });
         }
       }
@@ -147,6 +149,7 @@ export default function start(ctx) {
 
     // ---- controls: Play (host bar; the core starts audio on that click); Scale and Volume in the bar; a few extras in More.
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
+    range = rangeControl(panel, { describe, onChange: () => phase.clear() });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const legend = document.createElement('p');
     legend.className = 'hint';

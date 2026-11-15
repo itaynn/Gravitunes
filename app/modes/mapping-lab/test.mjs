@@ -77,8 +77,10 @@ const said = describeNote(ds, { lat: 30, lon: 0, value: 45 }, n45.labels, 'ppbv'
 assert.match(said, /^value 45 ppbv gives pitch [A-G]#?\d(, [a-z ]+ \w+)*; latitude 30°N gives depth \w+$/);
 assert.equal(describeNote(emptyMapping(), { lat: 0, lon: 0, value: 1 }, {}), 'nothing mapped');
 
-// comfort caps (app/core/sound.js): fundamentals <= E6, nothing above PARTIAL_CAP_HZ, faded near the cap
-const capped = capTimbre({ freq: 1500, harmonics: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], partials: [{ ratio: 10, amp: 1 }, { ratio: 2, amp: 1 }] });
+// comfort caps (app/core/sound.js): fundamentals <= C7 (the High menu's top), nothing above PARTIAL_CAP_HZ, faded near the cap
+const { CEIL_FUND_HZ } = await import('../../core/scales.js');
+assert.equal(capTimbre({ freq: 3000 }).freq, CEIL_FUND_HZ);
+const capped = capTimbre({ freq: MAX_FUND_HZ, harmonics: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], partials: [{ ratio: 10, amp: 1 }, { ratio: 2, amp: 1 }] });
 assert.equal(capped.freq, MAX_FUND_HZ);
 capped.harmonics.forEach((a, k) => { if (MAX_FUND_HZ * (k + 1) >= PARTIAL_CAP_HZ) assert.equal(a, 0); });
 assert.ok(capped.harmonics[7] > 0 && capped.harmonics[7] < 1);     // 10.5 kHz: faded

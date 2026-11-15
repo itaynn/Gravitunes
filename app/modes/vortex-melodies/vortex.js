@@ -1,10 +1,10 @@
 // Vortex melodies: pure logic (no DOM), tested by test.mjs.
 // Input: the compact vortices.json written by analysis/scripts/vortex-melodies/build.py.
 import { rankNormaliser } from '../../core/flow.js';
-import { snapToScale } from '../../core/scales.js';
+import { snapToScale, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 
-// The tunes' own range, semitones from C4: C4..E6 (bright, clear of the low hum).
-export const TUNE_LOW = 0, TUNE_HIGH = 28;
+// The tunes' default range, semitones from C4 (C2..E6); the Low / High menus change it (range-control.js).
+export const TUNE_LOW = LOW_SEMIS, TUNE_HIGH = HIGH_SEMIS;
 
 // Motifs as scale steps (ascending form) from a root (semitones from C4). Big vortices: longer and lower (from C4);
 // small: short and higher (from C5). Everything stays within C4..E6.
@@ -86,13 +86,14 @@ export const noteCount = (rank) => rank == null ? NOTES_FIXED : Math.round(NOTES
 // Motif of n notes (scale steps, ascending form): a rising zig-zag, prefix of 0 2 1 3 2 4 3 5.
 const ZIGZAG = [0, 2, 1, 3, 2, 4, 3, 5];
 export const motifSteps = (n) => ZIGZAG.slice(0, Math.max(1, Math.min(ZIGZAG.length, n)));
-// Motif root (semitones from C4) from pitch rank: high rank = low (C4), low rank = high (C5); nothing = middle.
-export const pitchRoot = (rank) => Math.round(12 * (1 - (rank ?? 0.5)));
+// Motif root (semitones from C4) from pitch rank, within the range low..high (the motif needs about an octave above
+// its root): high rank = the lowest note, low rank = an octave under the top; nothing = middle.
+export const pitchRoot = (rank, low = TUNE_LOW, high = TUNE_HIGH) => Math.round(low + Math.max(0, high - 12 - low) * (1 - (rank ?? 0.5)));
 // Sound parameters for a vortex under `map`: root, notes per loop, loudness, loop seconds.
-export function mapped(v, map) {
+export function mapped(v, map, range = { low: TUNE_LOW, high: TUNE_HIGH }) {
   const p = targetRank(v, map, 'pitch'), vol = targetRank(v, map, 'volume'), tempo = targetRank(v, map, 'tempo');
   return {
-    root: pitchRoot(p),
+    root: pitchRoot(p, range.low, range.high),
     n: noteCount(targetRank(v, map, 'notes')),
     loud: (0.35 + 0.65 * (vol ?? 0.6)) * (v.fade ?? 1),
     loop: loopSeconds(tempo ?? 0.5),

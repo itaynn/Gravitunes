@@ -311,3 +311,19 @@ import { isSpaceToggle } from '../core/keys.js';
   assert.ok(!isSpaceToggle({ key: 'Enter', target: el('CANVAS') }));
   console.log('ok space key');
 }
+
+// pitch range menus (scales.js fixRange) and the sample floor (sound.js)
+{
+  const { fixRange, RANGE_NOTES, LOW_SEMIS, HIGH_SEMIS } = await import('../core/scales.js');
+  const { sampleFloor } = await import('../core/sound.js');
+  const assert = (await import('node:assert/strict')).default;
+  assert.deepEqual([LOW_SEMIS, HIGH_SEMIS], [-24, 28]);
+  assert.ok(RANGE_NOTES.includes(-24) && RANGE_NOTES.includes(28) && RANGE_NOTES[0] === -36 && RANGE_NOTES.at(-1) === 36);
+  assert.deepEqual(fixRange(-24, 28), [-24, 28]);
+  assert.deepEqual(fixRange(28, 28, "low"), [24, 36]);      // low past high pushes high up
+  assert.deepEqual(fixRange(-24, -24, 'high'), [-36, -24]); // high under low pushes low down
+  const zones = [{ f0: 262 }];
+  assert.ok(Math.abs(sampleFloor(zones, 65.4) - 130.8) < 0.1);   // C2 on a C4-only sample: lifted to C3
+  assert.equal(sampleFloor([{ f0: 71 }], 65.4), 65.4);            // a low sample plays C2 as is
+  console.log('range ok');
+}

@@ -5,19 +5,17 @@
 // value (rain, or a gas above its median) plays a note: higher value = higher and louder, faster motion = brighter,
 // east/west = right/left, timbre = world-orchestra region. Tracers over low values are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
+import { quantize, noteHz, scaleFreqs, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
+import { rangeControl } from '../../core/range-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth } from '../../core/data.js';
-import { MAX_FUND_HZ } from '../../core/sound.js';
 import { volumeSlider, fold, timbreControl } from '../../core/ui.js';
 import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
 import { fieldOf } from '../../core/fields.js';
 import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle } from './tracers.js';
 
-// Pitch range: the shared bounds (C2 up to the engine's top fundamental).
-const LOW_HZ = noteHz(0), HIGH_HZ = MAX_FUND_HZ;   // values play C4..E6: bright, not muffled
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -70,9 +68,11 @@ export default function start(ctx) {
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
       return { voice: r.voice, name: instLabel(r.primary.instrument), sample: instruments[r.primary.instrument]?.sample };
     }
-    const tones = () => scaleFreqs(s.scale, LOW_HZ, HIGH_HZ);
-    // Pitch from the value over C4..E6 (voiceNote folds octave-shifted voices back inside).
-    const noteFor = (value) => quantize(field.spread(Math.min(1, value)), [0, 1], s.scale, LOW_HZ, HIGH_HZ).freq;
+    // Pitch range: the Low / High menus (default C2..E6).
+    let range = { low: LOW_SEMIS, high: HIGH_SEMIS };
+    const tones = () => scaleFreqs(s.scale, noteHz(range.low), noteHz(range.high));
+    // Pitch from the value over the range (voiceNote folds octave-shifted voices back inside).
+    const noteFor = (value) => quantize(field.spread(Math.min(1, value)), [0, 1], s.scale, noteHz(range.low), noteHz(range.high)).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
       if (!s.sound) return null;
       const vf = voiceFor(tr), sh = voiceNote(vf.voice, noteFor(tr.value), { tones: tones() }).note;
@@ -86,6 +86,7 @@ export default function start(ctx) {
 
     // ---- controls: Sound, Scale, Volume up front; the rest folded under "More".
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
+    range = rangeControl(panel, { describe });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const howTo = panel.text(field.rain ? 'How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.'
       : `How it sounds: yellow tracers are over high ${NAME} (above its median) and sing. Higher ${NAME} = higher, louder note; left/right = west/east.`);

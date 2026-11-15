@@ -55,6 +55,7 @@ async function main() {
   const status = (msg) => { $('#status').textContent = msg; };
 
   const sound = await createSound();
+  window.__gtSound = sound;   // test hook: headless checks wrap sound.play to log scheduled notes
   // Sound starts with the first click, tap, key or Play (sound.play starts the audio context). A mute toggle is
   // shown only for modes that sound while you hover (mode.json "mute": true); elsewhere sound needs Play or a click.
   const startBtn = $('#start-sound');
