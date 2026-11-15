@@ -70,21 +70,30 @@ export function activeVortices(data, ranks, t, maxVoices, trackById) {
   return list.sort((a, b) => b.loud - a.loud || a.id - b.id).slice(0, Math.max(0, maxVoices));
 }
 
-// Mapping: each data property (size, strength, spin speed) drives one target (pitch, volume, tempo) or nothing;
-// spin direction optionally turns the tune up (ccw) or down (cw). Location is always instrument + pan.
-export const TARGETS = ['nothing', 'pitch', 'volume', 'tempo'];
-export const DEFAULT_MAP = { size: 'pitch', strength: 'volume', spin: 'tempo', direction: 'nothing' };
-// Rank 0..1 driving `target` (average when several properties pick it), or null when none does.
+// Mapping: each sound property (pitch, volume, tempo, notes) takes its value from one data source (size,
+// strength, spin speed) or nothing (fixed middle value); spin direction optionally turns the tune up (ccw) or
+// down (cw). Location is always instrument + pan.
+export const SOURCES = ['nothing', 'size', 'strength', 'spin'];
+export const DEFAULT_MAP = { pitch: 'size', volume: 'strength', tempo: 'spin', notes: 'size', direction: 'nothing' };
+// Rank 0..1 of the source chosen for `target`, or null for nothing.
 export function targetRank(v, map, target) {
-  const src = { size: v.sizeRank, strength: v.strengthRank, spin: v.spinRank };
-  const xs = Object.keys(src).filter((k) => map[k] === target && src[k] != null).map((k) => src[k]);
-  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  const src = { size: v.sizeRank, strength: v.strengthRank, spin: v.spinRank }[map[target]];
+  return src ?? null;
 }
-// Sound parameters for a vortex under `map`: motif index (higher rank = longer, lower motif), loudness, loop seconds.
+// Notes per loop: 3..8 (higher rank = more notes); nothing = 5.
+export const NOTES_MIN = 3, NOTES_MAX = 8, NOTES_FIXED = 5;
+export const noteCount = (rank) => rank == null ? NOTES_FIXED : Math.round(NOTES_MIN + (NOTES_MAX - NOTES_MIN) * Math.max(0, Math.min(1, rank)));
+// Motif of n notes (scale steps, ascending form): a rising zig-zag, prefix of 0 2 1 3 2 4 3 5.
+const ZIGZAG = [0, 2, 1, 3, 2, 4, 3, 5];
+export const motifSteps = (n) => ZIGZAG.slice(0, Math.max(1, Math.min(ZIGZAG.length, n)));
+// Motif root (semitones from C4) from pitch rank: high rank = low (C4), low rank = high (C5); nothing = middle.
+export const pitchRoot = (rank) => Math.round(12 * (1 - (rank ?? 0.5)));
+// Sound parameters for a vortex under `map`: root, notes per loop, loudness, loop seconds.
 export function mapped(v, map) {
   const p = targetRank(v, map, 'pitch'), vol = targetRank(v, map, 'volume'), tempo = targetRank(v, map, 'tempo');
   return {
-    mi: motifIndex('size', { sizeRank: p ?? 0.5 }),
+    root: pitchRoot(p),
+    n: noteCount(targetRank(v, map, 'notes')),
     loud: (0.35 + 0.65 * (vol ?? 0.6)) * (v.fade ?? 1),
     loop: loopSeconds(tempo ?? 0.5),
   };

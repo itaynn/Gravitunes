@@ -1,5 +1,5 @@
 // Vortex melodies: each tracked vortex (analysis/scripts/vortex-melodies/build.py) loops a short motif.
-// Size / strength / spin speed each map (More menus) to pitch, volume or tempo; spin direction can turn the tune up/down; pan <- longitude,
+// Pitch / volume / tempo / notes each take a source (More menus: size, strength, spin speed or nothing); spin direction can turn the tune up/down; pan <- longitude,
 // instrument (and ring colour) <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows, flowAt, advect } from '../../core/flow.js';
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
@@ -9,7 +9,7 @@ import { voiceAt, distKm, compass, formatLatLon, centerColors } from '../../core
 import { getJson, loadEarth } from '../../core/data.js';
 import { volumeSlider, fold } from '../../core/ui.js';
 import { createBackdrop } from '../../core/svs-frames.js';
-import { motifFreq, MOTIFS, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn } from './vortex.js';
+import { motifFreq, motifSteps, orient, buildRanks, activeVortices, mapped, DEFAULT_MAP, convergence, periodText, dueNotes, nearestText, TUNE_LOW, TUNE_HIGH, markTurn } from './vortex.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -45,7 +45,7 @@ export default function start(ctx) {
       bed: true, arrows: false, streams: false, volume: 0.6,
     };
     const backdrop = createBackdrop(dir, { viewer, time });
-    // vortex id -> { t0, loop, mi }: loop origin (performance clock, s), loop length, motif index. Kept for the
+    // vortex id -> { t0, loop, root, n }: loop origin (performance clock, s), loop length, motif root, notes per loop. Kept for the
     // track's life so its melody and its rotating mark never restart; a loop-length change keeps the position.
     const phase = new Map();
     let active = [], soloId = null;    // soloId: only this vortex plays (click / Enter toggles, Escape clears)
@@ -54,10 +54,10 @@ export default function start(ctx) {
     const tones = () => scaleFreqs(s.scale, noteHz(TUNE_LOW), noteHz(TUNE_HIGH));   // the tunes: C4..E6
     const bedTones = () => scaleFreqs(s.scale, noteHz(-12), noteHz(0));             // the hum: C3..C4
     function loopOf(v, now) {
-      const { loop, mi } = mapped(v, s.map);
+      const { loop, root, n } = mapped(v, s.map);
       let p = phase.get(v.id);
       if (!p) {
-        p = { t0: now, loop, mi }; phase.set(v.id, p);
+        p = { t0: now, loop, root, n }; phase.set(v.id, p);
       } else if (Math.abs(p.loop - loop) > 1e-6) {
         p.t0 = now - ((now - p.t0) / p.loop) * loop; p.loop = loop;
       }
@@ -68,8 +68,8 @@ export default function start(ctx) {
       return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary, sample: instruments[region.primary.instrument]?.sample, color: colorOf.get(region.primary.id) };
     }
     function motifOf(v) {
-      const m = MOTIFS[loopOf(v, clock).mi];
-      return { ...m, steps: s.map.direction === 'updown' ? orient(m.steps, v.track?.direction || 'ccw') : m.steps.slice() };
+      const p = loopOf(v, clock), steps = motifSteps(p.n);
+      return { root: p.root, steps: s.map.direction === 'updown' ? orient(steps, v.track?.direction || 'ccw') : steps };
     }
     function playStep(v, k, at, ampScale = 1) {
       const { voice, sample } = voiceFor(v);
@@ -90,7 +90,7 @@ export default function start(ctx) {
         const list = soloId != null ? active.filter((v) => v.id === soloId) : active;
         const n = Math.max(1, list.length);
         for (const v of list) {
-          const p = loopOf(v, now), steps = MOTIFS[p.mi].steps.length;
+          const p = loopOf(v, now), steps = p.n;
           for (const { k, at } of dueNotes(steps, p.loop, p.t0, lastTick, to)) playStep(v, k, at, soloId != null ? 1 : 1.5 / Math.sqrt(n));
         }
       }
@@ -152,17 +152,21 @@ export default function start(ctx) {
     }
     const bedCb = panel.checkbox('Hum', s.bed, (v) => { s.bed = v; });
     bedCb.setAttribute('aria-label', 'Convergence hum (low pad) on or off');
-    // Mapping menus: what each property controls. A new mapping restarts the tunes (motif + loop re-chosen).
-    const TARGET_OPTS = [['nothing', 'Nothing'], ['pitch', 'Pitch'], ['volume', 'Volume'], ['tempo', 'Tempo']];
-    const PROP_NAMES = { size: 'Size', strength: 'Strength', spin: 'Spin speed', direction: 'Spin direction' };
-    const mapSel = (key, opts) => panel.select(`${PROP_NAMES[key]} \u2192`, opts, (val) => {
+    // Mapping menus: where each sound property gets its value. A new mapping restarts the tunes.
+    const SOURCE_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['strength', 'Strength'], ['spin', 'Spin speed']];
+    const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo', notes: 'Notes' };
+    const HINTS = { pitch: 'bigger = lower', volume: 'bigger = louder', tempo: 'bigger = faster', notes: 'bigger = more notes, 3 to 8' };
+    const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'fixed tempo', notes: 'fixed at 5 notes' };
+    const srcSel = (key) => panel.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
       s.map[key] = val; phase.clear();
-      const label = opts.find((o) => o[0] === val)[1].toLowerCase();
-      const note = key === 'size' && val === 'pitch' ? ' (big = low)' : '';
-      describe(`${PROP_NAMES[key]} now controls ${label}${note}.`);
+      const label = SOURCE_OPTS.find((o) => o[0] === val)[1].toLowerCase();
+      describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.` : `${SOUND_NAMES[key]} now follows ${label} (${HINTS[key]}).`);
     }, { value: s.map[key] });
-    const mapSels = ['size', 'strength', 'spin'].map((k) => mapSel(k, TARGET_OPTS));
-    mapSels.push(mapSel('direction', [['nothing', 'Nothing'], ['updown', 'Tune up/down']]));
+    const mapSels = ['pitch', 'volume', 'tempo', 'notes'].map(srcSel);
+    mapSels.push(panel.select('Spin direction \u2192', [['nothing', 'Nothing'], ['updown', 'Tune up/down']], (val) => {
+      s.map.direction = val; phase.clear();
+      describe(val === 'updown' ? 'Spin direction now turns the tune up (counterclockwise) or down (clockwise).' : 'Spin direction now controls nothing.');
+    }, { value: s.map.direction }));
     const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
     const streamsCb = panel.checkbox('Streams', s.streams, (v) => {
@@ -285,7 +289,7 @@ export default function start(ctx) {
         const cw = trackById.get(v.id)?.direction === 'cw';
         const av = byId.get(v.id), isSolo = soloId === v.id, col = voiceFor(av || v).color;
         // Mark position: one full turn per melody, landing on note k's tick as note k sounds.
-        const p = av ? loopOf(av, sec) : null, n = p ? MOTIFS[p.mi].steps.length : 1;
+        const p = av ? loopOf(av, sec) : null, n = p ? p.n : 1;
         const turn = p ? markTurn((sec - p.t0) / (p.loop / n), n) : 0;
         // Canvas y is down: counterclockwise = decreasing angle. Start at the top.
         const toXY = (fr) => { const a = (cw ? 1 : -1) * fr * 2 * Math.PI - Math.PI / 2; return [x + rpx * Math.cos(a), y + rpx * Math.sin(a)]; };

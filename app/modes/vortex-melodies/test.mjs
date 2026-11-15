@@ -113,14 +113,22 @@ console.log('vortex-melodies marker ok');
 // mapping: defaults, shared targets average, nothing -> neutral
 {
   const { targetRank, mapped, DEFAULT_MAP } = await import('./vortex.js');
+  const { noteCount, motifSteps, pitchRoot } = await import('./vortex.js');
   const v = { sizeRank: 1, strengthRank: 0, spinRank: 0.5, fade: 1 };
   assert.equal(targetRank(v, DEFAULT_MAP, 'pitch'), 1);
-  assert.equal(targetRank(v, { size: 'pitch', strength: 'pitch', spin: 'nothing' }, 'pitch'), 0.5);
-  assert.equal(targetRank(v, { size: 'nothing', strength: 'nothing', spin: 'nothing' }, 'tempo'), null);
+  assert.equal(targetRank(v, DEFAULT_MAP, 'notes'), 1);
+  assert.equal(targetRank(v, { ...DEFAULT_MAP, tempo: 'nothing' }, 'tempo'), null);
   const m = mapped(v, DEFAULT_MAP);
-  assert.equal(m.mi, MOTIFS.length - 1);              // big = low (largest motif)
+  assert.equal(m.root, 0);                             // big = low
+  assert.equal(m.n, 8);                                // big = more notes
+  assert.equal(mapped({ ...v, sizeRank: 0 }, DEFAULT_MAP).n, 3);
+  assert.ok(pitchRoot(0) > pitchRoot(1));
   assert.ok(Math.abs(m.loud - 0.35) < 1e-9);          // weakest = quietest
   assert.ok(Math.abs(m.loop - loopSeconds(0.5)) < 1e-9);
-  const q = mapped(v, { size: 'volume', strength: 'nothing', spin: 'nothing' });
-  assert.equal(q.loud, 1); assert.equal(q.loop, loopSeconds(0.5));
+  const q = mapped(v, { pitch: 'nothing', volume: 'size', tempo: 'nothing', notes: 'nothing' });
+  assert.equal(q.loud, 1); assert.equal(q.loop, loopSeconds(0.5)); assert.equal(q.n, 5); assert.equal(q.root, 6);
+  for (let n = 3; n <= 8; n++) assert.equal(motifSteps(n).length, n);
+  assert.equal(noteCount(null), 5);
+  const src = readFileSync(join(here, 'main.js'), 'utf8');
+  assert.match(src, /'Notes'/); assert.match(src, /steps = p\.n/); assert.match(src, /n = p \? p\.n/);
 }
