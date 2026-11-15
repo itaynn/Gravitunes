@@ -4,7 +4,7 @@
 // The full tracking studio (tuning sliders, in-browser reanalysis, full-size frames) is studio.html.
 import {
   loadStormTracks, latLonToGrid, gridToLatLon, stormAt, stepStorm, bySize, familyParts, anchorOf,
-  stormColor, stormSize, stormPlace, drawStormShape, drawCoreMarker,
+  stormColor, stormSize, stormPlace, drawStormShape, drawCoreMarker, inComponent, inFamily,
 } from '../../core/storms.js';
 import { scaleFreqs, noteHz } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
@@ -12,7 +12,7 @@ import { volumeSlider, soundHint, throttle, fold } from '../../core/ui.js';
 import { voiceAt, centerColors } from '../../core/geo.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { loadEarth } from '../../core/data.js';
-import { ranks, stormNote, panOf, cssToRgb, DEFAULT_MAP, PITCH_LOW, PITCH_HIGH } from './mapping.js';
+import { ranks, stormNote, noteTimes, panOf, kmBetween, cssToRgb, DEFAULT_MAP, PITCH_LOW, PITCH_HIGH } from './mapping.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -40,19 +40,53 @@ export default function start(ctx) {
     }
     const nameOf = (c) => `Storm ${s.followed != null && familyParts(frame(), s.followed).parts.includes(c) ? s.followed : c.id}`;
 
-    // A storm's note: the region's instrument, panned by longitude; size and latitude drive pitch or volume
-    // as chosen under More (default: bigger storms louder).
+    // Storm properties beyond size: latitude, rain intensity (mean IMERG value at points inside the outline)
+    // and speed (km/h the core moved since the previous half-hour frame; null when it is new).
+    const propCache = new Map();
+    function propsOf(c, t = time.now()) {
+      const key = `${t}:${c.id}:${c.coreX}:${c.coreY}`;
+      if (propCache.has(key)) return propCache.get(key);
+      const here = gridToLatLon(c.coreX, c.coreY, W, H);
+      const xs = [], ys = [];
+      for (const p of c.polygons ?? []) for (const [x, y] of p.outer ?? []) { xs.push(x); ys.push(y); }
+      let sum = 0, n = 0;
+      if (xs.length) {
+        const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), N = 8;
+        for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+          const x = x0 + (x1 - x0) * (i + 0.5) / N, y = y0 + (y1 - y0) * (j + 0.5) / N;
+          if (!inComponent(c, x, y)) continue;
+          const { lat, lon } = gridToLatLon(x, y, W, H), v = dataset.valueAt?.(lat, lon, t);
+          if (v != null && Number.isFinite(v)) { sum += v; n++; }
+        }
+      }
+      if (!n) { const v = dataset.valueAt?.(here.lat, here.lon, t); if (v != null && Number.isFinite(v)) { sum = v; n = 1; } }
+      let speed = null;
+      const prev = t > 0 ? data.frames[t - 1]?.components ?? [] : [];
+      const before = prev.find((p) => p.id === c.id) ?? prev.find((p) => inFamily(c, p.id) || inFamily(p, c.id));
+      if (before) speed = 2 * kmBetween(here, gridToLatLon(before.coreX, before.coreY, W, H));
+      const out = { lat: here.lat, rain: n ? sum / n : null, speed };
+      propCache.set(key, out);
+      return out;
+    }
+    // A storm's note: the region's instrument, panned by longitude; pitch, volume and tempo follow the storm
+    // properties chosen under More (default: bigger storms louder). Tempo repeats the note within `dur`.
     function voice(c, comps, dur = 0.5) {
       if (!c) return;
       const reg = regionOf(c);
-      const { freq, amp } = stormNote(ranks(c, bySize(comps), reg.lat), s.map, tones());
+      const { freq, amp, gap } = stormNote(ranks(c, comps, (x) => propsOf(x)), s.map, tones());
       const sh = shapeForPitch(reg.voice, freq);
-      sound.play({ freq, dur: Math.max(dur, sh.dur ?? 0), amp, pan: panOf(reg.lon), sample: reg.sample,
-        harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah });
+      const times = noteTimes(gap, Math.max(dur, 0.45));
+      const each = gap == null ? Math.max(dur, sh.dur ?? 0) : Math.max(0.9 * gap, Math.min(sh.dur ?? 0, 2 * gap));
+      for (const t of times) {
+        sound.play({ freq, dur: each, amp, pan: panOf(reg.lon), sample: reg.sample, t,
+          harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah });
+      }
     }
     function say(c, comps) {
       const sorted = bySize(comps);
-      return `${nameOf(c)}, ${sorted.indexOf(c) + 1} of ${sorted.length}, ${stormSize(c, sorted)}, ${stormPlace(c, W, H)}, ${regionOf(c).name}.`;
+      const sp = propsOf(c).speed;
+      return `${nameOf(c)}, ${sorted.indexOf(c) + 1} of ${sorted.length}, ${stormSize(c, sorted)}, ${stormPlace(c, W, H)}, ${regionOf(c).name}`
+        + `${sp != null ? `, moving about ${Math.round(sp / 5) * 5} km/h` : ''}.`;
     }
     function follow(c, { announce = true } = {}) {
       s.followed = c ? c.id : null;
@@ -170,13 +204,17 @@ export default function start(ctx) {
       if (!seen.size) legendList.textContent = 'No storms in this frame.';
     }
     updateLegend();
-    // Mapping menus: what size and latitude control.
-    const OPTS = [['nothing', 'Nothing'], ['pitch', 'Pitch'], ['volume', 'Volume']];
-    const PROP = { size: 'Size', latitude: 'Latitude' };
-    const NOTE = { size: { pitch: ' (bigger = higher)', volume: ' (bigger = louder)' }, latitude: { pitch: ' (north = higher)', volume: ' (north = louder)' } };
-    const mapSels = Object.keys(PROP).map((key) => panel.select(`${PROP[key]} \u2192`, OPTS, (val) => {
+    // Mapping menus, one per sound property: which storm property it follows.
+    const SOURCE_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['latitude', 'Latitude'], ['rain', 'Rain intensity'], ['speed', 'Speed']];
+    const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo' };
+    const MORE = { size: 'bigger', latitude: 'further north', rain: 'heavier rain', speed: 'faster moving' };
+    const EFFECT = { pitch: 'higher', volume: 'louder', tempo: 'faster repeats' };
+    const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'one note each time' };
+    const mapSels = ['pitch', 'volume', 'tempo'].map((key) => panel.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
       s.map[key] = val;
-      describe(`${PROP[key]} now controls ${OPTS.find((o) => o[0] === val)[1].toLowerCase()}${NOTE[key][val] ?? ''}.`);
+      const label = SOURCE_OPTS.find((o) => o[0] === val)[1].toLowerCase();
+      describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.`
+        : `${SOUND_NAMES[key]} now follows ${label} (${MORE[val]} = ${EFFECT[key]}).`);
     }, { value: s.map[key] }));
     const more = fold('More', mapSels);
     more.before(legend);
@@ -186,7 +224,8 @@ export default function start(ctx) {
     panel.button('Unfollow', () => follow(null)).setAttribute('aria-label', 'Stop following');
     panel.text('Keys on the map: N and P pick storms (largest first), Enter follows the storm under the cursor, '
       + 'Page Up and Page Down step through time, Escape stops following. Each region plays its own instrument, '
-      + 'panned left to right by longitude; bigger storms are louder (change it under More).');
+      + 'panned left to right by longitude; bigger storms are louder. Under More, pitch, volume and tempo can each follow size, latitude, '
+      + 'rain intensity or speed.');
     // The studio needs the full-size frames, so the single-file (blob:) build leaves the link out.
     if (!import.meta.url.startsWith('blob:')) {
       panel.text('', { visible: true }).append(Object.assign(document.createElement('a'), { href: new URL('studio.html', import.meta.url).href,
