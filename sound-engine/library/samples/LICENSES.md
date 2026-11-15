@@ -42,3 +42,10 @@ Built by `sound-engine/library/fetch.py --samples` from `manifest.json` "samples
 - `vsco_celtic_harp-*.mp3`: "Harp C3 mf" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE
 - `vsco_gong-*.mp3`: "Gong hit mf" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE
 - `vsco_nepalese_bells-*.mp3`: "Nepalese bells" from VSCO 2 Community Edition by Versilian Studios, CC0 1.0 (credit given as a courtesy): https://github.com/sgossner/VSCO-2-CE
+- `oud-*.mp3`: "Oud open Strings.ogg" by User:Bottomline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)
+- `dombra-*.mp3`: "Домбра.ogg" by Lvova, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg
+- `darbuka-*.mp3`: "Derbake Grave.ogg" by ZappaMidiPF, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
+- `didgeridoo-*.mp3`: "Didgeridoo sound.ogg" by Cassa342, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
+- `erhu-*.mp3`: "二泉映月.ogg" by David290 (recording), performed by Zhang Peijian, music by Abing, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)
+
+Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence.

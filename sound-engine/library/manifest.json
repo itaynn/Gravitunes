@@ -5,7 +5,10 @@
     "ocean_pad": "synthetic pad, no recording needed",
     "shakuhachi": "FluidR3_GM shakuhachi renders are not served by the CDN (jsDelivr package limit); flute is used instead",
     "xylophone": "FluidR3_GM xylophone renders are not served by the CDN; marimba is used instead",
-    "oud": "no CC0/CC BY oud recording found (the Commons one is CC BY-SA); app uses the nylon-string guitar sample"
+    "kora": "no CC0/CC BY/BY-SA kora recording on Commons (one FAL track, otherwise spoken words); app uses the harp sample",
+    "morin_khuur": "no CC0/CC BY/BY-SA morin khuur recording found; app uses the cello sample",
+    "balalaika": "no open balalaika recording found (only word pronunciations); app uses the banjo sample",
+    "tabla": "Commons 'Tabla drums demo.oga' (CC BY-SA 3.0, ~270 Hz strokes) is usable, but no map region plays a tabla yet"
   },
   "entries": [
     {
@@ -1273,6 +1276,120 @@
           "f0": 130.813,
           "start": 0.0,
           "dur": 0.98
+        }
+      ]
+    },
+    {
+      "id": "oud",
+      "label": "Oud",
+      "kind": "pluck",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 3.0",
+      "author": "User:Bottomline",
+      "page": "https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg",
+      "clean": true,
+      "attribution": "\"Oud open Strings.ogg\" by User:Bottomline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Oud_open_Strings.ogg",
+          "note": null,
+          "f0": 98.27,
+          "start": 1.25,
+          "dur": 0.9
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Oud_open_Strings.ogg",
+          "note": null,
+          "f0": 147.92,
+          "start": 3.1,
+          "dur": 0.85
+        },
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Oud_open_Strings.ogg",
+          "note": null,
+          "f0": 261.29,
+          "start": 5.0,
+          "dur": 0.7
+        }
+      ]
+    },
+    {
+      "id": "dombra",
+      "label": "Dombra",
+      "kind": "pluck",
+      "source": "Wikimedia Commons",
+      "license": "CC0",
+      "author": "Lvova",
+      "page": "https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg",
+      "clean": true,
+      "attribution": "\"Домбра.ogg\" by Lvova, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/4/45/%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg",
+          "note": null,
+          "f0": 245.3,
+          "start": 0.55,
+          "dur": 0.6
+        }
+      ]
+    },
+    {
+      "id": "darbuka",
+      "label": "Darbuka",
+      "kind": "hit",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "author": "ZappaMidiPF",
+      "page": "https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg",
+      "clean": true,
+      "attribution": "\"Derbake Grave.ogg\" by ZappaMidiPF, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Derbake_Grave.ogg",
+          "note": null,
+          "f0": 92.84,
+          "start": 0.0,
+          "dur": 0.5
+        }
+      ]
+    },
+    {
+      "id": "didgeridoo",
+      "label": "Didgeridoo",
+      "kind": "sustain",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "author": "Cassa342",
+      "page": "https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg",
+      "clean": true,
+      "attribution": "\"Didgeridoo sound.ogg\" by Cassa342, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Didgeridoo_sound.ogg",
+          "note": null,
+          "f0": 70.64,
+          "start": 2.0,
+          "dur": 1.6
+        }
+      ]
+    },
+    {
+      "id": "erhu",
+      "label": "Erhu",
+      "kind": "sustain",
+      "source": "Wikimedia Commons",
+      "license": "CC BY-SA 4.0",
+      "author": "David290 (recording), performed by Zhang Peijian, music by Abing",
+      "page": "https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg",
+      "clean": true,
+      "attribution": "\"二泉映月.ogg\" by David290 (recording), performed by Zhang Peijian, music by Abing, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+      "zones": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg",
+          "note": null,
+          "f0": 207.83,
+          "start": 2.8,
+          "dur": 1.6
         }
       ]
     }

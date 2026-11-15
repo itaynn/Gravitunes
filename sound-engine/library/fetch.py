@@ -28,7 +28,7 @@ UA = "GravitunesInstrumentLibrary/0.1 (open-source sonification project)"
 ALLOWED = ("CC0", "CC BY", "Iowa MIS")  # CC BY covers CC BY-SA; NC/ND/Sampling+ are refused below
 REFUSED = ("NC", "ND", "Sampling", "GFDL")
 SAMPLES = HERE / "samples"
-SAMPLE_LICENSES = ("CC0", "CC BY", "MIT", "Public domain")   # app samples: no share-alike
+SAMPLE_LICENSES = ("CC0", "CC BY", "MIT", "Public domain")   # app samples: CC BY-SA allowed (files stay BY-SA); no NC/ND
 
 
 def build_samples(manifest, only=None):
@@ -41,7 +41,7 @@ def build_samples(manifest, only=None):
     lic = ["# App samples: sources and licences", "",
            "Built by `sound-engine/library/fetch.py --samples` from `manifest.json` \"samples\".", ""]
     for s in manifest["samples"]:
-        if not s["license"].startswith(SAMPLE_LICENSES) or any(r in s["license"] for r in ("SA", "NC", "ND")):
+        if not s["license"].startswith(SAMPLE_LICENSES) or any(r in s["license"] for r in ("NC", "ND")):
             raise SystemExit(f"{s['id']}: license {s['license']!r} is not allowed for app samples")
         if only and s["id"] not in only:
             if s["id"] in old:
@@ -62,8 +62,13 @@ def build_samples(manifest, only=None):
                 if "wikimedia.org" in z["url"]:
                     time.sleep(3.0)
             fade = min(0.25, z["dur"] * 0.3)
+            af = f"afade=t=out:st={z['dur'] - fade:.3f}:d={fade:.3f}"
+            if s.get("clean"):  # field recordings: 5 ms fade-in, lowpass ~7 kHz, peak-normalize to -1 dBFS
+                af = f"afade=t=in:d=0.005,lowpass=f=7000,{af}"
+                gain = peak_gain(src, z["start"], z["dur"], f"lowpass=f=7000")
+                af += f",volume={gain:.2f}dB"
             cmd = ["ffmpeg", "-v", "error", "-y", "-ss", str(z["start"]), "-t", str(z["dur"]), "-i", str(src),
-                   "-ac", "1", "-ar", "32000", "-af", f"afade=t=out:st={z['dur'] - fade:.3f}:d={fade:.3f}",
+                   "-ac", "1", "-ar", "32000", "-af", af,
                    "-c:a", "libmp3lame", "-b:a", "48k", "-map_metadata", "-1", str(out)]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode:
@@ -74,6 +79,7 @@ def build_samples(manifest, only=None):
             index[s["id"]] = {"label": s["label"], "kind": s["kind"], "license": s["license"],
                               "source": s["source"], "attribution": s["attribution"], "zones": zones}
             lic.append(f"- `{s['id']}-*.mp3`: {s['attribution']}")
+    lic += ["", "Files from CC BY-SA sources are adaptations and stay under that CC BY-SA licence."]
     (SAMPLES / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     (SAMPLES / "LICENSES.md").write_text("\n".join(lic) + "\n", encoding="utf-8")
     total = sum(z["bytes"] for v in index.values() for z in v["zones"])
@@ -81,6 +87,14 @@ def build_samples(manifest, only=None):
     if bad:
         print("\n".join(bad), file=sys.stderr)
         sys.exit(1)
+
+
+def peak_gain(src, start, dur, af):
+    """dB of gain that brings the cut's peak to -1 dBFS."""
+    r = subprocess.run(["ffmpeg", "-v", "info", "-ss", str(start), "-t", str(dur), "-i", str(src), "-ac", "1",
+                        "-af", af + ",volumedetect", "-f", "null", "-"], capture_output=True, text=True)
+    peak = float(r.stderr.split("max_volume:")[1].split("dB")[0])
+    return -1.0 - peak
 
 
 def file_name(entry):

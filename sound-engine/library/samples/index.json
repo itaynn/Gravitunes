@@ -628,5 +628,85 @@
     "bytes": 6525
    }
   ]
+ },
+ "oud": {
+  "label": "Oud",
+  "kind": "pluck",
+  "license": "CC BY-SA 3.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Oud open Strings.ogg\" by User:Bottomline, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Oud_open_Strings.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 3.0)",
+  "zones": [
+   {
+    "file": "oud-0.mp3",
+    "f0": 98.27,
+    "bytes": 5877
+   },
+   {
+    "file": "oud-1.mp3",
+    "f0": 147.92,
+    "bytes": 5661
+   },
+   {
+    "file": "oud-2.mp3",
+    "f0": 261.29,
+    "bytes": 4797
+   }
+  ]
+ },
+ "dombra": {
+  "label": "Dombra",
+  "kind": "pluck",
+  "license": "CC0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Домбра.ogg\" by Lvova, CC0 (https://creativecommons.org/publicdomain/zero/1.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%B1%D1%80%D0%B0.ogg",
+  "zones": [
+   {
+    "file": "dombra-0.mp3",
+    "f0": 245.3,
+    "bytes": 4149
+   }
+  ]
+ },
+ "darbuka": {
+  "label": "Darbuka",
+  "kind": "hit",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Derbake Grave.ogg\" by ZappaMidiPF, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Derbake_Grave.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+  "zones": [
+   {
+    "file": "darbuka-0.mp3",
+    "f0": 92.84,
+    "bytes": 3501
+   }
+  ]
+ },
+ "didgeridoo": {
+  "label": "Didgeridoo",
+  "kind": "sustain",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"Didgeridoo sound.ogg\" by Cassa342, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Didgeridoo_sound.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+  "zones": [
+   {
+    "file": "didgeridoo-0.mp3",
+    "f0": 70.64,
+    "bytes": 10197
+   }
+  ]
+ },
+ "erhu": {
+  "label": "Erhu",
+  "kind": "sustain",
+  "license": "CC BY-SA 4.0",
+  "source": "Wikimedia Commons",
+  "attribution": "\"二泉映月.ogg\" by David290 (recording), performed by Zhang Peijian, music by Abing, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:%E4%BA%8C%E6%B3%89%E6%98%A0%E6%9C%88.ogg (trimmed, filtered and normalized; this adaptation is also CC BY-SA 4.0)",
+  "zones": [
+   {
+    "file": "erhu-0.mp3",
+    "f0": 207.83,
+    "bytes": 10197
+   }
+  ]
  }
 }

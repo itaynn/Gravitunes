@@ -534,7 +534,7 @@
     "gap": 0.16,
     "about": "maqam rast: neutral third (350 c) and seventh (1050 c)"
    },
-   "sample": "nylon_guitar"
+   "sample": "oud"
   },
   "panflute": {
    "label": "pan flute",
@@ -826,7 +826,8 @@
     ],
     "gap": 0.6,
     "dur": 2.2
-   }
+   },
+   "sample": "didgeridoo"
   },
   "banjo": {
    "label": "banjo",
@@ -1355,7 +1356,7 @@
    "label": "darbuka",
    "inspiredBy": "Maghreb darbuka / bendir",
    "family": "goblet and frame drums: dum and tek",
-   "sample": "frame_drum",
+   "sample": "darbuka",
    "harmonics": [
     1,
     0.3
@@ -2259,7 +2260,7 @@
    "label": "dombra",
    "inspiredBy": "Kazakh dombra",
    "family": "two-string lute, galloping strums",
-   "sample": "shamisen",
+   "sample": "dombra",
    "harmonics": [
     1,
     0.8,
@@ -2609,7 +2610,7 @@
    "label": "erhu",
    "inspiredBy": "Chinese erhu (two-string fiddle)",
    "family": "bowed, singing slides",
-   "sample": "violin",
+   "sample": "erhu",
    "harmonics": [
     1,
     0.7,
