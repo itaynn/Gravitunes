@@ -183,6 +183,18 @@ body.hts {
   cursor: default;
 }
 
+/* Reset sits close to the play button (the bar's gap is wider). */
+.hts-reset {
+  flex: 0 0 auto;
+  margin-left: -12px;
+}
+
+.hts-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .hts-play .button-icon {
   font-size: 16px;
   line-height: 1;
@@ -937,6 +949,10 @@ body.hts {
 
   .hts.is-drawer .hts-bar {
     right: 16px;
+  }
+
+  .hts-reset {
+    margin-left: -6px;
   }
 
   .hts-kbd {

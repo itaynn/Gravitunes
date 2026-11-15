@@ -309,12 +309,19 @@
   }, { capture: true });
 
   // ---------- Week timeline ----------
+  // Reset: back to the first frame through soundlab.js's own "First frame" button. It stops the week and puts the
+  // picked spots back where they were placed; Space then plays from the start.
+  const resetBtn = $("hts-reset");
+  const playBtn = $("lab-play");
+  resetBtn.addEventListener("click", () => $("lab-restart").click());
+
   const fill = $("hts-fill");
   const head = $("hts-head");
   const ticks = document.querySelectorAll(".hts-ticks span");
   let lastDay = -1;
 
   function timeline() {
+    resetBtn.disabled = playBtn.disabled; // usable once the map has loaded
     if (Number.isFinite(video.duration) && video.duration > 0) {
       const p = Math.min(1, video.currentTime / video.duration);
       fill.style.width = `${p * 100}%`;
