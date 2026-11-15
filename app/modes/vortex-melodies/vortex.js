@@ -1,10 +1,10 @@
 // Vortex melodies: pure logic (no DOM), tested by test.mjs.
 // Input: the compact vortices.json written by analysis/scripts/vortex-melodies/build.py.
 import { rankNormaliser } from '../../core/flow.js';
-import { snapToScale } from '../../core/scales.js';
+import { snapToScale, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 
-// The tunes' own range, semitones from C4: C4..E6 (bright, clear of the low hum).
-export const TUNE_LOW = 0, TUNE_HIGH = 28;
+// The tunes' default range, semitones from C4 (C2..E6); the Low / High menus change it (range-control.js).
+export const TUNE_LOW = LOW_SEMIS, TUNE_HIGH = HIGH_SEMIS;
 
 // Motifs as scale steps (ascending form) from a root (semitones from C4). Big vortices: longer and lower (from C4);
 // small: short and higher (from C5). Everything stays within C4..E6.
@@ -31,13 +31,17 @@ export function orient(steps, direction) {
 
 // Rank normalisers over every vortex observation in the sequence. Spin is underestimated by smoothing, so
 // only its rank is used; strength = |circulation| and size = radius are ranked the same way.
+// Hotspots (data.kind 'hotspots') reuse the slots: size = area, strength = mean intensity, spin = peak intensity.
+export const metric = (data) => data.kind === 'hotspots'
+  ? { size: (v) => v.area, strength: (v) => v.mean, spin: (v) => v.peak }
+  : { size: (v) => v.r, strength: (v) => v.circ * v.r, spin: (v) => v.spin };
 export function buildRanks(data) {
   const all = data.frames.flat();
-  const tracks = data.tracks;
+  const tracks = data.tracks, m = metric(data);
   return {
-    spin: rankNormaliser(all.map((v) => v.spin)),
-    size: rankNormaliser(all.map((v) => v.r)),
-    strength: rankNormaliser(all.map((v) => v.circ * v.r)),
+    spin: rankNormaliser(all.map(m.spin)),
+    size: rankNormaliser(all.map(m.size)),
+    strength: rankNormaliser(all.map(m.strength)),
     lifetime: rankNormaliser(tracks.map((t) => t.frames)),
   };
 }
@@ -62,10 +66,11 @@ export function motifIndex(by, { sizeRank = 0.5, regionIndex = 0, lifetimeRank =
 
 // The vortices that sound at frame t: loudness = strength x size rank x life fade; loudest first, capped.
 export function activeVortices(data, ranks, t, maxVoices, trackById) {
+  const m = metric(data);
   const list = (data.frames[t] || []).map((v) => {
-    const tr = trackById.get(v.id);
-    const loud = (0.35 + 0.65 * ranks.strength(v.circ * v.r)) * lifeFade(t, tr);
-    return { ...v, track: tr, loud, fade: lifeFade(t, tr), spinRank: ranks.spin(v.spin), sizeRank: ranks.size(v.r), strengthRank: ranks.strength(v.circ * v.r) };
+    const tr = trackById.get(v.id), st = ranks.strength(m.strength(v));
+    const loud = (0.35 + 0.65 * st) * lifeFade(t, tr);
+    return { ...v, track: tr, loud, fade: lifeFade(t, tr), spinRank: ranks.spin(m.spin(v)), sizeRank: ranks.size(m.size(v)), strengthRank: st };
   });
   return list.sort((a, b) => b.loud - a.loud || a.id - b.id).slice(0, Math.max(0, maxVoices));
 }
@@ -75,6 +80,8 @@ export function activeVortices(data, ranks, t, maxVoices, trackById) {
 // down (cw). Location is always instrument + pan.
 export const SOURCES = ['nothing', 'size', 'strength', 'spin'];
 export const DEFAULT_MAP = { pitch: 'size', volume: 'strength', tempo: 'spin', notes: 'size', direction: 'nothing' };
+// Hotspots: Pitch <- intensity (stronger = higher, pitchUp), Volume <- size, Tempo <- peak, Notes <- size.
+export const HOTSPOT_MAP = { pitch: 'strength', volume: 'size', tempo: 'spin', notes: 'size', direction: 'nothing', pitchUp: true };
 // Rank 0..1 of the source chosen for `target`, or null for nothing.
 export function targetRank(v, map, target) {
   const src = { size: v.sizeRank, strength: v.strengthRank, spin: v.spinRank }[map[target]];
@@ -86,13 +93,14 @@ export const noteCount = (rank) => rank == null ? NOTES_FIXED : Math.round(NOTES
 // Motif of n notes (scale steps, ascending form): a rising zig-zag, prefix of 0 2 1 3 2 4 3 5.
 const ZIGZAG = [0, 2, 1, 3, 2, 4, 3, 5];
 export const motifSteps = (n) => ZIGZAG.slice(0, Math.max(1, Math.min(ZIGZAG.length, n)));
-// Motif root (semitones from C4) from pitch rank: high rank = low (C4), low rank = high (C5); nothing = middle.
-export const pitchRoot = (rank) => Math.round(12 * (1 - (rank ?? 0.5)));
+// Motif root (semitones from C4) from pitch rank, within the range low..high (the motif needs about an octave above
+// its root): high rank = the lowest note, low rank = an octave under the top; nothing = middle.
+export const pitchRoot = (rank, low = TUNE_LOW, high = TUNE_HIGH) => Math.round(low + Math.max(0, high - 12 - low) * (1 - (rank ?? 0.5)));
 // Sound parameters for a vortex under `map`: root, notes per loop, loudness, loop seconds.
-export function mapped(v, map) {
+export function mapped(v, map, range = { low: TUNE_LOW, high: TUNE_HIGH }) {
   const p = targetRank(v, map, 'pitch'), vol = targetRank(v, map, 'volume'), tempo = targetRank(v, map, 'tempo');
   return {
-    root: pitchRoot(p),
+    root: pitchRoot(p != null && map.pitchUp ? 1 - p : p, range.low, range.high),
     n: noteCount(targetRank(v, map, 'notes')),
     loud: (0.35 + 0.65 * (vol ?? 0.6)) * (v.fade ?? 1),
     loop: loopSeconds(tempo ?? 0.5),

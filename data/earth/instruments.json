@@ -194,7 +194,7 @@
    "sample": "gamelan"
   },
   "sitar": {
-      "drone": true,
+   "drone": true,
    "label": "sitar",
    "inspiredBy": "North Indian sitar",
    "family": "plucked, jawari buzz, meend slides",
@@ -775,7 +775,7 @@
    "sample": "bandoneon"
   },
   "didgeridoo": {
-      "drone": true,
+   "drone": true,
    "label": "didgeridoo-like drone",
    "inspiredBy": "Australian didgeridoo (yidaki)",
    "family": "lip-buzzed drone, moving formants",
@@ -955,7 +955,7 @@
    "sample": "kalimba"
   },
   "duduk": {
-      "drone": true,
+   "drone": true,
    "label": "duduk",
    "inspiredBy": "Armenian duduk (apricot-wood double-reed)",
    "family": "double reed, slow breathy swell, mournful slides",
@@ -1016,48 +1016,49 @@
   "bouzouki": {
    "label": "bouzouki",
    "inspiredBy": "Greek bouzouki",
-   "family": "metal double courses, tremolo picked",
+   "family": "long-neck lute with paired metal strings: bright, shimmering tremolo",
    "harmonics": [
     1,
-    0.6,
+    0.5,
     0.45,
-    0.3
+    0.35,
+    0.2
    ],
    "partials": [
     {
-     "ratio": 2.003,
-     "amp": 0.45,
-     "decay": 0.5
+     "ratio": 1.006,
+     "amp": 0.5,
+     "decay": 0.7
     },
     {
-     "ratio": 5,
+     "ratio": 2.012,
      "amp": 0.3,
-     "decay": 0.1
+     "decay": 0.4
     },
     {
-     "ratio": 6,
-     "amp": 0.22,
-     "decay": 0.08
+     "ratio": 4,
+     "amp": 0.2,
+     "decay": 0.15
     },
     {
-     "ratio": 8,
-     "amp": 0.12,
-     "decay": 0.05
+     "ratio": 7,
+     "amp": 0.1,
+     "decay": 0.06
     }
    ],
    "envelope": {
     "attack": 0.001,
-    "decay": 0.5,
+    "decay": 0.7,
     "sustain": 0,
-    "release": 0.25
+    "release": 0.3
    },
    "noise": {
-    "amount": 0.14,
+    "amount": 0.2,
     "attack": 0.001,
-    "decay": 0.015,
-    "cutoff": 3200
+    "decay": 0.012,
+    "cutoff": 4500
    },
-   "brightness": 0.65,
+   "brightness": 0.75,
    "dur": 0.3,
    "gesture": {
     "scale": [
@@ -1082,7 +1083,13 @@
     "tremoloAll": true,
     "about": "hijaz: augmented second between degrees 1 and 2"
    },
-   "sample": "steel_guitar"
+   "sample": "steel_guitar",
+   "samples": [
+    {
+     "id": "steel_guitar",
+     "w": 0.5
+    }
+   ]
   },
   "ocean": {
    "label": "ocean pad",
@@ -1290,49 +1297,41 @@
   "ngoni": {
    "label": "ngoni",
    "inspiredBy": "Malian ngoni (lute)",
-   "family": "plucked skin-covered lute, banjo ancestor",
-   "sample": "banjo",
+   "family": "skin-headed lute: warm, nasal, slightly buzzy plucks",
+   "sample": "dombra",
    "harmonics": [
     1,
-    0.8,
-    0.65,
-    0.5,
-    0.4,
+    0.7,
+    0.35,
     0.3,
-    0.22,
-    0.15
+    0.12
    ],
    "partials": [
     {
-     "ratio": 6,
-     "amp": 0.4,
-     "decay": 0.06
+     "ratio": 3.02,
+     "amp": 0.3,
+     "decay": 0.12
     },
     {
-     "ratio": 7,
-     "amp": 0.35,
-     "decay": 0.05
-    },
-    {
-     "ratio": 9,
-     "amp": 0.25,
-     "decay": 0.04
+     "ratio": 1.004,
+     "amp": 0.2,
+     "decay": 0.4
     }
    ],
    "envelope": {
-    "attack": 0.001,
-    "decay": 0.35,
+    "attack": 0.002,
+    "decay": 0.45,
     "sustain": 0,
-    "release": 0.15
+    "release": 0.2
    },
    "noise": {
-    "amount": 0.25,
+    "amount": 0.3,
     "attack": 0.001,
-    "decay": 0.02,
-    "cutoff": 3000
+    "decay": 0.05,
+    "cutoff": 900
    },
-   "brightness": 0.7,
-   "dur": 0.25,
+   "brightness": 0.45,
+   "dur": 0.3,
    "gesture": {
     "scale": [
      0,
@@ -1353,7 +1352,13 @@
     "gap": 0.12,
     "dur": 0.3,
     "about": "fast minor-pentatonic riff"
-   }
+   },
+   "samples": [
+    {
+     "id": "dombra",
+     "w": 0.55
+    }
+   ]
   },
   "darbuka": {
    "label": "darbuka",
@@ -1433,29 +1438,29 @@
   "masenqo": {
    "label": "masenqo",
    "inspiredBy": "Ethiopian masenqo (one-string fiddle)",
-   "family": "bowed single-string fiddle",
-   "sample": "fiddle",
+   "family": "one-string spike fiddle: rough, nasal, wide vibrato",
+   "sample": "erhu",
    "harmonics": [
     1,
-    0.7,
-    0.5,
+    0.45,
+    0.6,
+    0.3,
     0.35,
-    0.25,
     0.15
    ],
    "envelope": {
-    "attack": 0.12,
+    "attack": 0.18,
     "decay": 0.2,
-    "sustain": 0.85,
-    "release": 0.3
+    "sustain": 0.8,
+    "release": 0.35
    },
    "vibrato": {
-    "rate": 5.5,
-    "depth": 18,
-    "delay": 0.2
+    "rate": 4.5,
+    "depth": 35,
+    "delay": 0.25
    },
-   "brightness": 0.45,
-   "dur": 0.6,
+   "brightness": 0.4,
+   "dur": 0.7,
    "gesture": {
     "scale": [
      0,
@@ -1475,7 +1480,19 @@
     "gap": 0.3,
     "dur": 0.5,
     "about": "tezeta pentatonic"
-   }
+   },
+   "noise": {
+    "amount": 0.12,
+    "attack": 0.05,
+    "decay": 0.4,
+    "cutoff": 2500
+   },
+   "samples": [
+    {
+     "id": "erhu",
+     "w": 0.75
+    }
+   ]
   },
   "likembe": {
    "label": "likembe",
@@ -1530,38 +1547,38 @@
   "ngoma": {
    "label": "ngoma drums",
    "inspiredBy": "East African ngoma drums",
-   "family": "hand drums for dance",
-   "sample": "bongo",
+   "family": "tall carved hand drums: deep, full, open tones",
+   "sample": "djembe",
    "harmonics": [
     1,
-    0.3
+    0.4
    ],
    "partials": [
     {
-     "ratio": 1.59,
-     "amp": 0.5,
-     "decay": 0.15
+     "ratio": 1.48,
+     "amp": 0.4,
+     "decay": 0.3
     },
     {
-     "ratio": 2.14,
-     "amp": 0.3,
-     "decay": 0.1
+     "ratio": 2.3,
+     "amp": 0.15,
+     "decay": 0.15
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.25,
+    "attack": 0.003,
+    "decay": 0.5,
     "sustain": 0,
-    "release": 0.15
+    "release": 0.3
    },
    "noise": {
-    "amount": 0.35,
+    "amount": 0.25,
     "attack": 0.001,
-    "decay": 0.04,
-    "cutoff": 1800
+    "decay": 0.05,
+    "cutoff": 1400
    },
-   "brightness": 0.3,
-   "dur": 0.3,
+   "brightness": 0.25,
+   "dur": 0.4,
    "gesture": {
     "scale": [
      0,
@@ -1595,14 +1612,20 @@
     ],
     "gap": 0.15,
     "dur": 0.3,
-    "fixedHz": 130.813,
+    "fixedHz": 98.0,
     "about": "6/8 dance pattern"
-   }
+   },
+   "samples": [
+    {
+     "id": "djembe",
+     "w": 0.7
+    }
+   ]
   },
   "timbila": {
    "label": "timbila",
    "inspiredBy": "Chopi timbila (Mozambique xylophone)",
-   "family": "wooden bars over gourds",
+   "family": "wooden xylophone with gourd resonators and buzzing membranes",
    "sample": "marimba",
    "harmonics": [
     1
@@ -1617,6 +1640,11 @@
      "ratio": 9.9,
      "amp": 0.1,
      "decay": 0.08
+    },
+    {
+     "ratio": 13.1,
+     "amp": 0.05,
+     "decay": 0.2
     }
    ],
    "envelope": {
@@ -1649,7 +1677,19 @@
     "gap": 0.14,
     "dur": 0.3,
     "about": "near-equal 7-tone tuning"
-   }
+   },
+   "noise": {
+    "amount": 0.18,
+    "attack": 0.005,
+    "decay": 0.25,
+    "cutoff": 700
+   },
+   "samples": [
+    {
+     "id": "marimba",
+     "w": 0.8
+    }
+   ]
   },
   "maskandi": {
    "label": "maskandi guitar",
@@ -1726,44 +1766,45 @@
   "valiha": {
    "label": "valiha",
    "inspiredBy": "Malagasy valiha (tube zither)",
-   "family": "plucked bamboo zither",
-   "sample": "koto",
+   "family": "bamboo tube zither: bright, chiming plucks over a hollow tube",
+   "sample": "vsco_celtic_harp",
    "harmonics": [
     1,
-    0.55,
-    0.15
+    0.4,
+    0.3,
+    0.1
    ],
    "partials": [
     {
-     "ratio": 4,
+     "ratio": 3.01,
      "amp": 0.3,
-     "decay": 0.12
+     "decay": 0.3
     },
     {
-     "ratio": 5,
-     "amp": 0.2,
-     "decay": 0.08
+     "ratio": 6.2,
+     "amp": 0.12,
+     "decay": 0.1
     },
     {
-     "ratio": 2.004,
-     "amp": 0.2,
-     "decay": 0.5
+     "ratio": 1.003,
+     "amp": 0.25,
+     "decay": 0.8
     }
    ],
    "envelope": {
     "attack": 0.002,
-    "decay": 0.9,
+    "decay": 0.6,
     "sustain": 0,
     "release": 0.4
    },
    "noise": {
-    "amount": 0.22,
+    "amount": 0.12,
     "attack": 0.001,
-    "decay": 0.02,
-    "cutoff": 2400
+    "decay": 0.03,
+    "cutoff": 1200
    },
-   "brightness": 0.45,
-   "dur": 0.5,
+   "brightness": 0.6,
+   "dur": 0.4,
    "gesture": {
     "scale": [
      0,
@@ -1786,7 +1827,13 @@
     "gap": 0.15,
     "dur": 0.4,
     "about": "bright major thirds"
-   }
+   },
+   "samples": [
+    {
+     "id": "vsco_celtic_harp",
+     "w": 0.6
+    }
+   ]
   },
   "fiddle": {
    "label": "fiddle",
@@ -1839,7 +1886,7 @@
    }
   },
   "bagpipe": {
-      "drone": true,
+   "drone": true,
    "label": "bagpipe",
    "inspiredBy": "Scottish Highland bagpipe",
    "family": "chanter over a drone",
@@ -2062,38 +2109,49 @@
   "shamandrum": {
    "label": "shaman drum",
    "inspiredBy": "Siberian shaman frame drum",
-   "family": "large frame drum, steady pulse",
+   "family": "large frame drum with iron jingles: deep boom, long resonant ring",
    "sample": "frame_drum",
    "harmonics": [
     1,
-    0.3
+    0.45,
+    0.15
    ],
    "partials": [
     {
-     "ratio": 1.59,
-     "amp": 0.5,
-     "decay": 0.15
+     "ratio": 1.5,
+     "amp": 0.45,
+     "decay": 0.6
     },
     {
-     "ratio": 2.14,
-     "amp": 0.3,
-     "decay": 0.1
+     "ratio": 2.3,
+     "amp": 0.2,
+     "decay": 0.35
+    },
+    {
+     "ratio": 7.3,
+     "amp": 0.07,
+     "decay": 0.5
+    },
+    {
+     "ratio": 9.1,
+     "amp": 0.05,
+     "decay": 0.45
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.25,
+    "attack": 0.004,
+    "decay": 0.9,
     "sustain": 0,
-    "release": 0.15
+    "release": 0.6
    },
    "noise": {
-    "amount": 0.35,
-    "attack": 0.001,
-    "decay": 0.04,
-    "cutoff": 1800
+    "amount": 0.3,
+    "attack": 0.002,
+    "decay": 0.35,
+    "cutoff": 5000
    },
-   "brightness": 0.3,
-   "dur": 0.3,
+   "brightness": 0.25,
+   "dur": 0.6,
    "gesture": {
     "scale": [
      0,
@@ -2103,39 +2161,45 @@
     ],
     "steps": [
      0,
-     1,
      0,
-     1,
      0,
-     1,
      0,
-     3
+     0,
+     0,
+     0,
+     1
     ],
     "rhythm": [
      0,
+     0.5,
      1,
+     1.5,
      2,
+     2.5,
      3,
-     4,
-     5,
-     6,
-     7
+     3.5
     ],
     "accents": [
      1,
-     0.5,
-     0.9,
-     0.5,
+     0.55,
+     0.8,
+     0.55,
      1,
-     0.5,
-     0.9,
+     0.55,
+     0.8,
      0.7
     ],
     "gap": 0.2,
-    "dur": 0.3,
-    "fixedHz": 130.813,
-    "about": "steady trance pulse"
-   }
+    "dur": 0.6,
+    "fixedHz": 82.41,
+    "about": "fast steady trance beat, deep boom with jingles"
+   },
+   "samples": [
+    {
+     "id": "frame_drum",
+     "w": 0.75
+    }
+   ]
   },
   "khomus": {
    "label": "khomus",
@@ -2174,7 +2238,7 @@
    }
   },
   "throat": {
-      "drone": true,
+   "drone": true,
    "label": "throat singing",
    "inspiredBy": "Tuvan khöömei (throat singing)",
    "family": "low drone with a whistled overtone melody",
@@ -2215,7 +2279,7 @@
    }
   },
   "morinkhuur": {
-      "drone": true,
+   "drone": true,
    "label": "morin khuur",
    "inspiredBy": "Mongolian morin khuur (horsehead fiddle)",
    "family": "two-string bowed fiddle",
@@ -2346,49 +2410,40 @@
   "dutar": {
    "label": "dutar",
    "inspiredBy": "Uzbek / Turkmen dutar",
-   "family": "long-necked two-string lute",
-   "sample": "nylon_guitar",
+   "family": "two-string long-neck lute: soft, woody, droning",
+   "sample": "dombra",
    "harmonics": [
     1,
-    0.6,
-    0.3
+    0.5,
+    0.35,
+    0.15
    ],
    "partials": [
     {
-     "ratio": 1.002,
-     "amp": 0.45,
-     "decay": 0.9
-    },
-    {
-     "ratio": 2.003,
-     "amp": 0.3,
+     "ratio": 1.5,
+     "amp": 0.15,
      "decay": 0.6
     },
     {
-     "ratio": 4,
-     "amp": 0.2,
-     "decay": 0.15
-    },
-    {
-     "ratio": 5,
-     "amp": 0.12,
-     "decay": 0.1
+     "ratio": 2.004,
+     "amp": 0.25,
+     "decay": 0.5
     }
    ],
    "envelope": {
     "attack": 0.003,
-    "decay": 0.75,
+    "decay": 0.6,
     "sustain": 0.02,
-    "release": 0.35
+    "release": 0.3
    },
    "noise": {
-    "amount": 0.2,
+    "amount": 0.12,
     "attack": 0.001,
-    "decay": 0.035,
-    "cutoff": 1300
+    "decay": 0.03,
+    "cutoff": 1000
    },
-   "brightness": 0.3,
-   "dur": 0.45,
+   "brightness": 0.35,
+   "dur": 0.4,
    "gesture": {
     "scale": [
      0,
@@ -2411,7 +2466,13 @@
     "gap": 0.16,
     "dur": 0.35,
     "about": "maqam with a three-quarter tone"
-   }
+   },
+   "samples": [
+    {
+     "id": "dombra",
+     "w": 0.85
+    }
+   ]
   },
   "santur": {
    "label": "santur",
@@ -2497,7 +2558,7 @@
    }
   },
   "shehnai": {
-      "drone": true,
+   "drone": true,
    "label": "shehnai",
    "inspiredBy": "South Asian shehnai / nadaswaram",
    "family": "double-reed oboe",
@@ -2668,38 +2729,38 @@
   "janggu": {
    "label": "janggu",
    "inspiredBy": "Korean janggu (hourglass drum)",
-   "family": "two-headed drum",
-   "sample": "taiko",
+   "family": "hourglass drum: sharp stick crack and soft low boom",
+   "sample": "melodic_tom",
    "harmonics": [
     1,
-    0.3
+    0.25
    ],
    "partials": [
     {
-     "ratio": 1.59,
-     "amp": 0.5,
-     "decay": 0.15
+     "ratio": 3.3,
+     "amp": 0.35,
+     "decay": 0.05
     },
     {
-     "ratio": 2.14,
-     "amp": 0.3,
-     "decay": 0.1
+     "ratio": 5.1,
+     "amp": 0.2,
+     "decay": 0.03
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.25,
+    "attack": 0.001,
+    "decay": 0.3,
     "sustain": 0,
     "release": 0.15
    },
    "noise": {
-    "amount": 0.35,
+    "amount": 0.6,
     "attack": 0.001,
-    "decay": 0.04,
-    "cutoff": 1800
+    "decay": 0.015,
+    "cutoff": 5000
    },
-   "brightness": 0.3,
-   "dur": 0.3,
+   "brightness": 0.6,
+   "dur": 0.25,
    "gesture": {
     "scale": [
      0,
@@ -2730,38 +2791,45 @@
     ],
     "gap": 0.2,
     "dur": 0.3,
-    "fixedHz": 130.813,
+    "fixedHz": 146.83,
     "about": "semachi 3-beat cycle"
-   }
+   },
+   "samples": [
+    {
+     "id": "melodic_tom",
+     "w": 0.45
+    }
+   ]
   },
   "ranat": {
    "label": "ranat",
    "inspiredBy": "Thai ranat ek (xylophone)",
-   "family": "wooden bars in octaves",
+   "family": "boat-shaped xylophone, hard mallets: bright, dry, fast",
    "sample": "marimba",
    "harmonics": [
-    1
+    1,
+    0.1
    ],
    "partials": [
     {
-     "ratio": 4,
-     "amp": 0.3,
-     "decay": 0.2
+     "ratio": 3.9,
+     "amp": 0.45,
+     "decay": 0.1
     },
     {
-     "ratio": 9.9,
-     "amp": 0.1,
-     "decay": 0.08
+     "ratio": 9.2,
+     "amp": 0.2,
+     "decay": 0.04
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.4,
+    "attack": 0.001,
+    "decay": 0.22,
     "sustain": 0,
-    "release": 0.3
+    "release": 0.12
    },
-   "brightness": 0.5,
-   "dur": 0.4,
+   "brightness": 0.7,
+   "dur": 0.25,
    "gesture": {
     "scale": [
      0,
@@ -2784,36 +2852,53 @@
     "gap": 0.12,
     "dur": 0.25,
     "about": "Thai 7-equal tuning"
-   }
+   },
+   "noise": {
+    "amount": 0.2,
+    "attack": 0.001,
+    "decay": 0.01,
+    "cutoff": 4000
+   },
+   "samples": [
+    {
+     "id": "marimba",
+     "w": 0.55
+    }
+   ]
   },
   "kulintang": {
    "label": "kulintang",
    "inspiredBy": "Philippine kulintang (gong row)",
-   "family": "row of small bossed gongs",
-   "sample": "agogo",
+   "family": "row of small bossed gongs: ringing bronze, long sustain",
+   "sample": "gamelan",
    "harmonics": [
     1
    ],
    "partials": [
     {
-     "ratio": 4,
-     "amp": 0.3,
-     "decay": 0.2
+     "ratio": 1.003,
+     "amp": 0.5,
+     "decay": 1.6
     },
     {
-     "ratio": 9.9,
-     "amp": 0.1,
-     "decay": 0.08
+     "ratio": 2.42,
+     "amp": 0.3,
+     "decay": 0.6
+    },
+    {
+     "ratio": 4.6,
+     "amp": 0.12,
+     "decay": 0.25
     }
    ],
    "envelope": {
     "attack": 0.002,
-    "decay": 0.4,
+    "decay": 1.5,
     "sustain": 0,
-    "release": 0.3
+    "release": 0.9
    },
-   "brightness": 0.5,
-   "dur": 0.4,
+   "brightness": 0.45,
+   "dur": 0.6,
    "gesture": {
     "scale": [
      0,
@@ -2834,7 +2919,19 @@
     "gap": 0.15,
     "dur": 0.4,
     "about": "gong melody"
-   }
+   },
+   "noise": {
+    "amount": 0.08,
+    "attack": 0.001,
+    "decay": 0.01,
+    "cutoff": 3000
+   },
+   "samples": [
+    {
+     "id": "gamelan",
+     "w": 0.7
+    }
+   ]
   },
   "danbau": {
    "label": "đàn bầu",
@@ -3300,7 +3397,7 @@
     ],
     "gap": 0.12,
     "dur": 0.3,
-    "fixedHz": 130.813,
+    "fixedHz": 174.61,
     "about": "3-2 son clave"
    }
   },
@@ -3365,38 +3462,33 @@
   "powwow": {
    "label": "powwow drum",
    "inspiredBy": "Plains powwow drum",
-   "family": "big shared drum, steady beat",
+   "family": "large shared bass drum: deep, booming heartbeat",
    "sample": "taiko",
    "harmonics": [
     1,
-    0.3
+    0.35
    ],
    "partials": [
     {
-     "ratio": 1.59,
-     "amp": 0.5,
-     "decay": 0.15
-    },
-    {
-     "ratio": 2.14,
-     "amp": 0.3,
-     "decay": 0.1
+     "ratio": 1.42,
+     "amp": 0.35,
+     "decay": 0.5
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.25,
+    "attack": 0.004,
+    "decay": 0.8,
     "sustain": 0,
-    "release": 0.15
+    "release": 0.5
    },
    "noise": {
-    "amount": 0.35,
-    "attack": 0.001,
-    "decay": 0.04,
-    "cutoff": 1800
+    "amount": 0.25,
+    "attack": 0.002,
+    "decay": 0.06,
+    "cutoff": 900
    },
-   "brightness": 0.3,
-   "dur": 0.3,
+   "brightness": 0.2,
+   "dur": 0.5,
    "gesture": {
     "scale": [
      0,
@@ -3430,45 +3522,51 @@
     ],
     "gap": 0.28,
     "dur": 0.3,
-    "fixedHz": 130.813,
+    "fixedHz": 73.42,
     "about": "straight heartbeat"
-   }
+   },
+   "samples": [
+    {
+     "id": "taiko",
+     "w": 0.9
+    }
+   ]
   },
   "qilaut": {
    "label": "qilaut",
    "inspiredBy": "Inuit qilaut (frame drum)",
-   "family": "frame drum struck on the rim",
+   "family": "large thin drum struck on the rim with a stick while it swings: dry, higher, short",
    "sample": "frame_drum",
    "harmonics": [
     1,
-    0.3
+    0.2
    ],
    "partials": [
     {
-     "ratio": 1.59,
-     "amp": 0.5,
-     "decay": 0.15
+     "ratio": 2.7,
+     "amp": 0.35,
+     "decay": 0.06
     },
     {
-     "ratio": 2.14,
-     "amp": 0.3,
-     "decay": 0.1
+     "ratio": 4.1,
+     "amp": 0.25,
+     "decay": 0.04
     }
    ],
    "envelope": {
-    "attack": 0.002,
-    "decay": 0.25,
+    "attack": 0.001,
+    "decay": 0.18,
     "sustain": 0,
-    "release": 0.15
+    "release": 0.1
    },
    "noise": {
-    "amount": 0.35,
+    "amount": 0.55,
     "attack": 0.001,
-    "decay": 0.04,
-    "cutoff": 1800
+    "decay": 0.02,
+    "cutoff": 4000
    },
-   "brightness": 0.3,
-   "dur": 0.3,
+   "brightness": 0.55,
+   "dur": 0.2,
    "gesture": {
     "scale": [
      0,
@@ -3478,30 +3576,39 @@
     ],
     "steps": [
      0,
-     1,
      0,
-     1,
+     0,
+     0,
+     0,
      0
     ],
     "rhythm": [
      0,
-     1.5,
+     1,
      2,
-     3.5,
-     4
+     3,
+     4,
+     5
     ],
     "accents": [
      1,
-     0.7,
+     0.8,
      1,
-     0.7,
-     1
+     0.8,
+     1,
+     0.8
     ],
-    "gap": 0.2,
-    "dur": 0.3,
-    "fixedHz": 130.813,
-    "about": "drum dance pulse"
-   }
+    "gap": 0.45,
+    "dur": 0.2,
+    "fixedHz": 196.0,
+    "about": "slow even beat as the drum turns, dry rim clicks"
+   },
+   "samples": [
+    {
+     "id": "frame_drum",
+     "w": 0.4
+    }
+   ]
   },
   "tabla": {
    "label": "tabla",

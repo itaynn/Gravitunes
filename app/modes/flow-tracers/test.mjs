@@ -136,4 +136,19 @@ console.log('flow-tracers scale wiring ok');
   const rain = fieldOf({ id: '4285', valueAt: () => 0.5 });
   assert.equal(rain.threshold, 0.02); assert.match(rain.text(0, 0, 0), /moderate rain/);
 }
+// listenWeights: Everything spreads worldwide, Near point concentrates
+{
+  const { listenWeights, listenAmps } = await import('./tracers.js');
+  const trs = [];
+  for (let k = 0; k < 10; k++) trs.push({ lat: 0, lon: k * 0.5, value: 0.5 });
+  trs.push({ lat: 40, lon: -100, value: 0.9 }, { lat: -30, lon: 140, value: 0.4 }, { lat: 10, lon: 60, value: 0.01 });
+  const ev = listenWeights(trs, { cap: 4 });
+  assert.equal(ev.length, 4);
+  assert.ok(ev.some((x) => x.i === 10) && ev.some((x) => x.i === 11) && ev.some((x) => x.i < 10));
+  assert.ok(!ev.some((x) => x.i === 12));
+  assert.equal(Math.max(...ev.map((x) => x.w)), 1);
+  const nr = listenWeights(trs, { mode: 'near', point: { lat: 40, lon: -100 }, cap: 4 });
+  assert.equal(nr[0].i, 10); assert.equal(nr.length, 1);
+  assert.ok(listenAmps(ev).every((a) => a > 0 && a <= 0.6));
+}
 console.log('flow-tracers datasets ok');

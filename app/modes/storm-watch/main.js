@@ -8,6 +8,7 @@ import {
 } from '../../core/storms.js';
 import { scaleFreqs, noteHz } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
+import { rangeControl } from '../../core/range-control.js';
 import { volumeSlider, soundHint, throttle } from '../../core/ui.js';
 import { voiceAt, centerColors } from '../../core/geo.js';
 import { shapeForPitch } from '../../core/voices.js';
@@ -30,7 +31,8 @@ export default function start(ctx) {
     sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
     const s = { followed: null, outlines: true, scale: 'pentatonic-major', volume: 0.7, map: { ...DEFAULT_MAP } };
     const frame = () => data.frames[time.now()];
-    const tones = () => scaleFreqs(s.scale, noteHz(PITCH_LOW), noteHz(PITCH_HIGH));   // C3..E6
+    let range = { low: PITCH_LOW, high: PITCH_HIGH };   // Low / High menus
+    const tones = () => scaleFreqs(s.scale, noteHz(range.low), noteHz(range.high));
     const colorOf = centerColors(centers);   // same colours as World orchestra / Vortex melodies
     const instLabel = (id) => instruments[id]?.label || id;
     // The instrument of the region at a storm's core (and its colour).
@@ -78,6 +80,8 @@ export default function start(ctx) {
     const phase = new Map();
     let playing = [];   // [{ c, reg, tune, gain }] for this frame
     let clock = performance.now() / 1000;
+    // Tunes follow the playback Speed menu gently: 50% speed = loop about 1.4x slower (square root keeps notes playable).
+    const loopLen = (it) => it.tune.loop * Math.sqrt(2 / Math.max(0.1, time.fps || 2));
     function loopOf(id, loop, now) {
       let p = phase.get(id);
       if (!p) { p = { t0: now, loop }; phase.set(id, p); }
@@ -93,16 +97,16 @@ export default function start(ctx) {
       const f = frame(), comps = f?.components ?? [];
       const lead = soloLead(f);
       const list = s.followed != null ? (lead ? [lead] : []) : comps;
-      const items = list.map((c) => ({ c, reg: regionOf(c), tune: stormTune(ranks(c, comps, (x) => propsOf(x)), s.map) }));
+      const items = list.map((c) => ({ c, reg: regionOf(c), tune: stormTune(ranks(c, comps, (x) => propsOf(x)), s.map, range) }));
       const gains = s.followed != null ? items.map((it) => it.tune.amp) : mixGains(items.map((it) => it.tune.amp), MAX_VOICES);
       items.forEach((it, i) => { it.gain = gains[i]; });
       playing = items.filter((it) => it.gain > 0);
       const now = performance.now() / 1000;
-      for (const it of playing) loopOf(it.c.id, it.tune.loop, now);
+      for (const it of playing) loopOf(it.c.id, loopLen(it), now);
     }
     const freqOf = (it, k) => tuneFreq(tones(), noteHz(it.tune.root), tuneSteps(it.tune.n)[k % it.tune.n]);
     function playStep(it, k, at) {
-      const freq = freqOf(it, k), sh = shapeForPitch(it.reg.voice, freq), step = it.tune.loop / it.tune.n;
+      const freq = freqOf(it, k), sh = shapeForPitch(it.reg.voice, freq), step = loopLen(it) / it.tune.n;
       sound.play({ freq, amp: 0.4 * it.gain, pan: panOf(it.reg.lon), sample: it.reg.sample, t: Math.max(0, at - performance.now() / 1000),
         dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
         vibrato: sh.vibrato, wah: sh.wah });
@@ -113,7 +117,7 @@ export default function start(ctx) {
       const now = performance.now() / 1000, to = now + 0.15;
       if (time.playing) {
         for (const it of playing) {
-          const p = loopOf(it.c.id, it.tune.loop, now);
+          const p = loopOf(it.c.id, loopLen(it), now);
           for (const { k, at } of dueNotes(it.tune.n, p.loop, p.t0, Math.max(lastTick, now), to)) playStep(it, k, at);
         }
       }
@@ -124,7 +128,8 @@ export default function start(ctx) {
       const frameDur = 0.5, done = new Set();
       for (const it of playing) {
         if (!instruments[it.reg.inst]?.drone) continue;
-        const freq = tuneFreq(tones(), noteHz(it.tune.root), 0) / 2;
+        let freq = tuneFreq(tones(), noteHz(it.tune.root), 0) / 2;
+        if (freq < noteHz(range.low) * 0.999) freq *= 2;   // never under the range's low note
         const key = `${Math.round(freq)}|${Math.round(it.reg.lon / 30)}`;
         if (done.has(key)) continue;
         done.add(key);
@@ -266,6 +271,7 @@ export default function start(ctx) {
 
     soundHint(panel, sound, 'press Play to hear every storm; click a storm (or N, then Enter) to solo it.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
+    range = rangeControl(panel, { describe, onChange: () => computePlaying() });
     volumeSlider(panel, sound, s.volume);
     // Legend: the instruments of the storms in this frame, in their outline colours.
     const legend = document.createElement('p');

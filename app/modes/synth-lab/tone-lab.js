@@ -9,7 +9,7 @@ import { playNotes, gestureLength } from '../../core/gestures.js';
 import { nearestCenters } from '../../core/geo.js';
 import { createViewer, loadBasemap } from '../../core/viewer.js';
 import { noteHz, noteName, C4 } from '../../core/scales.js';
-import { toneNotes, neighbor } from './tones.js';
+import { toneNotes, neighbor, NH, waveHarmonics, builderFromVoice, builderSynth, brightHz } from './tones.js';
 import { onSpace } from '../../core/keys.js';
 import '../../core/switcher.js';
 
@@ -19,13 +19,15 @@ const status = (t) => { $('#status').textContent = t; };
 const sel = $('#instrument'), pitch = $('#pitch'), about = $('#about'), regionEl = $('#region'), canvas = $('#map');
 const loopBox = $('#loop'), stopBtn = $('#stop');
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const nowCard = $('#now'), nowInst = $('#now-inst'), nowTag = $('#now-tag');
 
 // ---- map (plain land/ocean basemap, same as World orchestra's Instruments view)
 loadBasemap(repoUrl('data/earth/'));   // cached: the viewer's own loadBasemap() call reuses it
 const viewer = createViewer(canvas, { plain: true });
 
 const sound = await createSound();
-let scale = null;   // null: the instrument's own scale
+window.__gtSound = sound;   // test hook, as in core/host.js
+let scale = 'pentatonic-major';   // null: the instrument's own scale (set by the control below)
 scaleControl(createPanel($('#tone-scale')), { value: 'pentatonic-major', own: 'Instrument\'s own', describe,
   onChange: (v) => { scale = v; }, hint: 'For Scale and Chord.' });
 
@@ -64,14 +66,43 @@ function paint(fn) {
 }
 const tint = centers.length ? paint((k) => colorOf.get(centers[k]?.id)) : null;
 const masks = new Map();
-const maskOf = (c) => { if (!masks.has(c.id)) { const k = centers.indexOf(c); masks.set(c.id, paint((j) => (j === k ? colorOf.get(c.id) : null))); } return masks.get(c.id); };
+const maskOf = (c, col = colorOf.get(c.id)) => {
+  const key = c.id + col;
+  if (!masks.has(key)) { const k = centers.indexOf(c); masks.set(key, paint((j) => (j === k ? col : null))); }
+  return masks.get(key);
+};
+// "Sounding": while notes play, the selected region pulses and the rest of the map dims further.
+let soundingUntil = 0, raf = 0;
+const sounding = () => performance.now() < soundingUntil;
+function markSounding(sec) {
+  soundingUntil = performance.now() + sec * 1000;
+  nowCard.classList.add('playing');
+  if (!raf) {
+    const tick = () => {
+      viewer.redraw();
+      if (sounding()) raf = requestAnimationFrame(tick);
+      else { raf = 0; nowCard.classList.remove('playing'); viewer.redraw(); }
+    };
+    raf = requestAnimationFrame(tick);
+  }
+}
+function stopSounding() { soundingUntil = 0; }
 
 viewer.addOverlay((g, v) => {
   const W = v.canvas.width, H = v.canvas.height;
   g.save();
   g.imageSmoothingEnabled = false;
   if (tint) { g.globalAlpha = 0.14; g.drawImage(tint, 0, 0, W, H); }
-  if (region) { g.globalAlpha = 0.55; g.drawImage(maskOf(region), 0, 0, W, H); }
+  if (region) {
+    // Dim everything else, then the selected region in a bold white outline and its own colour (pulsing while it sounds).
+    const on = sounding(), pulse = on ? 0.5 + 0.5 * Math.sin(performance.now() / 110) : 1;
+    g.globalAlpha = on ? 0.55 : 0.4; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    const o = Math.max(3, W / 320), white = maskOf(region, '#fff');
+    g.globalAlpha = 1;
+    for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o], [-o, -o], [o, o], [-o, o], [o, -o]]) g.drawImage(white, dx, dy, W, H);
+    g.globalAlpha = on ? 0.7 + 0.25 * pulse : 0.85;
+    g.drawImage(maskOf(region), 0, 0, W, H);
+  }
   g.globalAlpha = 1;
   // Instrument labels on dark boxes (no overlaps); the selected region's on top, outlined.
   g.font = `600 ${Math.round(W / 110)}px system-ui, sans-serif`; g.textAlign = 'left'; g.textBaseline = 'middle';
@@ -88,12 +119,14 @@ viewer.addOverlay((g, v) => {
   placed.sort((a, b) => (a.c === region) - (b.c === region));
   for (const { c, text, w, bx, by } of placed) {
     const y = by + h / 2, on = c === region;
+    g.globalAlpha = region && !on ? 0.45 : 1;
     g.fillStyle = on ? 'rgba(0,0,0,.95)' : 'rgba(0,0,0,.7)';
     g.beginPath(); g.roundRect ? g.roundRect(bx, by, w, h, h / 3) : g.rect(bx, by, w, h); g.fill();
     if (on) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); }
     g.fillStyle = colorOf.get(c.id); g.beginPath(); g.arc(bx + h / 2, y, h / 4, 0, 7); g.fill();
     g.fillStyle = '#fff'; g.fillText(text, bx + h * 0.9, y + 0.5);
   }
+  g.globalAlpha = 1;
   g.restore();
 });
 
@@ -148,10 +181,18 @@ async function choose(value) {
 }
 
 // ---- selecting a region (click, tap, arrows) and playing
+// The "now" card: big instrument name, region, recorded / stand-in, in the region's colour (also outlines the list).
+function showNow(name, where, standIn, col = '#888') {
+  nowCard.style.setProperty('--now', col); sel.style.setProperty('--now', col); sel.classList.add('on');
+  nowInst.textContent = cap(name);
+  regionEl.textContent = where;
+  nowTag.textContent = standIn == null ? '' : standIn ? 'Stand-in' : 'Recorded';
+  nowTag.hidden = standIn == null;
+}
 function setRegion(c) {
   region = c;
   const inst = instruments[c.instrument];
-  regionEl.textContent = `${c.label}: ${inst?.label || c.instrument}${instStandIn(c.instrument) ? SI : ''}`;
+  showNow(inst?.label || c.instrument, `${c.label}: ${inst?.label || c.instrument}${instStandIn(c.instrument) ? SI : ', recorded'}`, instStandIn(c.instrument), colorOf.get(c.id));
   viewer.redraw();
   sel.value = `w:${c.instrument}`;
   return choose(sel.value);
@@ -159,7 +200,7 @@ function setRegion(c) {
 
 const KIND_TEXT = { note: 'note', scale: 'scale', chord: 'chord', phrase: 'phrase' };
 const nameOf = (hz) => noteName(Math.round(12 * Math.log2(hz / C4)));
-function stop() { clearTimeout(loopTimer); loopTimer = 0; sound.stopAll(); }
+function stop() { clearTimeout(loopTimer); loopTimer = 0; sound.stopAll(); stopSounding(); }
 async function play() {
   clearTimeout(loopTimer); loopTimer = 0;
   if (!sound.started) await sound.start();   // the first click starts audio
@@ -174,6 +215,7 @@ async function play() {
     playNotes(sound, current.voice, notes, { amp: 0.4, pan });
   }
   status(`${cap(current.label)}: ${KIND_TEXT[k]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}${current.standIn ? ', a stand-in sound until a real recording is added' : ''}${loopBox.checked ? ', looping' : ''}`);
+  markSounding(gestureLength(notes) + 0.3);
   if (loopBox.checked) loopTimer = setTimeout(play, (gestureLength(notes) + 0.6) * 1000);
 }
 
@@ -194,7 +236,8 @@ sel.addEventListener('change', async () => {
   // A map instrument highlights its first region; other instruments have no region.
   const c = v.startsWith('w:') && centers.find((x) => x.instrument === v.slice(2));
   if (c) { await setRegion(c); } else {
-    region = null; viewer.redraw(); await choose(v); regionEl.textContent = current ? cap(current.label) : '';
+    region = null; viewer.redraw(); await choose(v);
+    if (current) showNow(current.label, 'Not on the map', current.standIn ?? null);
   }
   if (loopBox.checked) play();
 });
@@ -233,6 +276,7 @@ canvas.addEventListener('keydown', async (e) => {
 
 // Space anywhere (not in fields or on buttons): stop a running loop, otherwise play the current selection.
 onSpace(async () => {
+  if (!$('#builder').hidden) { if (bLoop.checked) bStop(); else bPlay(); return; }
   if (loopBox.checked) { stopBtn.click(); return; }
   if (!region && centers[0]) await setRegion(centers[0]);
   play(); describe('Playing');
@@ -241,3 +285,78 @@ onSpace(async () => {
 // Start on the first region (no sound until a click or key).
 if (centers.length) await setRegion(centers[0]); else if (sel.value) await choose(sel.value);
 status('');
+
+// ---- "Build a sound": a second view to shape the engine's voice (harmonics, envelope, brightness, recording mix).
+const builder = $('#builder'), mapView = $('#map-view'), toBuilder = $('#to-builder'), bLoop = $('#b-loop');
+let b = builderFromVoice({ harmonics: waveHarmonics('saw').map((x, i) => (i < 4 ? x : 0)) }), bKind = 'note', bTimer = 0;
+const bInputs = {};
+function slider(parent, key, label, min, max, step, fmt, get = () => b[key], set = (v) => { b[key] = v; }) {
+  const id = `b-${key}`, wrap = document.createElement('div');
+  wrap.className = 'control';
+  wrap.innerHTML = `<label for="${id}">${label}</label><output for="${id}"></output><input id="${id}" type="range" min="${min}" max="${max}" step="${step}">`;
+  const inp = wrap.querySelector('input'), out = wrap.querySelector('output');
+  const show = () => { inp.value = get(); out.textContent = fmt(+inp.value); inp.setAttribute('aria-valuetext', fmt(+inp.value)); };
+  inp.addEventListener('input', () => { set(+inp.value); show(); });
+  inp.addEventListener('change', () => { if (!bLoop.checked) bPlay(); });
+  bInputs[key] = show; show(); parent.append(wrap);
+}
+const HN = ['fundamental', 'octave', 'fifth above', '2 octaves', 'major third', 'fifth', 'flat seventh', '3 octaves'];
+const pct = (v) => `${Math.round(v * 100)}%`, secs = (v) => `${v.toFixed(2)} s`;
+for (let i = 0; i < NH; i++) slider($('#b-harm'), `h${i}`, `${i + 1}: ${HN[i]}`, 0, 1, 0.01, pct, () => b.harmonics[i], (v) => { b.harmonics[i] = v; });
+slider($('#b-env'), 'attack', 'Attack', 0, 2, 0.01, secs);
+slider($('#b-env'), 'decay', 'Decay', 0, 3, 0.01, secs);
+slider($('#b-env'), 'sustain', 'Sustain', 0, 1, 0.01, pct);
+slider($('#b-env'), 'release', 'Release', 0, 3, 0.01, secs);
+let bPitch = -12;
+slider($('#b-col'), 'pitch', 'Pitch', -24, 21, 1, (v) => noteName(v), () => bPitch, (v) => { bPitch = v; });
+slider($('#b-col'), 'bright', 'Brightness', 0, 1, 0.01, (v) => `${brightHz(v)} Hz`);
+slider($('#b-col'), 'noise', 'Breath / pick noise', 0, 1, 0.01, pct);
+slider($('#b-col'), 'vibrato', 'Vibrato', 0, 50, 1, (v) => `${v} cents`);
+slider($('#b-col'), 'mix', 'Recording mix', 0, 1, 0.01, pct);
+const bSample = $('#b-sample');
+for (const [id, v] of Object.entries(samples)) bSample.append(new Option(`${v.label}${isStandIn(v.realism) ? SI : ''}`, id));
+bSample.addEventListener('change', () => { b.sample = bSample.value; if (b.sample && b.mix === 0) { b.mix = 0.5; bInputs.mix(); } });
+const refresh = () => { for (const f of Object.values(bInputs)) f(); bSample.value = b.sample; };
+
+function bStop() { clearTimeout(bTimer); bTimer = 0; bLoop.checked = false; sound.stopAll(); status('Stopped.'); describe('Stopped.'); }
+function bPlay() {
+  clearTimeout(bTimer); bTimer = 0;
+  const notes = toneNotes({ dur: Math.max(0.4, b.attack + b.decay) }, noteHz(bPitch), bKind, scale);
+  sound.stopAll();
+  const syn = builderSynth(b), mix = b.sample && sound.hasSample?.(b.sample) ? b.mix : 0;
+  for (const n of notes) {
+    if (mix > 0) sound.play({ sample: b.sample, freq: n.freq, t: n.t, dur: n.dur, amp: 0.64 * mix });
+    if (mix < 1) sound.play({ ...syn, freq: n.freq, t: n.t, dur: n.dur, amp: 0.4 * (1 - mix) });
+  }
+  status(`Built sound: ${bKind} from ${noteName(bPitch)}${bLoop.checked ? ', looping' : ''}`);
+  if (bLoop.checked) bTimer = setTimeout(bPlay, (gestureLength(notes) + b.release + 0.4) * 1000);
+}
+$('#b-note').addEventListener('click', () => { bKind = 'note'; bPlay(); });
+$('#b-scale').addEventListener('click', () => { bKind = 'scale'; bPlay(); });
+$('#b-stop').addEventListener('click', bStop);
+bLoop.addEventListener('change', () => { if (bLoop.checked) bPlay(); else { clearTimeout(bTimer); bTimer = 0; describe('Loop off.'); } });
+for (const btn of builder.querySelectorAll('[data-wave]')) {
+  btn.addEventListener('click', () => { b.harmonics = waveHarmonics(btn.dataset.wave); refresh(); describe(`${btn.textContent} harmonics.`); bPlay(); });
+}
+const fromBtn = $('#b-from');
+const fromVoice = () => (current?.voice && !current.name ? current : null);
+function updateFrom() {
+  const c = fromVoice();
+  fromBtn.textContent = c ? `Start from ${cap(c.label)}` : 'Start from the selected instrument';
+  fromBtn.disabled = !c;
+}
+fromBtn.addEventListener('click', () => {
+  const c = fromVoice(); if (!c) return;
+  b = builderFromVoice(c.voice); bPitch = +pitch.value; refresh();
+  describe(`Starting from ${c.label}.`); bPlay();
+});
+function showView(build) {
+  stop(); clearTimeout(bTimer); bTimer = 0; bLoop.checked = false; loopBox.checked = false; stopBtn.hidden = true;
+  builder.hidden = !build; mapView.hidden = build;
+  toBuilder.textContent = build ? 'Back to map' : 'Build a sound';
+  if (build) { updateFrom(); $('#b-title').focus(); } else canvas.focus();
+  describe(build ? 'Sound builder.' : 'Instrument map.');
+}
+toBuilder.addEventListener('click', () => showView(builder.hidden));
+refresh();
+if (location.hash === '#build') showView(true);

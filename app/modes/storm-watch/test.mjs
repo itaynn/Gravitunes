@@ -35,7 +35,7 @@ assert.equal(noteCount(0), 3); assert.equal(noteCount(1), 8); assert.deepEqual(t
 assert.ok(tune(mid, M({ pitch: 'latitude' }), { 2: 50 }).root > tune(mid, M({ pitch: 'latitude' }), { 2: -50 }).root);
 assert.ok(tune(small, M({ volume: 'rain' })).amp > tune(big, M({ volume: 'rain' })).amp);
 assert.equal(tune(mid, M({ tempo: 'speed' })).loop, loopSeconds(null));
-// Every note within C3..E6 and on the scale; the tune is not one repeated note.
+// Every note within the range (default C2..E6) and on the scale; the tune is not one repeated note.
 for (const src of SOURCES) for (const c of comps) for (const lat of [-90, -30, 0, 30, 90]) {
   const t = tune(c, M({ pitch: src, volume: src, tempo: src, notes: src }), { [c.id]: lat });
   const fs = tuneSteps(t.n).map((k) => tuneFreq(tones, noteHz(t.root), k));

@@ -5,19 +5,17 @@
 // value (rain, or a gas above its median) plays a note: higher value = higher and louder, faster motion = brighter,
 // east/west = right/left, timbre = world-orchestra region. Tracers over low values are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
+import { quantize, noteHz, scaleFreqs, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
+import { rangeControl } from '../../core/range-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth } from '../../core/data.js';
-import { MAX_FUND_HZ } from '../../core/sound.js';
-import { volumeSlider, fold, timbreControl } from '../../core/ui.js';
+import { volumeSlider, timbreControl } from '../../core/ui.js';
 import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
 import { fieldOf } from '../../core/fields.js';
-import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle } from './tracers.js';
+import { rng, scatter, speedBrightness, hoverGesture, flowBetween, moveParticle, listenWeights, listenAmps } from './tracers.js';
 
-// Pitch range: the shared bounds (C2 up to the engine's top fundamental).
-const LOW_HZ = noteHz(0), HIGH_HZ = MAX_FUND_HZ;   // values play C4..E6: bright, not muffled
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -40,7 +38,7 @@ export default function start(ctx) {
     sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
     const backdrop = field.rain ? createBackdrop(dir, { viewer, time }) : plainBackdrop({ time });
 
-    const s = { count: 24, particles: 1200, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
+    const s = { count: 40, particles: 1200, maxVoices: 14, listen: 'everything', point: null, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
       drift: 5, arrows: false, volume: 0.6, sound: true };
     const random = rng(Date.now() & 0xffff);
     const val = (lat, lon, t = time.now()) => field.level(lat, lon, t);
@@ -52,7 +50,8 @@ export default function start(ctx) {
       let lat = 0, lon = 0;
       for (let k = 0; k < 25; k++) {
         lat = (Math.asin(random() * 2 - 1) * 180) / Math.PI * 0.9; lon = random() * 360 - 180;
-        if (val(lat, lon, t) >= DRY) break;
+        // Anywhere the motion is known (not only over signal), so streams cover the whole map.
+        if (flowAt(flow, lat, lon, t)) break;
       }
       return Object.assign(p, { lat, lon, age: 0, idle: 0, life: 40 + random() * 60 });
     }
@@ -62,6 +61,8 @@ export default function start(ctx) {
       parts = Array.from({ length: s.particles }, () => spawn());
       parts.forEach((p) => { p.age = random() * p.life; });
       clearTrails();
+      // Warm up: advect the particles one tail length so streams show before Play (and after a Data or Tracers change).
+      for (let k = 0; k < KEEP; k++) stepParts(time.now(), 0);
     }
 
     function voiceFor(tr) {
@@ -70,9 +71,11 @@ export default function start(ctx) {
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
       return { voice: r.voice, name: instLabel(r.primary.instrument), sample: instruments[r.primary.instrument]?.sample };
     }
-    const tones = () => scaleFreqs(s.scale, LOW_HZ, HIGH_HZ);
-    // Pitch from the value over C4..E6 (voiceNote folds octave-shifted voices back inside).
-    const noteFor = (value) => quantize(field.spread(Math.min(1, value)), [0, 1], s.scale, LOW_HZ, HIGH_HZ).freq;
+    // Pitch range: the Low / High menus (default C2..E6).
+    let range = { low: LOW_SEMIS, high: HIGH_SEMIS };
+    const tones = () => scaleFreqs(s.scale, noteHz(range.low), noteHz(range.high));
+    // Pitch from the value over the range (voiceNote folds octave-shifted voices back inside).
+    const noteFor = (value) => quantize(field.spread(Math.min(1, value)), [0, 1], s.scale, noteHz(range.low), noteHz(range.high)).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
       if (!s.sound) return null;
       const vf = voiceFor(tr), sh = voiceNote(vf.voice, noteFor(tr.value), { tones: tones() }).note;
@@ -80,13 +83,25 @@ export default function start(ctx) {
       const envelope = sustained ? { attack: dur * 0.3, decay: 0.1, sustain: 0.9, release: dur * 0.3 } : sh.envelope;
       const glide = sustained && tr.lastFreq && tr.lastFreq !== freq ? { to: freq, time: dur * 0.5 } : undefined;
       sound.play({ freq: glide ? tr.lastFreq : freq, amp, pan, dur, t, sample: vf.sample, harmonics: sh.harmonics, partials: sh.partials, envelope,
-        noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah, glide, lowpass: 400 + 1600 * speedBrightness(tr.speed || 0) });
+        noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah, glide, lowpass: 6000 + 6000 * speedBrightness(tr.speed || 0) });
       return freq;
     }
 
     // ---- controls: Sound, Scale, Volume up front; the rest folded under "More".
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
+    range = rangeControl(panel, { describe });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
+    const listenSel = (panel.bar || panel).select('Listen', [['everything', 'Everything'], ['near', 'Near point']], (v) => setListen(v),
+      { value: s.listen, hint: 'Everything: the whole map sings, bigger and stronger features louder. Near point: click the map (or arrows and Enter) to hear what is near there.' });
+    function setListen(v, point = s.point) {
+      s.listen = v; s.point = v === 'near' ? point : null;
+      if (listenSel.value !== v) listenSel.value = v;
+      viewer.redraw();
+      describe(v === 'near'
+        ? (s.point ? `Listening near ${formatLatLon(s.point.lat, s.point.lon)}: closer tracers are louder. Escape or Listen: Everything returns to the whole map.`
+          : 'Listening near a point: click the map, or use the arrow keys and Enter, to choose where.')
+        : 'Listening to everything: the whole map sings, bigger and stronger features louder.');
+    }
     const howTo = panel.text(field.rain ? 'How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.'
       : `How it sounds: yellow tracers are over high ${NAME} (above its median) and sing. Higher ${NAME} = higher, louder note; left/right = west/east.`);
     howTo.classList.add('hint');
@@ -97,11 +112,10 @@ export default function start(ctx) {
     const timbre = timbreControl(panel, { options: [['region', 'By region'], ['single', 'One voice'], ['speed', 'By speed']],
       value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
     const countSl = panel.slider('Tracers', { min: 5, max: 60, step: 1, value: s.count, format: (v) => `${v} singing tracers` }, (v) => { s.count = v; rescatter(); });
-    const voicesSl = panel.slider('Voices', { min: 1, max: 12, step: 1, value: s.maxVoices, format: (v) => `at most ${v} notes at once` }, (v) => { s.maxVoices = v; });
+    const voicesSl = panel.slider('Voices', { min: 1, max: 16, step: 1, value: s.maxVoices, format: (v) => `at most ${v} notes at once` }, (v) => { s.maxVoices = v; });
     const driftSl = panel.slider('Speed-up', { min: 1, max: 8, step: 1, value: s.drift, format: (v) => `tracers move ${v} times faster than the measured flow` }, (v) => { s.drift = v; });
     const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
-    const more = fold('More', [timbre.timbre, timbre.single, countSl, voicesSl, driftSl, arrowsCb]);
     // Rain: the NASA colour bars replace the host's generic one (gases keep the host's).
     const hostBar = field.rain ? document.getElementById('colorbar') : null;
     if (hostBar) hostBar.hidden = true;
@@ -121,27 +135,33 @@ export default function start(ctx) {
         const fresh = scatter(dead.length, { random, accept: rainy(t), avoid: tracers.filter((tr) => tr.quiet < 4) });
         dead.forEach((tr, k) => Object.assign(tr, fresh[k], { quiet: 0, hist: [], value: val(fresh[k].lat, fresh[k].lon, t) }));
       }
-      const on = pickVoices(tracers, s.maxVoices, DRY);
+      const wts = weigh(), amps = listenAmps(wts);
+      const on = wts.map((x) => x.i);
       singing = new Set(on.map((i) => tracers[i].id));
       if (!forward || !time.playing || !s.sound) { prevFreq = new Map(); return; }
       const frameDur = 1 / Math.max(0.1, time.fps || 2);
       const next = new Map();
       on.forEach((i, k) => {
         const tr = tracers[i];
-        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * field.spread(tr.value)) / Math.sqrt(on.length),
+        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: amps[k] * (0.4 + 0.6 * field.spread(tr.value)),
           dur: frameDur * 1.1, t: (k * 0.02) % frameDur, sustained: true }));
       });
       prevFreq = next;
     });
+    // Everything: strongest / biggest features across the globe; Near point: distance falloff from the marker.
+    function weigh() {
+      return listenWeights(tracers, { mode: s.listen === 'near' && s.point ? 'near' : 'everything', point: s.point, cap: s.maxVoices, minValue: DRY });
+    }
     const offPlay = time.onPlayState((p) => { if (!p) sound.stopAll(); });
 
     // Screen-reader summary while playing.
     const sumTimer = setInterval(() => {
       if (!time.playing) return;
-      const on = pickVoices(tracers, s.maxVoices, DRY).map((i) => tracers[i]);
-      if (!on.length) { describe(`${time.label()}. All tracers are over ${field.rain ? 'dry air' : `low ${NAME}`}.`); return; }
+      const on = weigh().map((x) => tracers[x.i]);
+      const where = s.listen === 'near' && s.point ? ` near ${formatLatLon(s.point.lat, s.point.lon)}` : '';
+      if (!on.length) { describe(`${time.label()}. No tracers singing${where}: ${field.rain ? 'dry air' : `low ${NAME}`}.`); return; }
       const top = on[0];
-      describe(`${time.label()}. ${on.length} tracers singing. Loudest: ${field.text(top.lat, top.lon, time.now())}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
+      describe(`${time.label()}. ${on.length} tracers singing${where}. Loudest: ${field.text(top.lat, top.lon, time.now())}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
     }, 6000);
 
     // ---- keys / click: describe the spot (text). Mouse hover is silent and says nothing; Enter or click also plays it.
@@ -164,21 +184,28 @@ export default function start(ctx) {
       }
     }
     const offHover = input.onHover((p) => probe(p));
-    const offClick = input.onClick((p) => probe({ ...p, keyboard: true }, true));
+    // Click / Enter also sets the listening point (switching to Near point); Escape returns to Everything.
+    const offClick = input.onClick((p) => { setListen('near', { lat: p.lat, lon: p.lon }); probe({ ...p, keyboard: true }, true); });
+    const onEsc = (e) => { if (e.key === 'Escape' && s.listen === 'near') { e.preventDefault(); setListen('everything'); } };
+    document.addEventListener('keydown', onEsc);
 
     // ---- animation: particles and tracers advect continuously (flow blended between frames, 10 steps a second)
     // and keep their last ~2.5 s of positions, drawn as tails that fade toward the back.
     const STEP = 0.1, KEEP = 25;
     function clearTrails() { parts.forEach((p) => { p.hist = []; }); tracers.forEach((tr) => { tr.hist = []; }); }
     let last = performance.now(), acc = 0, raf = 0;
-    function step() {
-      const t = time.now(), ph = backdrop.phase();
-      const hours = STEP * (time.fps || 2) * dtH * s.drift;
+    const stepHours = () => STEP * (time.fps || 2) * dtH * s.drift;
+    function stepParts(t, ph) {
+      const hours = stepHours();
       for (const p of parts) {
         (p.hist ||= []).push([p.lat, p.lon]);
         if (p.hist.length > KEEP) p.hist.shift();
         if (!moveParticle(p, flowBetween(flow, p.lat, p.lon, t, ph, time.count), hours)) { spawn(p); p.hist = []; }
       }
+    }
+    function step() {
+      const t = time.now(), ph = backdrop.phase(), hours = stepHours();
+      stepParts(t, ph);
       for (const tr of tracers) {
         (tr.hist ||= []).push([tr.lat, tr.lon]);
         if (tr.hist.length > KEEP) tr.hist.shift();
@@ -224,8 +251,19 @@ export default function start(ctx) {
       backdrop.draw(g, vw);
       if (s.arrows) drawFlowArrows(g, vw, flow, time.now());
       const W = vw.canvas.width;
-      // Thin, faint streams so the NASA rain colours dominate; only the tracers sounding now are drawn.
-      tails(g, vw, parts, (a) => `rgba(235,245,255,${0.35 * a})`, Math.max(0.6, W / 1800));
+      // Streams: every particle is always drawn (tail + head dot). Over signal brighter, elsewhere dimmer but visible.
+      const t = time.now(), on = [], off = [];
+      for (const p of parts) (val(p.lat, p.lon, t) >= DRY ? on : off).push(p);
+      tails(g, vw, off, (a) => `rgba(200,215,235,${0.4 * a})`, Math.max(1, W / 1400));
+      tails(g, vw, on, (a) => `rgba(255,255,255,${0.75 * a})`, Math.max(1.2, W / 1100));
+      const heads = (list, fill, rad) => {
+        g.beginPath();
+        for (const p of list) { const [x, y] = vw.toPixel(p.lat, p.lon); g.moveTo(x + rad, y); g.arc(x, y, rad, 0, 7); }
+        g.fillStyle = fill; g.fill(); g.lineWidth = 0.75; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      };
+      heads(off, 'rgba(200,215,235,0.6)', Math.max(1.3, W / 1000));
+      heads(on, 'rgba(255,255,255,0.95)', Math.max(1.6, W / 800));
+      // Only the tracers sounding now are drawn in yellow.
       const now = tracers.filter((tr) => singing.has(tr.id));
       tails(g, vw, now, (a) => `rgba(255,209,102,${0.9 * a})`, Math.max(2, W / 500));
       g.save();
@@ -235,15 +273,22 @@ export default function start(ctx) {
         g.beginPath(); g.arc(x, y, r, 0, 7);
         g.fillStyle = '#ffd166'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#000'; g.stroke();
       }
+      if (s.listen === 'near' && s.point) {
+        const [x, y] = vw.toPixel(s.point.lat, s.point.lon), R = Math.max(10, W / 120);
+        g.lineWidth = 3; g.strokeStyle = '#000'; g.beginPath(); g.arc(x, y, R, 0, 7); g.stroke();
+        g.lineWidth = 2; g.strokeStyle = '#fff'; g.beginPath(); g.arc(x, y, R, 0, 7);
+        g.moveTo(x - R * 1.6, y); g.lineTo(x - R * 0.5, y); g.moveTo(x + R * 0.5, y); g.lineTo(x + R * 1.6, y);
+        g.moveTo(x, y - R * 1.6); g.lineTo(x, y - R * 0.5); g.moveTo(x, y + R * 0.5); g.lineTo(x, y + R * 1.6); g.stroke();
+      }
       g.restore();
     });
     backdrop.ready.then(() => viewer.redraw());
 
     rescatter();
-    describe(`Flow tracers ready: ${dataset.title}, with ${s.count} singing tracers following the motion of ${NAME}. Press Play to hear it, or use the arrow keys to explore; choose another dataset with the Data menu.`);
+    describe(`Flow tracers ready: ${dataset.title}, with ${s.count} singing tracers following the motion of ${NAME}. Listen: Everything (the whole map sings). Press Play to hear it; click the map to listen near a point, or use the arrow keys to explore; choose another dataset with the Data menu.`);
     return () => {
-      offFrame(); offPlay(); offHover(); offClick(); clearInterval(sumTimer); cancelAnimationFrame(raf);
-      removeOverlay(); more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
+      offFrame(); offPlay(); offHover(); offClick(); document.removeEventListener('keydown', onEsc); clearInterval(sumTimer); cancelAnimationFrame(raf);
+      removeOverlay(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
     };
   }
 

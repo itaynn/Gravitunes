@@ -1580,6 +1580,7 @@
     },
     {
       "id": "humpback",
+      "denoise": "highpass=f=40,lowpass=f=1300,lowpass=f=1300,afftdn=nr=20:nf=-30:tn=1",
       "label": "Humpback whale",
       "kind": "sustain",
       "source": "Wikimedia Commons (US government recording)",
@@ -1685,6 +1686,7 @@
     },
     {
       "id": "orca",
+      "denoise": "highpass=f=380,highpass=f=380,afftdn=nr=15:nf=-35:tn=1",
       "label": "Killer whale",
       "kind": "sustain",
       "source": "Wikimedia Commons (US government recording)",
@@ -1706,34 +1708,34 @@
     },
     {
       "id": "gamelan",
-      "label": "Gamelan (gong kebyar)",
+      "label": "Gamelan (saron)",
       "kind": "pluck",
       "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "author": "Unknown Balinese court gamelan; recorded 1931 for 'Musik des Orients' (E. M. von Hornbostel, Lindström)",
-      "page": "https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
-      "attribution": "\"Gamelan Gong Lagu Kebiar (1931).ogg\", Balinese court gamelan, from 'Musik des Orients' (E. M. von Hornbostel, Lindström 1931), public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
+      "license": "CC BY-SA 4.0",
+      "author": "Salomo Christian Hutajulu (saron slendro, Jurusan Karawitan ISBI Bandung)",
+      "page": "https://commons.wikimedia.org/wiki/File:Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
+      "attribution": "\"Saron Salendro koleksi Jurusan Karawitan ISBI Bandung.wav\" by Salomo Christian Hutajulu, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
       "zones": [
         {
-          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/0/03/Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
           "note": null,
-          "f0": 153.3,
-          "start": 9.78,
-          "dur": 0.75
+          "f0": 494.5,
+          "start": 7.27,
+          "dur": 1.8
         },
         {
-          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/0/03/Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
           "note": null,
-          "f0": 285.5,
-          "start": 123.3,
-          "dur": 0.6
+          "f0": 651.7,
+          "start": 4.96,
+          "dur": 1.08
         },
         {
-          "url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Gamelan_Gong_Lagu_Kebiar_%281931%29.ogg",
+          "url": "https://upload.wikimedia.org/wikipedia/commons/0/03/Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
           "note": null,
-          "f0": 429.3,
-          "start": 8.45,
-          "dur": 0.9
+          "f0": 1003.2,
+          "start": 1.56,
+          "dur": 1.06
         }
       ],
       "realism": "recorded",

@@ -63,7 +63,7 @@ export function pickVoices(tracers, maxVoices, minValue = 0.06) {
     .map((x) => x.i);
 }
 
-// Speed (km/h) -> 0..1 brightness, relative to a typical top speed. Used for lowpass cutoff.
+// Speed (km/h) -> 0..1 brightness, relative to a typical top speed. Mild brightness: lowpass 6-12 kHz, never duller.
 export const speedBrightness = (kmh, top = 60) => Math.max(0, Math.min(1, kmh / top));
 
 // Hover: speed -> notes per second (1..6), and the pan glide from the point along the motion.
@@ -94,4 +94,40 @@ export function moveParticle(p, f, dtH) {
   const n = advect(p.lat, p.lon, f.u, f.v, dtH);
   p.lat = n.lat; p.lon = n.lon;
   return p.age < p.life;
+}
+
+// Who sings and how loud. Everything: weight = value x sqrt(cluster size: audible tracers within clusterKm), picked
+// greedily strongest first with nearby picks discounted so notes spread over the globe. Near point: weight =
+// value x Gaussian distance falloff (radiusKm); far tracers drop out. Returns [{ i, w }] (w 0..1, top = 1), at most cap.
+export function listenWeights(tracers, { mode = 'everything', point = null, cap = 12, minValue = 0.06,
+  clusterKm = 1500, spreadKm = 2500, radiusKm = 1500 } = {}) {
+  const on = tracers.map((tr, i) => ({ i, tr })).filter((x) => x.tr.value != null && x.tr.value >= minValue);
+  let c;
+  if (mode === 'near' && point) {
+    c = on.map((x) => ({ i: x.i, w: x.tr.value * Math.exp(-((distKm(point.lat, point.lon, x.tr.lat, x.tr.lon) / radiusKm) ** 2)) }))
+      .filter((x) => x.w >= 0.02);
+    c.sort((a, b) => b.w - a.w || a.i - b.i);
+    c = c.slice(0, Math.max(0, cap));
+  } else {
+    const pool = on.map((x) => ({ i: x.i, tr: x.tr,
+      w: x.tr.value * Math.sqrt(on.filter((y) => distKm(x.tr.lat, x.tr.lon, y.tr.lat, y.tr.lon) < clusterKm).length) }));
+    c = [];
+    while (pool.length && c.length < cap) {
+      let bi = 0, bs = -1;
+      pool.forEach((p, k) => {
+        const near = c.filter((q) => distKm(p.tr.lat, p.tr.lon, q.tr.lat, q.tr.lon) < spreadKm).length;
+        const sc = p.w * 0.3 ** near;
+        if (sc > bs) { bs = sc; bi = k; }
+      });
+      c.push(pool.splice(bi, 1)[0]);
+    }
+  }
+  const top = Math.max(0, ...c.map((x) => x.w));
+  return top > 0 ? c.map((x) => ({ i: x.i, w: x.w / top })) : [];
+}
+
+// Loudness normalisation: per-note amps from weights so the summed level stays near `total`.
+export function listenAmps(weights, total = 0.6) {
+  const rms = Math.sqrt(weights.reduce((s, x) => s + x.w * x.w, 0)) || 1;
+  return weights.map((x) => (total * x.w) / Math.max(1, rms));
 }
