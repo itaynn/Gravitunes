@@ -9,5 +9,11 @@
   "datasetDirs": {
     "4285": "data/4285/"
   },
-  "source": "itay, branch clustering"
+  "source": "itay, branch clustering",
+  "standalone": {
+    "files": [
+      "sound-engine/library/samples/index.json",
+      "sound-engine/library/samples/marimba-*"
+    ]
+  }
 }

@@ -52,7 +52,7 @@ const cl = PRESETS.classic.mapping;
 const note = (mp, value) => renderNote(mp, { lat: 0, lon: 0, value, prev: value }, opts);
 const fLo = note(cl, 5).play.freq, fHi = note(cl, 60).play.freq;
 assert.ok(Math.abs(fLo - noteHz(-24)) < 0.5 && Math.abs(fHi - MAX_FUND_HZ) < 0.5, `${fLo} ${fHi}`);
-assert.equal(note(cl, 60).labels.pitch, 'A5'); assert.equal(note(cl, 5).labels.pitch, 'C2');
+assert.equal(note(cl, 60).labels.pitch, 'E6'); assert.equal(note(cl, 5).labels.pitch, 'C2');
 const flipped = cloneMapping(cl); flipped.pitch.flip = true;
 assert.ok(note(flipped, 60).play.freq < note(flipped, 5).play.freq);
 assert.ok(note(cl, 60).play.amp > note(cl, 5).play.amp);
@@ -77,11 +77,11 @@ const said = describeNote(ds, { lat: 30, lon: 0, value: 45 }, n45.labels, 'ppbv'
 assert.match(said, /^value 45 ppbv gives pitch [A-G]#?\d(, [a-z ]+ \w+)*; latitude 30°N gives depth \w+$/);
 assert.equal(describeNote(emptyMapping(), { lat: 0, lon: 0, value: 1 }, {}), 'nothing mapped');
 
-// comfort caps (app/core/sound.js): fundamentals <= A5, nothing above PARTIAL_CAP_HZ, faded near the cap
-const capped = capTimbre({ freq: 1200, harmonics: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], partials: [{ ratio: 10, amp: 1 }, { ratio: 2, amp: 1 }] });
+// comfort caps (app/core/sound.js): fundamentals <= E6, nothing above PARTIAL_CAP_HZ, faded near the cap
+const capped = capTimbre({ freq: 1500, harmonics: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], partials: [{ ratio: 10, amp: 1 }, { ratio: 2, amp: 1 }] });
 assert.equal(capped.freq, MAX_FUND_HZ);
 capped.harmonics.forEach((a, k) => { if (MAX_FUND_HZ * (k + 1) >= PARTIAL_CAP_HZ) assert.equal(a, 0); });
-assert.ok(capped.harmonics[6] > 0 && capped.harmonics[6] < 1);     // 6160 Hz: faded
+assert.ok(capped.harmonics[7] > 0 && capped.harmonics[7] < 1);     // 10.5 kHz: faded
 assert.equal(capped.partials.length, 1);
 for (const v of [5, 30, 60]) for (const p of Object.values(PRESETS)) {
   const { play } = renderNote(p.mapping, { lat: 50, lon: 100, value: v, prev: v - 3 }, opts);

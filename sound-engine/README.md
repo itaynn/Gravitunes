@@ -89,11 +89,11 @@ Output: `createEngine({ output: "stereo" | "mono", balance: 0, width: 0 })`; `en
 
 High pitches and overtones are tiring to listen to, so by default the engine keeps them down:
 - `maxNoteFreq` (default 1050 Hz, about C6): a higher note drops by octaves (`noteLimit: "fold"`), or `"clamp"` pins it, `"off"` allows anything.
-- `maxFreq` (default 5000 Hz): no harmonic or partial above it; components fade out smoothly between 4000 and 5000 Hz, also while a note glides. The same fade at the Nyquist limit prevents aliasing in fast upward glides.
+- `maxFreq` (default 12000 Hz): no harmonic or partial above it; components fade out smoothly between 9600 and 12000 Hz, also while a note glides. The same fade at the Nyquist limit prevents aliasing in fast upward glides.
 - `rolloff` (default 6 dB per octave above 2500 Hz): bright voices are softened as they go up.
 - `lowpass`: a real per-note low-pass filter (Hz) on a voice, an event or `handle.set({ lowpass: 800 }, 0.2)`.
 ```js
-const engine = createEngine({ maxFreq: 5000, maxNoteFreq: 1050, noteLimit: "fold", rolloff: { freq: 2500, slope: 6 } });
+const engine = createEngine({ maxFreq: 12000, maxNoteFreq: 1050, noteLimit: "fold", rolloff: { freq: 2500, slope: 6 } });
 engine.setLimits({ maxFreq: Infinity });   // turn the overtone cap off
 engine.play({ note: "C3", voice: "bright", lowpass: 900 });
 ```

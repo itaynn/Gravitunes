@@ -3,7 +3,7 @@
 // few dozen larger "singing" tracers. A singing tracer over rain plays a note: heavier rain = higher and louder,
 // faster motion = brighter, east/west = right/left, timbre = world-orchestra region. Dry tracers are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, scaleFreqs, LOW_SEMIS } from '../../core/scales.js';
+import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
@@ -14,7 +14,7 @@ import { createBackdrop } from '../../core/svs-frames.js';
 import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle, rateText } from './tracers.js';
 
 // Pitch range: the shared bounds (C2 up to the engine's top fundamental).
-const LOW_HZ = noteHz(LOW_SEMIS), HIGH_HZ = MAX_FUND_HZ;
+const LOW_HZ = noteHz(0), HIGH_HZ = MAX_FUND_HZ;   // rain plays C4..E6: bright, not muffled
 const DRY = 0.02;   // field value of the lightest rain colour (0.1 mm/h); below = dry
 
 export default function start(ctx) {
@@ -32,6 +32,8 @@ export default function start(ctx) {
     const dtH = header.dt_hours || dataset.stepHours || 0.5;
     const instIds = Object.keys(instruments);
     const instLabel = (id) => instruments[id]?.label || id;
+    // Recorded samples for every instrument; until loaded (or on the built-in synth) notes are synthesized.
+    sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
     const backdrop = createBackdrop(dir, { viewer, time });
 
     const s = { count: 24, particles: 1200, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
@@ -59,37 +61,33 @@ export default function start(ctx) {
     }
 
     function voiceFor(tr) {
-      if (s.timbre === 'single') return { voice: instruments[s.single], name: instLabel(s.single) };
-      if (s.timbre === 'speed') { const id = pickVoice(instIds, speedBrightness(tr.speed || 0)); return { voice: instruments[id], name: instLabel(id) }; }
+      if (s.timbre === 'single') return { voice: instruments[s.single], name: instLabel(s.single), sample: instruments[s.single]?.sample };
+      if (s.timbre === 'speed') { const id = pickVoice(instIds, speedBrightness(tr.speed || 0)); return { voice: instruments[id], name: instLabel(id), sample: instruments[id]?.sample }; }
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
-      return { voice: r.voice, name: instLabel(r.primary.instrument) };
+      return { voice: r.voice, name: instLabel(r.primary.instrument), sample: instruments[r.primary.instrument]?.sample };
     }
     const tones = () => scaleFreqs(s.scale, LOW_HZ, HIGH_HZ);
-    // Pitch from the rain rate, within the lower two-thirds of the range so voice octave shifts stay inside it.
-    const noteFor = (value) => quantize(Math.min(1, value), [0, 1], s.scale, LOW_HZ, LOW_HZ * (HIGH_HZ / LOW_HZ) ** 0.7).freq;
+    // Pitch from the rain rate over C4..E6 (voiceNote folds octave-shifted voices back inside).
+    const noteFor = (value) => quantize(Math.min(1, value), [0, 1], s.scale, LOW_HZ, HIGH_HZ).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
       if (!s.sound) return null;
-      const sh = voiceNote(voiceFor(tr).voice, noteFor(tr.value), { tones: tones() }).note;
+      const vf = voiceFor(tr), sh = voiceNote(vf.voice, noteFor(tr.value), { tones: tones() }).note;
       const freq = sh.freq;
       const envelope = sustained ? { attack: dur * 0.3, decay: 0.1, sustain: 0.9, release: dur * 0.3 } : sh.envelope;
       const glide = sustained && tr.lastFreq && tr.lastFreq !== freq ? { to: freq, time: dur * 0.5 } : undefined;
-      sound.play({ freq: glide ? tr.lastFreq : freq, amp, pan, dur, t, harmonics: sh.harmonics, partials: sh.partials, envelope,
+      sound.play({ freq: glide ? tr.lastFreq : freq, amp, pan, dur, t, sample: vf.sample, harmonics: sh.harmonics, partials: sh.partials, envelope,
         noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah, glide, lowpass: 400 + 1600 * speedBrightness(tr.speed || 0) });
       return freq;
     }
 
     // ---- controls: Sound, Scale, Volume up front; the rest folded under "More".
-    const soundCb = panel.checkbox('Sound', s.sound, (v) => { s.sound = v; if (!v) sound.stopAll(); describe(v ? 'Sound on' : 'Sound off'); });
-    soundCb.setAttribute('aria-label', 'Sound on or off. Off silences every note; Play still animates the map.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const howTo = panel.text('How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.');
     howTo.classList.add('hint');
     const legend = document.createElement('p');
     legend.className = 'hint';
-    legend.innerHTML = '<span aria-hidden="true" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffd166;border:2px solid #000;vertical-align:middle"></span> singing (over rain) '
-      + '&nbsp;<span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid #dfe6ee;vertical-align:middle"></span> silent (dry) '
-      + '&nbsp;<span aria-hidden="true" style="display:inline-block;width:18px;height:2px;background:#fff;vertical-align:middle"></span> streams = rain motion';
+    legend.textContent = 'White streaks: rain motion we computed from the frames (not NASA data). Yellow dots: the places you hear now.';
     howTo.after(legend);
     const timbre = timbreControl(panel, { options: [['region', 'By region'], ['single', 'One voice'], ['speed', 'By speed']],
       value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
@@ -221,14 +219,16 @@ export default function start(ctx) {
       backdrop.draw(g, vw);
       if (s.arrows) drawFlowArrows(g, vw, flow, time.now());
       const W = vw.canvas.width;
-      tails(g, vw, parts, (a) => `rgba(235,245,255,${0.7 * a})`, Math.max(1, W / 1100));
-      tails(g, vw, tracers, (a) => `rgba(255,209,102,${0.95 * a})`, Math.max(2, W / 500));
+      // Thin, faint streams so the NASA rain colours dominate; only the tracers sounding now are drawn.
+      tails(g, vw, parts, (a) => `rgba(235,245,255,${0.35 * a})`, Math.max(0.6, W / 1800));
+      const now = tracers.filter((tr) => singing.has(tr.id));
+      tails(g, vw, now, (a) => `rgba(255,209,102,${0.9 * a})`, Math.max(2, W / 500));
       g.save();
-      for (const tr of tracers) {
+      const r = Math.max(7, W / 200);
+      for (const tr of now) {
         const [x, y] = vw.toPixel(tr.lat, tr.lon);
-        g.beginPath(); g.arc(x, y, singing.has(tr.id) ? 6 : 3.5, 0, 7);
-        if (singing.has(tr.id)) { g.fillStyle = '#ffd166'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#000'; g.stroke(); }
-        else { g.lineWidth = 2; g.strokeStyle = '#dfe6ee'; g.stroke(); }
+        g.beginPath(); g.arc(x, y, r, 0, 7);
+        g.fillStyle = '#ffd166'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#000'; g.stroke();
       }
       g.restore();
     });

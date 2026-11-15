@@ -53,26 +53,24 @@ async function main() {
   const status = (msg) => { $('#status').textContent = msg; };
 
   const sound = await createSound();
-  // Sound on/off toggle (the first press also starts the audio engine); off = muted.
+  // Sound starts with the first click, tap, key or Play (sound.play starts the audio context). A mute toggle is
+  // shown only for modes that sound while you hover (mode.json "mute": true); elsewhere sound needs Play or a click.
   const startBtn = $('#start-sound');
-  let soundOn = false, vol = 0.7;
+  let soundOn = true, vol = 0.7;
+  if (!meta.mute) startBtn.hidden = true;
+  const wake = () => { if (!sound.started) sound.start().catch(() => {}); };
+  addEventListener('pointerdown', wake, { capture: true, once: true });
+  addEventListener('keydown', wake, { capture: true, once: true });
   const showSound = () => {
     startBtn.innerHTML = soundOn ? '&#128266; Sound' : '&#128263; Sound';
     startBtn.setAttribute('aria-pressed', String(soundOn));
     startBtn.setAttribute('aria-label', 'Sound');
-    startBtn.classList.toggle('primary', !soundOn);
   };
   startBtn.addEventListener('click', async () => {
-    if (!sound.started) {
-      await sound.start();
-      soundOn = true; sound.setVolume?.(vol);
-      describe(`Sound on (${sound.engine}). Use the arrow keys on the map to explore.`);
-      $('#map').focus();
-    } else {
-      soundOn = !soundOn;
-      sound.setVolume?.(soundOn ? vol : 0);
-      describe(soundOn ? 'Sound on' : 'Sound off');
-    }
+    if (!sound.started) await sound.start();
+    soundOn = !soundOn;
+    sound.setVolume?.(soundOn ? vol : 0);
+    describe(soundOn ? 'Sound on' : 'Sound off');
     showSound();
   });
   showSound();
@@ -82,7 +80,7 @@ async function main() {
   const scaleBox = document.createElement('div'), volBox = document.createElement('div');
   shared.append(scaleBox, volBox);
   const bar = createPanel(scaleBox);
-  bar.volume = volumeSlider(createPanel(volBox), { setVolume: (v) => { vol = v; if (!sound.started || soundOn) sound.setVolume?.(v); } }, vol);
+  bar.volume = volumeSlider(createPanel(volBox), { setVolume: (v) => { vol = v; if (soundOn) sound.setVolume?.(v); } }, vol);
   bar.volume.closest('.control').querySelector('label').textContent = 'Vol';
   bar.volume.setAttribute('aria-label', 'Volume');
 
@@ -99,7 +97,8 @@ async function main() {
     if (wanted) list = wanted.map((id) => list.find((d) => d.id === id)).filter(Boolean);
     if (!list.some((d) => d.id === current) || list.length < 2) return;
     const dp = createPanel($('#dataset-picker'));
-    const load = () => { if (sel.value === current) return; params.set('dataset', sel.value); location.search = params.toString(); };
+    const load = () => {   // fresh params: a mode may have updated the URL (e.g. World orchestra's view)
+      if (sel.value === current) return; const q = new URLSearchParams(location.search); q.set('dataset', sel.value); location.search = q.toString(); };
     let byKey = false;
     const sel = dp.select('Data', list.map((d) => [d.id, d.title]), () => { if (!byKey) load(); },
       { value: current, hint: 'Choosing a dataset reloads this demo with it. With the keyboard, pick with the arrow keys, then press Enter.' });

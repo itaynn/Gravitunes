@@ -1,5 +1,5 @@
 // Tone lab: pick an instrument (world voices from data/earth/instruments.json, sampled instruments from
-// sound-engine/library/samples, or analysed recordings from sound-engine/library) and hear a note, a scale, a chord or its phrase, between C2 and A5.
+// sound-engine/library/samples, or analysed recordings from sound-engine/library) and hear a note, a scale, a chord or its phrase, between C2 and E6.
 import { createSound, loadSampleIndex } from '../../core/sound.js';
 import { createDescribe, createPanel } from '../../core/ui.js';
 import { scaleControl } from '../../core/scale-control.js';
@@ -28,14 +28,10 @@ pitch.addEventListener('input', syncPitch);
 let pitchTimer = null;
 pitch.addEventListener('change', () => { clearTimeout(pitchTimer); pitchTimer = setTimeout(() => play('note'), 150); });
 
-$('#start-sound').addEventListener('click', async () => {
-  await sound.start();
-  const b = $('#start-sound');
-  b.textContent = 'Sound on'; b.disabled = true;
-  describe('Sound started. Choose an instrument, then press Note, Scale, Chord or Phrase.');
-  play('note');
-  $('#play-note').focus();
-});
+// No "start sound" step: the first click or key starts the audio (notes also start it themselves).
+const wake = () => { if (!sound.started) sound.start().catch(() => {}); };
+addEventListener('pointerdown', wake, { capture: true, once: true });
+addEventListener('keydown', wake, { capture: true, once: true });
 
 try {
   ({ instruments } = await loadEarth('instruments'));
@@ -108,7 +104,6 @@ if (sel.value) await choose(sel.value);
 const KIND_TEXT = { note: 'one note', scale: 'a scale', chord: 'a chord', phrase: 'its phrase' };
 const nameOf = (hz) => noteName(Math.round(12 * Math.log2(hz / C4)));
 function play(kind) {
-  if (!sound.started) { describe('Press "Start sound" first.'); return; }
   if (!current) { describe('This instrument is still loading or could not be loaded.'); return; }
   if (kind === 'phrase' && !current.voice.gesture) { describe('No typical phrase for this instrument. Try Note, Scale or Chord.'); return; }
   const notes = toneNotes(current.voice, noteHz(+pitch.value), kind, scale);
@@ -118,7 +113,7 @@ function play(kind) {
   } else {
     playNotes(sound, current.voice, notes, { amp: 0.4 });
   }
-  // Scales and chords that would pass A5 start an octave lower: announce the note actually played.
+  // Scales and chords that would pass E6 start an octave lower: announce the note actually played.
   describe(`${cap(current.label)}: ${KIND_TEXT[kind]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}`);
 }
 for (const k of Object.keys(KIND_TEXT)) $(`#play-${k}`).addEventListener('click', () => play(k));

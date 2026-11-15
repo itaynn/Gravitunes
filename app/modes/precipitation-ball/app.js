@@ -402,6 +402,12 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
     animationId = requestAnimationFrame(draw);
   }
 
+  // No separate "start sound" step: the first click or key on the map starts the sound (a user gesture);
+  // the Sound button stays as a mute because the ball keeps sounding on its own.
+  let soundTouched = false;
+  const autoSound = () => { if (!soundTouched) { soundTouched = true; if (!soundEnabled) toggleSound(); } };
+  canvas.addEventListener("pointerdown", autoSound);
+  canvas.addEventListener("keydown", autoSound);
   canvas.addEventListener("pointerdown", (event) => {
     if (simulation === "moving") return;
     event.preventDefault();
@@ -438,7 +444,7 @@ import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../
   });
 
   resetButton.addEventListener("click", resetBall);
-  soundButton.addEventListener("click", toggleSound);
+  soundButton.addEventListener("click", () => { soundTouched = true; toggleSound(); });
   videoButton.addEventListener("click", async () => {
     if (video.paused) {
       userPausedVideo = false;

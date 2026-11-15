@@ -11,5 +11,6 @@
   ],
   "standalone": {
     "every": 6
-  }
+  },
+  "hidden": true
 }

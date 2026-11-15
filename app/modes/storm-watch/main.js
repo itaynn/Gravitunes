@@ -20,20 +20,21 @@ export default function start(ctx) {
 
   function run(data) {
     const W = data.width, H = data.height;
+    sound.loadSamples?.(['marimba']);   // recorded marimba; synthesized until it loads
     const s = { followed: null, outlines: true, scale: 'pentatonic-major', volume: 0.7 };
     const frame = () => data.frames[time.now()];
-    const tones = () => scaleFreqs(s.scale, noteHz(-24), noteHz(12));   // C2..C5
+    const tones = () => scaleFreqs(s.scale, noteHz(-12), noteHz(24));   // C3..C6
     const nameOf = (c) => `Storm ${s.followed != null && familyParts(frame(), s.followed).parts.includes(c) ? s.followed : c.id}`;
 
     // A storm's note: north is higher, larger storms louder; pan follows longitude.
     function voice(c, comps, dur = 0.5) {
-      if (!sound.started || !c) return;
+      if (!c) return;
       const { lat, lon } = gridToLatLon(c.coreX, c.coreY, W, H);
       const sorted = bySize(comps);
       const big = 1 - sorted.indexOf(c) / Math.max(1, sorted.length - 1);
       const north = Math.max(0, Math.min(1, (lat + 60) / 120));
-      const f = snapToScale(noteHz(-24) * 2 ** (3 * north), tones());
-      sound.play({ freq: f, duration: dur, amplitude: 0.25 + 0.5 * big, pan: lon / 180, harmonics: [1, 0.35, 0.12] });
+      const f = snapToScale(noteHz(-12) * 2 ** (3 * north), tones());
+      sound.play({ freq: f, duration: dur, amplitude: 0.25 + 0.5 * big, pan: lon / 180, sample: 'marimba', harmonics: [1, 0.35, 0.12] });
     }
     function say(c, comps) {
       const sorted = bySize(comps);

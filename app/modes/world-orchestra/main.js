@@ -2,7 +2,7 @@
 // between two hours, it plays one note in the voice of its nearest "musical center" (blended near
 // borders). Pitch <- value (quantized to a scale, low-to-mid register), loudness <- value, pan <- longitude.
 // "Instruments" view (on by default; ?instruments=0 starts in the data view): no dataset, a plain map, and
-// a click, tap or the arrow keys play each region's own phrase (hovering only names it) (the former Timbre atlas). Both views share the
+// a click, tap, the arrow keys or moving the mouse into a region play its own phrase (the former Timbre atlas). Both views share the
 // regions, voices and recorded samples (sound-engine/library/samples).
 import { distKm, voiceAt, selectTriggers } from './orchestra.js';
 import { defaultThreshold } from '../../core/triggers.js';
@@ -53,7 +53,7 @@ export default function start(ctx) {
     // ---- state
     const s = {
       speed: 6, scale: 'pentatonic-major', maxNotes: 6, cooldown: 6, volume: 0.7, legend: false,
-      lowSemis: -12, highSemis: 12,           // C3 .. C5, inside the global C2..A5
+      lowSemis: -12, highSemis: 12,           // C3 .. C5, inside the global C2..E6
       threshold: null, atlas: new URLSearchParams(location.search).get('instruments') !== '0', phrase: true, baseSemis: -12,
     };
     let prev = null, prevT = null;
@@ -102,7 +102,7 @@ export default function start(ctx) {
     const low =panel.slider('Lowest note', { min: LOW_SEMIS, max: HIGH_SEMIS - 7, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
     const high = panel.slider('Highest note', { min: LOW_SEMIS + 7, max: HIGH_SEMIS, step: 1, value: s.highSemis, format: (v) => noteName(v),
-      hint: 'Pitch range for notes, C2 to A5. Default C3 to C5.' },
+      hint: 'Pitch range for notes, C2 to E6. Default C3 to C5.' },
       (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
     let legendList = null;
     const legendBox = panel.checkbox('Show center legend', s.legend, (v) => { s.legend = v; renderLegend(); viewer.redraw(); });
@@ -215,7 +215,8 @@ export default function start(ctx) {
       lastKey = key; lastAt = now;
       if (!keyboard || force) describe(force ? `${fmt(lat, lon)}. ${text}` : text);
       viewer.redraw();
-      if (!keyboard && !force) return;   // the mouse only names the region; a click, tap or arrow key plays it
+      // The mouse plays a region's phrase when it enters it (the only hover sound in the app: the atlas has no data).
+      if (!keyboard && !force && !changed) return;
       const notes = gestureNotes(voice, noteHz(s.baseSemis), { phrase: s.phrase, floorHz: noteHz(LOW_SEMIS) });
       lastLen = gestureLength(notes);
       playNotes(sound, voice, notes, { amp: 0.4, pan: lon / 180 });
@@ -302,6 +303,8 @@ export default function start(ctx) {
       for (const el of dataBox) el.style.display = on ? 'none' : '';   // (.control.inline sets display, so not .hidden)
       for (const el of atlasBox) el.style.display = on ? '' : 'none';
       lastKey = null; viewer.redraw();
+      // Keep the view in the URL so a Data menu change (which reloads) stays in the data view.
+      try { const q = new URLSearchParams(location.search); q.set('instruments', on ? '1' : '0'); history.replaceState(null, '', `?${q}`); } catch {}
     }
     let raf = 0;
     function animate() {

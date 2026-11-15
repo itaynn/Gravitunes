@@ -3,9 +3,9 @@
     {
       "id": "explore",
       "name": "Explore",
-      "summary": "One NASA map at a time: ozone, carbon monoxide, nitrogen oxides or rain. Click, tap or use the arrow keys: higher values play higher notes on that map's own instrument.",
+      "summary": "Pick a place, press Play: hear how its ozone, carbon monoxide, nitrogen oxides or rain changes over time.",
       "author": "moran",
-      "description": "Pick a dataset with the Data menu (ozone, carbon monoxide, nitrogen oxides from NASA's GEOS-CF model, or IMERG rain): the map shows it and you hear only it, on its own recorded instrument and pitch range (carbon monoxide cello low, ozone flute in the middle, nitrogen oxides koto higher, rain marimba). Higher values play higher notes. Click, tap or use the arrow keys; hovering only announces. Press Play to hear a spot change over time.",
+      "description": "Pick a dataset with the Data menu (ozone, carbon monoxide, nitrogen oxides from NASA's GEOS-CF model, or IMERG rain): the map shows it and you hear only it, on its own recorded instrument and pitch range (carbon monoxide cello low, ozone flute in the middle, nitrogen oxides koto higher, rain marimba). Higher values play higher notes. Click, tap or use the arrow keys to pick a place (hovering only announces), then press Play: the map animates and the place's value plays as a melody, one note per hour. With no place picked, Play uses New Delhi.",
       "datasets": [
         "5152",
         "5153",
@@ -36,24 +36,12 @@
       "datasetDirs": {
         "4285": "data/4285/"
       },
-      "hd": false
-    },
-    {
-      "id": "mapping-lab",
-      "name": "Mapping lab",
-      "summary": "Hundreds of points across the map play a note when the data rises past a threshold. Choose what drives pitch, loudness and pan under More.",
-      "author": "moran",
-      "description": "About 300 grid points play a note when the data rises past a threshold. Choose what drives each part of the sound (pitch, loudness, pan, brightness, depth, attack, timbre family) from longitude, latitude, value or change, flip any mapping, try presets, and share the mapping by link. Click, tap or use the arrow keys to hear one point and how it was mapped; hovering only describes it.",
-      "datasets": [
-        "5152",
-        "5153",
-        "5154",
-        "4285"
-      ],
       "standalone": {
-        "every": 6
+        "files": [
+          "sound-engine/library/samples/*"
+        ]
       },
-      "hd": true
+      "hd": false
     },
     {
       "id": "precipitation-ball",
@@ -94,14 +82,20 @@
         "4285": "data/4285/"
       },
       "source": "itay, branch clustering",
+      "standalone": {
+        "files": [
+          "sound-engine/library/samples/index.json",
+          "sound-engine/library/samples/marimba-*"
+        ]
+      },
       "hd": false
     },
     {
       "id": "synth-lab",
       "name": "Tone lab",
-      "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to A5.",
+      "summary": "Hear each instrument before you hear the data: play a note, scale, chord or phrase from C2 up to E6.",
       "author": "moran",
-      "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to A5.",
+      "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to E6.",
       "datasets": "none",
       "href": "index.html",
       "standalone": {
@@ -125,6 +119,11 @@
       "datasetDirs": {
         "4285": "data/4285/"
       },
+      "standalone": {
+        "files": [
+          "sound-engine/library/samples/*"
+        ]
+      },
       "hd": false
     },
     {
@@ -132,7 +131,7 @@
       "name": "World orchestra",
       "summary": "The world's musical regions on one map, each with its own recorded instrument. Click or use the arrow keys to hear a region; turn Instruments off and press Play to hear cities play the data.",
       "author": "moran",
-      "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); hovering only names the region. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
+      "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); moving the mouse into a region plays it too. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
       "datasets": [
         "5152",
         "5153",
@@ -145,6 +144,7 @@
           "sound-engine/library/samples/*"
         ]
       },
+      "mute": true,
       "hd": true
     }
   ]

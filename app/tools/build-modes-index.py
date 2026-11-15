@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Scan app/modes/*/mode.json (skipping names that start with "_") and write app/modes/index.json.
+"""Scan app/modes/*/mode.json (skipping names that start with "_" and modes with "hidden": true) and write
+app/modes/index.json. Hidden modes keep their code but are left out of the gallery, switcher and dist/.
 
 Run from anywhere: python3 app/tools/build-modes-index.py
 """
@@ -19,6 +20,9 @@ def main():
         if not d.is_dir() or d.name.startswith("_") or not meta_path.exists():
             continue
         meta = json.loads(meta_path.read_text())
+        if meta.get("hidden"):
+            print(f"hide {d.name}: hidden in mode.json")
+            continue
         entry = {"id": d.name, **meta}
         if "href" not in meta and not (d / "main.js").exists():
             if (d / "index.html").exists():

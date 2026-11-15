@@ -40,8 +40,9 @@ export const SCALES = Object.fromEntries(Object.keys(META).map((id) => [id, buil
 
 export const C4 = 261.6256;
 export const noteHz = (semisFromC4) => C4 * 2 ** (semisFromC4 / 12);
-// The app's global pitch range, in semitones from C4 and in Hz: C2 (65 Hz) to A5 (880 Hz). Every mode reads these.
-export const LOW_SEMIS = -24, HIGH_SEMIS = 21;
+// The app's global pitch range, in semitones from C4 and in Hz: C2 (65 Hz) to E6 (1319 Hz). Every mode reads these.
+// Melodic data voices start at C3 (MELODIC_LOW_SEMIS) so they stay bright; drums and drones may go down to C2.
+export const LOW_SEMIS = -24, HIGH_SEMIS = 28, MELODIC_LOW_SEMIS = -12;
 export const MIN_FUND_HZ = noteHz(LOW_SEMIS), MAX_FUND_HZ = noteHz(HIGH_SEMIS);
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const noteName = (semisFromC4) => NAMES[((semisFromC4 % 12) + 12) % 12] + (4 + Math.floor(semisFromC4 / 12));

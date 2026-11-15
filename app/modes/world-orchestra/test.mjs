@@ -138,7 +138,7 @@ for (const id of ['guzheng', 'koto', 'oud', 'kora', 'banjo', 'balalaika'].filter
   for (let i = 1; i < ps.length; i++) assert.ok(ps[i].decay <= ps[i - 1].decay, `${id}: higher partials decay faster`);
 }
 
-// gestures: never above MAX_FUND_HZ (A5) (including glides and vibrato peaks), for all base pitches and both modes
+// gestures: never above MAX_FUND_HZ (E6) (including glides and vibrato peaks), for all base pitches and both modes
 for (const id of Object.keys(instruments)) for (let semis = -19; semis <= 0; semis++) for (const phrase of [true, false]) {
   const notes = gestureNotes(instruments[id], noteHz(semis), { phrase });
   assert.ok(notes.length >= 1);
@@ -150,7 +150,7 @@ for (const id of Object.keys(instruments)) for (let semis = -19; semis <= 0; sem
     assert.ok(sh.harmonics.every((a, k) => a === 0 || n.freq * (k + 1) <= 4000));
   }
 }
-// floor: after lifting, every gesture's lowest note is >= C2 at the lowest base pitch (F2), still <= A5
+// floor: after lifting, every gesture's lowest note is >= C2 at the lowest base pitch (F2), still <= E6
 for (const id of Object.keys(instruments)) for (const phrase of [true, false]) {
   const notes = liftToFloor(gestureNotes(instruments[id], noteHz(-19), { phrase }), MIN_FUND_HZ, MAX_FUND_HZ);
   assert.ok(Math.min(...notes.map((n) => n.freq)) >= MIN_FUND_HZ - 1e-6 ||

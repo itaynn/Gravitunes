@@ -2,7 +2,7 @@
   "name": "World orchestra",
   "summary": "The world's musical regions on one map, each with its own recorded instrument. Click or use the arrow keys to hear a region; turn Instruments off and press Play to hear cities play the data.",
   "author": "moran",
-  "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); hovering only names the region. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
+  "description": "The world's musical regions on one map. Instruments (on at first): click, tap, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...); moving the mouse into a region plays it too. Turn it off and about 280 cities play the data you pick in the Data menu (ozone, carbon monoxide, nitrogen oxides or rain): a city whose value rises past a threshold plays one note in its region's voice.",
   "datasets": [
     "5152",
     "5153",
@@ -14,5 +14,6 @@
     "files": [
       "sound-engine/library/samples/*"
     ]
-  }
+  },
+  "mute": true
 }

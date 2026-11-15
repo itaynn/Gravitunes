@@ -53,9 +53,9 @@ export function applyLowpass({ harmonics, partials, noise } = {}, freq, cutoff) 
   return out;
 }
 
-// Comfort caps for every mode: fundamentals stay in MIN_FUND_HZ..MAX_FUND_HZ (C2..A5, app/core/scales.js), and no
-// harmonic/partial above ~8 kHz (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above). Samples get a SAMPLE_LOWPASS_HZ low-pass.
-export const FADE_HZ = 6000, PARTIAL_CAP_HZ = 8000, SAMPLE_LOWPASS_HZ = 7000;
+// Comfort caps for every mode: fundamentals stay in MIN_FUND_HZ..MAX_FUND_HZ (C2..E6, app/core/scales.js), and no
+// harmonic/partial above ~12 kHz (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above). Samples get a SAMPLE_LOWPASS_HZ low-pass.
+export const FADE_HZ = 10000, PARTIAL_CAP_HZ = 12000, SAMPLE_LOWPASS_HZ = 12000;
 export const capGain = (f) => (f >= PARTIAL_CAP_HZ ? 0 : f <= FADE_HZ ? 1 : (PARTIAL_CAP_HZ - f) / (PARTIAL_CAP_HZ - FADE_HZ));
 export function capTimbre({ freq, harmonics, partials } = {}) {
   const f0 = Math.min(MAX_FUND_HZ, freq);
@@ -245,8 +245,10 @@ export async function createSound() {
       volume = clamp(v, 0, 1);
       try { if (started && engine.master) engine.master.gain.value = volume; } catch {}
     },
+    // No separate "start sound" step: the first note (always from a click, tap, key or Play, i.e. a user
+    // gesture) starts the audio context; notes scheduled meanwhile play as soon as it resumes.
     play(opts = {}) {
-      if (!started) return null;
+      if (!started) { started = true; engine.start().then(() => this.setVolume(volume)).catch((e) => console.warn('[sound]', e.message)); this.setVolume(volume); }
       let { amplitude, duration, noise, harmonics, partials, envelope, lowpass, glide, vibrato, wah, ...rest } = opts;
       const builtIn = name === 'built-in';
       if (lowpass > 0 && rest.freq > 0 && !rest.voice) {

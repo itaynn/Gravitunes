@@ -21,7 +21,6 @@
   </header>
   <main>
     <aside class="tone" aria-label="Tone lab controls">
-      <button id="start-sound" type="button" class="primary">Start sound</button>
       <div class="control">
         <label for="instrument">Instrument</label>
         <select id="instrument" aria-describedby="about"><option>Loading...</option></select>
@@ -30,7 +29,7 @@
       <div class="control">
         <label for="pitch">Pitch</label>
         <input id="pitch" type="range" min="-24" max="21" step="1" value="0" aria-describedby="pitch-hint">
-        <p id="pitch-hint" class="hint">From C2 to A5. Scales and chords start here and never go above A5.</p>
+        <p id="pitch-hint" class="hint">From C2 to E6. Scales and chords start here and never go above E6.</p>
       </div>
       <div id="tone-scale"></div>
       <div class="play" role="group" aria-label="Play">

@@ -66,12 +66,8 @@ export function createPanel(root) {
   return api;
 }
 
-// The same "start sound first" hint in every mode: `Press "Start sound", then <next>`.
-// Screen-reader only: the Sound button in the bar is the visible cue.
-export function soundHint(panel, sound, next) {
-  if (sound.started) return null;
-  return panel.text(`Press Sound, then ${next}`);
-}
+// Sound starts with the first click, key or Play, so there is no "start sound first" hint any more.
+export function soundHint() { return null; }
 
 // The shared Volume slider (0..1, read as percent); applies the initial value right away.
 // On mode pages the host already put a Volume slider in the control bar (panel.bar.volume): that one is reused.

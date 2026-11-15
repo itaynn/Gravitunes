@@ -15,7 +15,7 @@ const TICK_MS = 50;
  * @param {{output?:"mono"|"stereo", balance?:number, width?:number, polyphony?:number, masterGain?:number, tuning?:any, scale?:any, context?:BaseAudioContext, a4?:number, destination?:AudioNode,
  *   rolloff?:false|{freq?:number,slope?:number}, maxFreq?:number, maxNoteFreq?:number, noteLimit?:"fold"|"clamp"|"off", sampleBase?:string, libraryBase?:string}} [opts]
  *   rolloff: pitch-tracking high-frequency rolloff (default on: -6 dB/octave above 2500 Hz); false turns it off.
- *   maxFreq: no harmonic or partial above this (Hz, default 5000); components fade out smoothly from 0.8x the cap, also during glides. Infinity disables.
+ *   maxFreq: no harmonic or partial above this (Hz, default 12000); components fade out smoothly from 0.8x the cap, also during glides. Infinity disables.
  *   maxNoteFreq: highest fundamental (Hz, default 1050, about C6). noteLimit "fold" (default) drops higher notes by octaves, "clamp" pins them, "off" disables.
  *   sampleBase: URL a sample voice's relative `sample.url` resolves against (default: the repo's data/earth/instruments/).
  *   libraryBase: URL of the library preset JSON files (default: sound-engine/library/presets/).

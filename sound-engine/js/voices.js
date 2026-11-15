@@ -100,7 +100,7 @@ export function applyRolloff(voice, freq, r) {
 }
 
 /** Defaults for the global frequency caps (Hz). High pitches and overtones are unpleasant to many listeners. */
-export const DEFAULT_MAX_FREQ = 5000;
+export const DEFAULT_MAX_FREQ = 12000;
 export const DEFAULT_MAX_NOTE_FREQ = 1050; // about C6
 
 /**

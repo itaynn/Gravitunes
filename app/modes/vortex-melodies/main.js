@@ -2,7 +2,7 @@
 // Loop speed <- spin rank, loudness <- strength x size rank, pan <- longitude, ccw rising / cw falling,
 // timbre <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { scaleFreqs, noteHz, snapToScale, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
+import { scaleFreqs, noteHz, snapToScale, MELODIC_LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch, pickVoice } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon } from '../../core/geo.js';
@@ -37,6 +37,8 @@ export default function start(ctx) {
     const bedByFrame = rawBed.map((c) => 2 * bedRank(c) - 1);
     const instIds = Object.keys(instruments);
     const instLabel = (id) => instruments[id]?.label || id;
+    // Recorded samples for every instrument; until loaded (or on the built-in synth) notes are synthesized.
+    sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
     const centerIndex = new Map(centers.map((c, i) => [c.id, i]));
 
     const s = {
@@ -47,13 +49,13 @@ export default function start(ctx) {
     const phase = new Map();           // vortex id -> loop start (seconds, performance clock)
     let active = [], solo = null;      // solo: { id, until }
 
-    const tones = () => scaleFreqs(s.scale, noteHz(LOW_SEMIS), MAX_FUND_HZ);   // the shared range: C2 to the top fundamental (A5)
+    const tones = () => scaleFreqs(s.scale, noteHz(MELODIC_LOW_SEMIS), MAX_FUND_HZ);   // melodic range: C3 to the top fundamental (E6)
     function voiceFor(v) {
       const region = voiceAt(v.lat, v.lon, centers, instruments, 900);
-      if (s.timbre === 'region') return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary };
+      if (s.timbre === 'region') return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary, sample: instruments[region.primary.instrument]?.sample };
       const pickBy = s.timbre === 'size' ? v.sizeRank : s.timbre === 'strength' ? ranks.strength(v.circ * v.r) : null;
       const id = pickBy == null ? s.single : pickVoice(instIds, pickBy);
-      return { voice: instruments[id], name: instLabel(id), center: region.primary };
+      return { voice: instruments[id], name: instLabel(id), center: region.primary, sample: instruments[id]?.sample };
     }
     function motifOf(v, center) {
       const m = MOTIFS[motifIndex(s.melody, { sizeRank: v.sizeRank, regionIndex: centerIndex.get(center.id) || 0,
@@ -62,13 +64,13 @@ export default function start(ctx) {
     }
     function playStep(v, k, at, ampScale = 1) {
       if (!s.sound) return;
-      const { voice, center } = voiceFor(v);
+      const { voice, center, sample } = voiceFor(v);
       const m = motifOf(v, center);
       const freq = motifFreq(tones(), noteHz(m.root), m.steps[k % m.steps.length], voice.octave || 0);
       const sh = shapeForPitch(voice, freq);
       const step = loopSeconds(v.spinRank) / m.steps.length;
       sound.play({ freq, amp: 0.4 * v.loud * ampScale, pan: v.lon / 180, t: Math.max(0, at - performance.now() / 1000),
-        dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
+        dur: Math.min(sh.dur ?? 0.4, step * 0.9), sample, harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
         vibrato: sh.vibrato, wah: sh.wah });
     }
 
@@ -124,8 +126,6 @@ export default function start(ctx) {
     };
 
     // ---- controls: Sound, Scale, Volume up front; the rest under "More".
-    const soundCb = panel.checkbox('Sound', s.sound, (v) => { s.sound = v; if (!v) sound.stopAll(); describe(v ? 'Sound on' : 'Sound off'); });
-    soundCb.setAttribute('aria-label', 'Sound on or off. Off silences the melodies and the hum.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
     const howTo = panel.text('How it sounds: each swirl loops a short tune; faster spin = faster loop, bigger = louder. A low hum swells where rain converges.');

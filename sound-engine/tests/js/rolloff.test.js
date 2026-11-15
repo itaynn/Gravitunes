@@ -16,7 +16,7 @@ test("capFade: full below 0.8x the cap, smooth to 0 at the cap (maxFreq and Nyqu
   // Nyquist at 44.1 kHz: a harmonic gliding toward 22050 Hz is silent before it gets there
   assert.equal(capFade(22050, 22050), 0);
   assert.ok(capFade(21000, 22050) < 0.2);
-  assert.equal(DEFAULT_MAX_FREQ, 5000);
+  assert.equal(DEFAULT_MAX_FREQ, 12000);
 });
 
 test("limitNoteFreq folds by octaves (default) or clamps", () => {

@@ -37,7 +37,8 @@ REDIRECT = ('<!doctype html><meta charset="utf-8"><title>{name}</title>'
 # Merged demos: old dist file -> (new file, title). Same map as REDIRECTS in app/core/host.js.
 REDIRECTS = {'timbre-atlas': ('world-orchestra.html?instruments=1', 'World orchestra'),
              'ozone-probe': ('explore.html', 'Explore'), 'layered-maps': ('explore.html', 'Explore'),
-             'ozone-probe-hd': ('explore-hd.html', 'Explore'), 'layered-maps-hd': ('explore-hd.html', 'Explore')}
+             'ozone-probe-hd': ('explore-hd.html', 'Explore'), 'layered-maps-hd': ('explore-hd.html', 'Explore'),
+             'mapping-lab': ('explore.html', 'Explore'), 'mapping-lab-hd': ('explore-hd.html', 'Explore')}  # hidden mode
 
 
 def order_modes(modes):

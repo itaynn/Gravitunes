@@ -101,8 +101,8 @@ console.log('grid tests ok');
   const { throttle } = await import('../core/ui.js');
   const { noteHz, scaleFreqs, LOW_SEMIS, HIGH_SEMIS } = await import('../core/scales.js');
   const v = { harmonics: [1, 0.5], octave: 1, dur: 0.3 };
-  const hi = voiceNote(v, noteHz(15));                     // shifted an octave up, folded back an octave under A5
-  assert.ok(Math.abs(hi.note.freq - noteHz(15)) < 1e-9 && hi.dur === 0.3);
+  const hi = voiceNote(v, noteHz(20));                     // shifted an octave up, folded back an octave under E6
+  assert.ok(Math.abs(hi.note.freq - noteHz(20)) < 1e-9 && hi.dur === 0.3);
   const lo = voiceNote({ harmonics: [1], octave: -1 }, noteHz(-17));   // G2 an octave down -> folded to G2, not C2
   assert.ok(Math.abs(lo.note.freq - noteHz(-17)) < 1e-9);
   const tones = scaleFreqs('pentatonic-major', noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS));
@@ -238,4 +238,18 @@ console.log('grid tests ok');
   const thr = defaultThreshold({ pct: g.percentile, range: [0, 1] });
   assert.ok(thr > 0 && thr < 1, `rain threshold ${thr}`);
   console.log('trigger threshold tests ok');
+}
+
+// ---- gallery: modes marked "hidden" in mode.json stay out of app/modes/index.json (and so out of dist/)
+{
+  const { readFileSync, readdirSync, existsSync } = await import('node:fs');
+  const modesDir = new URL('../modes/', import.meta.url);
+  const listed = new Set(JSON.parse(readFileSync(new URL('index.json', modesDir), 'utf8')).modes.map((m) => m.id));
+  for (const d of readdirSync(modesDir)) {
+    const f = new URL(`${d}/mode.json`, modesDir);
+    if (d.startsWith('_') || !existsSync(f)) continue;
+    assert.equal(listed.has(d), !JSON.parse(readFileSync(f, 'utf8')).hidden, `index.json and "hidden" disagree for ${d}`);
+  }
+  assert.ok(!listed.has('mapping-lab'), 'mapping-lab is hidden');
+  console.log('gallery tests ok');
 }

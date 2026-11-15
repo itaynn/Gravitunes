@@ -8,5 +8,10 @@
   ],
   "datasetDirs": {
     "4285": "data/4285/"
+  },
+  "standalone": {
+    "files": [
+      "sound-engine/library/samples/*"
+    ]
   }
 }

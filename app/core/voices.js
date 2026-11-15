@@ -59,7 +59,7 @@ export function shapeForPitch(voice, freq, { cutoff = 1800, ceiling = 4000 } = {
 
 
 // A playable note for `voice` at `freq` (Hz): the voice's octave shift is applied, then the pitch is kept in
-// MIN_FUND_HZ..MAX_FUND_HZ (C2..A5) by folding whole octaves (so nearby values keep distinct pitches), snapped to `tones` when given,
+// MIN_FUND_HZ..MAX_FUND_HZ (C2..E6) by folding whole octaves (so nearby values keep distinct pitches), snapped to `tones` when given,
 // then shaped for pitch. Returns { note, dur }.
 export function voiceNote(voice, freq, { tones } = {}) {
   let f = freq * 2 ** (voice.octave || 0);
