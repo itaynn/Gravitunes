@@ -9,6 +9,7 @@
   const canvas = $("lab-canvas");
 
   // ---------- Voice: a recorded file in ./audio/<name>.mp3 when there is one, else the browser's speech ----------
+  // The files are made with app/tools/make-voice.mjs (edge-tts); run it again after changing LINES or a slide's say.
   const missing = new Set();
   let voiceToken = 0;
   let currentAudio = null;
