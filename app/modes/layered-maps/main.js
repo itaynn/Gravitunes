@@ -1,68 +1,32 @@
-// Layered maps: ozone, CO and NOx at the same spot and hour, each gas its own voice and register.
-// The host loads one dataset (the map you see); the other gases are loaded with the same core loader.
+// Layered maps: one gas at a time (ozone, carbon monoxide or nitrogen oxides, chosen with the Dataset picker).
+// What you see is what you hear: the map, colour bar and sound all come from ctx.dataset, played with that
+// gas's own voice and pitch range (layers.js).
 import { formatLatLon as where } from '../../core/geo.js';
-import { loadDataset } from '../../core/datasets.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { throttle } from '../../core/ui.js';
-import { LAYERS, notesFor, describeReadings, frameAtDate } from './layers.js';
+import { layerFor, noteFor } from './layers.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe } = ctx;
-  let alive = true, last = null, layers = null;
-  const state = Object.fromEntries(LAYERS.map((l) => [l.id, 'on']));
-  const cap = (s) => s[0].toUpperCase() + s.slice(1);
-  const lastFreq = {};   // layer id -> last played frequency, for playback
-  const clearLastFreq = () => { for (const k in lastFreq) delete lastFreq[k]; };
-
-  for (const l of LAYERS) {
-    panel.select(cap(l.name), [['on', 'On'], ['mute', 'Muted'], ['solo', 'Solo']], (v) => {
-      state[l.id] = v;
-      clearLastFreq();   // a re-enabled layer sounds again during playback
-      describe(`${cap(l.name)} ${v === 'on' ? 'on' : v === 'mute' ? 'muted' : 'solo'}`);
-    }, { value: 'on' });
-  }
+  const layer = layerFor(dataset.id);
+  let last = null, lastFreq = null;
   let scale = 'pentatonic-major';
-  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; clearLastFreq(); } });
+  scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; lastFreq = null; } });
   panel.button('Describe this spot', () => {
     if (!last) describe('Move over the map or use the arrow keys first.');
-    else if (!layers) describe('Still loading gas maps.');
-    else probe(last, { announce: true, force: true });
+    else probe(last, { force: true });
   });
 
-  (async () => {
-    const ds = await Promise.all(LAYERS.map((l) =>
-      (String(dataset.id) === l.id ? dataset : loadDataset(l.id).catch((e) => { console.warn(e); return null; }))));
-    if (!alive) return;
-    layers = LAYERS.map((layer, i) => ({ layer, ds: ds[i] })).filter((x) => x.ds);
-    const missing = LAYERS.filter((_, i) => !ds[i]).map((l) => l.name);
-    describe(missing.length ? `Could not load ${missing.join(' and ')}.`
-      : 'Ready: carbon monoxide plays low, ozone in the middle, nitrogen oxides higher.');
-    if (last) probe(last, { announce: false, force: true });
-  })().catch((e) => { console.error(e); describe(`Could not load the gas maps: ${e.message}`); });
-
-  function readingsAt(lat, lon) {
-    const date = time.date();
-    return layers.map(({ layer, ds }) => {
-      const t = ds === dataset ? time.now() : frameAtDate(ds.count, ds.timeOf, date);
-      const value = ds.valueAt(lat, lon, t);
-      return { layer, ds, value, norm: value == null ? null : ds.norm(value) };
-    });
-  }
-
-  // Hover is throttled (150 ms) so a fast sweep does not pile up chords.
+  // Hover is throttled (150 ms) so a fast sweep does not pile up notes.
   const ready = throttle(150);
   const speak = throttle(5000);   // text summary during playback, at most every 5 s
   function probe({ lat, lon }, { announce = true, force = false, onlyChanged = false, prefix = '' } = {}) {
     last = { lat, lon };
-    if (!layers) return;
     if (!ready(force || onlyChanged, () => probe({ lat, lon }, { announce, force, onlyChanged, prefix }))) return;
-    const r = readingsAt(lat, lon);
-    for (const n of notesFor(r, state, lon / 180, scale)) {
-      if (onlyChanged && lastFreq[n.id] === n.freq) continue;
-      lastFreq[n.id] = n.freq;
-      sound.play(n);
-    }
-    if (announce) describe(`${prefix}${cap(describeReadings(r, (x) => x.ds.format(x.value)))}, near ${where(lat, lon)}`);
+    const value = dataset.valueAt(lat, lon, time.now());
+    const n = value == null ? null : noteFor(layer, dataset.norm(value), lon / 180, scale);
+    if (n && !(onlyChanged && lastFreq === n.freq)) { lastFreq = n.freq; sound.play(n); }
+    if (announce) describe(`${prefix}${layer.name} ${dataset.format(value)}, near ${where(lat, lon)}`);
   }
 
   const offHover = input.onHover((p) => probe(p));
@@ -72,8 +36,9 @@ export default function start(ctx) {
       if (last) probe(last, { announce: speak(), onlyChanged: true, prefix: `${time.label()}: ` });
       return;
     }
-    if (last && layers) probe(last, { force: true, prefix: `${time.label()}: ` });
+    if (last) probe(last, { force: true, prefix: `${time.label()}: ` });
     else describe(time.label());
   });
-  return () => { alive = false; offHover(); offClick(); offFrame(); };
+  describe(`Layered maps ready: ${layer.name}. Choose another gas with the Dataset menu.`);
+  return () => { offHover(); offClick(); offFrame(); };
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LAYERS, layerFreq, audible, frameAtDate, notesFor, describeReadings } from './layers.js';
+import { LAYERS, layerFreq, layerFor, noteFor } from './layers.js';
 import { parseGrid, makeNorm, formatValue } from '../../core/grid.js';
 
 // Registers: all within C2..C5, distinct, ordered CO < ozone < NOx.
@@ -24,29 +24,10 @@ for (const sc of ['pentatonic-major', 'pentatonic-minor', 'hirajoshi'])
   assert.ok(layerFreq(co, 1, sc) < layerFreq(oz, 0, sc) && layerFreq(oz, 1, sc) < layerFreq(nox, 0, sc), sc);
 assert.ok(Math.abs(layerFreq(oz, 0) - 130.81) < 0.1 && Math.abs(layerFreq(oz, null) - 130.81) < 0.1);
 
-// Mute / solo.
-assert.deepEqual([...audible(LAYERS, {})].sort(), ['5152', '5153', '5154']);
-assert.deepEqual([...audible(LAYERS, { 5152: 'mute' })].sort(), ['5153', '5154']);
-assert.deepEqual([...audible(LAYERS, { 5154: 'solo', 5152: 'mute' })], ['5154']);
-assert.deepEqual([...audible(LAYERS, { 5154: 'solo', 5153: 'solo' })].sort(), ['5153', '5154']);
-
-// Time alignment.
-const t0 = Date.parse('2026-10-29T09:00:00Z'), timeOf = (i) => new Date(t0 + i * 3 * 3600e3);
-assert.equal(frameAtDate(10, timeOf, new Date(t0)), 0);
-assert.equal(frameAtDate(10, timeOf, new Date(t0 + 6 * 3600e3)), 2);
-assert.equal(frameAtDate(10, timeOf, new Date(t0 + 4 * 3600e3)), 1);
-assert.equal(frameAtDate(10, timeOf, new Date(t0 + 999 * 3600e3)), 9);
-assert.equal(frameAtDate(10, timeOf, new Date(t0 - 3600e3)), 0);
-
-// Notes and descriptions.
-const readings = LAYERS.map((layer, i) => ({ layer, value: i === 2 ? null : 10, norm: 0.5 }));
-const notes = notesFor(readings, {}, 0.3);
-assert.equal(notes.length, 2, 'no-data layer is silent');
-assert.ok(notes.every((n) => n.pan === 0.3 && n.freq <= C5));
-assert.equal(new Set(notes.map((n) => n.t)).size, 2, 'layers are staggered');
-assert.equal(notesFor(readings, { 5153: 'mute' }).length, 1);
-assert.equal(describeReadings(readings, (r) => (r.value == null ? 'no data' : `${r.value} ppbv`)),
-  'carbon monoxide 10 ppbv, ozone 10 ppbv, nitrogen oxides no data');
+// One dataset at a time: each id gets its own voice; one note per probe.
+assert.equal(layerFor('5153'), co); assert.equal(layerFor(5154), nox); assert.equal(layerFor('9999'), oz);
+const n = noteFor(nox, 0.5, 0.3);
+assert.ok(n.pan === 0.3 && n.freq === layerFreq(nox, 0.5) && n.lowpass === 2200 && n.t === undefined);
 
 // Real grids (optional): values at a point map into 0..1 and format.
 const here = dirname(fileURLToPath(import.meta.url));

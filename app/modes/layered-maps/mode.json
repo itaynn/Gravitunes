@@ -1,7 +1,7 @@
 {
   "name": "Layered maps",
   "author": "moran",
-  "description": "Hear ozone, carbon monoxide and nitrogen oxides together at one spot: each gas has its own instrument and pitch range (carbon monoxide low, ozone in the middle, nitrogen oxides higher). Higher values play higher notes. Hover, touch or use the arrow keys; mute or solo any gas.",
+  "description": "Pick one gas with the Dataset menu (ozone, carbon monoxide or nitrogen oxides): the map shows that gas and you hear only it, in its own instrument and pitch range (carbon monoxide low, ozone in the middle, nitrogen oxides higher). Higher values play higher notes. Hover, touch or use the arrow keys.",
   "datasets": ["5152", "5153", "5154"],
   "standalone": {"every": 6}
 }

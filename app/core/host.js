@@ -43,14 +43,20 @@ async function main() {
   // mode.json "data": false: the mode ignores the dataset, so its picker, title, colour bar and timeline are hidden.
   const noData = meta.data === false;
   if (noData) for (const sel of ['#dataset-picker', '#dataset-title', '#colorbar', '#time-heading', '#time-label']) $(sel).hidden = true;
+  // Offer only datasets this mode lists (mode.json "datasets") that are actually available here; hide the
+  // picker when there is nothing to switch to. Mouse picks switch at once; keyboard users browse with the
+  // arrow keys and switch with Enter or the Load button (arrows fire change on a closed select).
   if (!noData) listDatasets().then((list) => {
-    if (!list.some((d) => d.id === current)) list.push({ id: current, title: current });
+    const wanted = Array.isArray(meta.datasets) ? meta.datasets.map(String) : null;
+    if (wanted) list = wanted.map((id) => list.find((d) => d.id === id)).filter(Boolean);
+    if (!list.some((d) => d.id === current) || list.length < 2) return;
     const dp = createPanel($('#dataset-picker'));
-    // Choosing only previews (arrow keys fire change on a closed select); Load or Enter reloads the mode.
     const load = () => { if (sel.value === current) return; params.set('dataset', sel.value); location.search = params.toString(); };
-    const sel = dp.select('Dataset', list.map((d) => [d.id, `${d.title} (${d.id})`]), () => { btn.disabled = sel.value === current; },
-      { value: current, hint: 'Pick a dataset, then press Load (or Enter). Loading reloads this mode.' });
-    sel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); load(); } });
+    let byKey = false;
+    const sel = dp.select('Dataset', list.map((d) => [d.id, d.title]), () => { btn.disabled = sel.value === current; if (!byKey) load(); },
+      { value: current, hint: 'Choosing a dataset reloads this demo with it. With the keyboard, pick with the arrow keys, then press Enter.' });
+    sel.addEventListener('pointerdown', () => { byKey = false; });
+    sel.addEventListener('keydown', (e) => { byKey = true; if (e.key === 'Enter') { e.preventDefault(); load(); } });
     const btn = dp.button('Load dataset', load);
     btn.disabled = true;
   }).catch(() => {});

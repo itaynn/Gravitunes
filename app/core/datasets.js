@@ -61,7 +61,9 @@ export async function getDefinition(id, overrides = {}) {
 // Known datasets for pickers: built-ins plus /data-tools/datasets/index.json ({ids:[...]} or [...]) if present.
 export async function listDatasets() {
   const idx = await fetchJson('/data-tools/datasets/index.json');
-  const ids = new Set([...Object.keys(DATASETS), ...((Array.isArray(idx) ? idx : idx?.ids) || []).map(String)]);
+  // The index lists what is really available (standalone builds write only the bundled ids); built-ins are a fallback.
+  const listed = (Array.isArray(idx) ? idx : idx?.ids)?.map(String);
+  const ids = new Set(listed?.length ? listed : Object.keys(DATASETS));
   const out = [];
   for (const id of ids) {
     const d = await fetchJson(`/data-tools/datasets/${id}.json`);
