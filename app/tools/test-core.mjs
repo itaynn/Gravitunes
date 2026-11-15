@@ -280,3 +280,20 @@ console.log('grid tests ok');
   vw.resetView(); assert.equal(heard, true); assert.equal(vw.zoom, 1);
   console.log('zoom tests ok');
 }
+
+// ---- no-data modes: the host renders no timeline, Time, Play, colour bar or dataset picker for them
+{
+  const { isNoDataMode, NO_DATA_REMOVE } = await import('../core/no-data.js');
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  for (const m of ['world-orchestra', 'synth-lab']) {
+    const f = join(root, 'modes', m, 'mode.json');
+    if (existsSync(f)) assert.ok(isNoDataMode(JSON.parse(readFileSync(f, 'utf8'))), `${m} is a no-data mode`);
+  }
+  assert.ok(isNoDataMode({ data: false }) && !isNoDataMode({ datasets: ['5152'] }) && !isNoDataMode({}));
+  for (const sel of ['#timeline', '#time-label', '#colorbar', '#dataset-picker']) assert.ok(NO_DATA_REMOVE.includes(sel), sel);
+  const host = readFileSync(join(root, 'core', 'host.js'), 'utf8');
+  assert.match(host, /if \(!noData\) \{\s*const tl = createPanel\(\$\('#timeline'\)\)/, 'timeline built only for data modes');
+  const html = readFileSync(join(root, 'mode.html'), 'utf8');
+  for (const sel of NO_DATA_REMOVE) assert.ok(html.includes(`id="${sel.slice(1)}"`), `mode.html has ${sel}`);
+  console.log('ok no-data host');
+}

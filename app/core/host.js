@@ -4,6 +4,7 @@ import { createViewer, createInput } from './viewer.js';
 import { createTime } from './time.js';
 import { createPanel, createDescribe, volumeSlider } from './ui.js';
 import { createSound } from './sound.js';
+import { isNoDataMode, NO_DATA_REMOVE } from './no-data.js';
 import './switcher.js';
 
 const $ = (s) => document.querySelector(s);
@@ -86,9 +87,13 @@ async function main() {
 
   // Dataset picker (?dataset=<id>): lists known descriptors; changing it reloads the mode.
   const current = pickDataset(meta);
-  // mode.json "data": false: the mode ignores the dataset, so its picker, title, colour bar and timeline are hidden.
-  const noData = meta.data === false;
-  if (noData) for (const sel of ['#dataset-picker', '#dataset-title', '#colorbar', '#time-label']) $(sel).hidden = true;
+  // mode.json "data": false or "datasets": "none": the mode ignores the dataset, so the host renders none of its
+  // dataset UI (picker, colour bar, timeline with Play and Time, time badge): those elements are removed.
+  const noData = isNoDataMode(meta);
+  if (noData) {
+    for (const sel of NO_DATA_REMOVE) $(sel)?.remove();
+    $('#dataset-title').hidden = true;
+  }
   // Offer only datasets this mode lists (mode.json "datasets") that are actually available here; hide the
   // picker when there is nothing to switch to. Mouse picks switch at once; keyboard users browse with the
   // arrow keys and switch with Enter or the Load button (arrows fire change on a closed select).
@@ -119,9 +124,11 @@ async function main() {
     throw e;
   }
   $('#dataset-title').textContent = `${dataset.title} (${dataset.units}, ${dataset.format(dataset.range[0], false)} to ${dataset.format(dataset.range[1], false)}${dataset.transform === 'log10' ? ', log scale' : ''})`;
-  $('#colorbar').alt = `Color bar: ${$('#dataset-title').textContent}`;
-  $('#colorbar').onerror = () => { $('#colorbar').hidden = true; };
-  if (!noData) $('#colorbar').src = dataset.colorbarUrl;
+  if (!noData) {
+    $('#colorbar').alt = `Color bar: ${$('#dataset-title').textContent}`;
+    $('#colorbar').onerror = () => { $('#colorbar').hidden = true; };
+    $('#colorbar').src = dataset.colorbarUrl;
+  }
 
   const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0', plain: noData, imageCanvas: $('#map-image') });
   const input = createInput(viewer);
@@ -140,20 +147,21 @@ async function main() {
   await time.seek(0);
   status('');
 
-  // Built-in timeline controls.
-  const tl = createPanel($('#timeline'));
-  const playBtn = tl.button('Play', () => {
-    if (time.playing) time.pause(); else time.play();
-    describe(time.playing ? 'Playing' : `Stopped at ${time.label()}`);
-  });
-  const showPlay = (p) => { playBtn.innerHTML = p ? '&#9632; Stop' : '&#9654; Play'; playBtn.setAttribute('aria-label', p ? 'Stop' : 'Play'); };
-  time.onPlayState(showPlay); showPlay(false);
-  const slider = tl.slider('Time', { min: 0, max: time.count - 1, step: 1, value: 0, format: (n) => time.label(n) },
-    (n) => time.seek(n));
-  const timeText = $('#time-label');
-  time.onFrame((t) => { slider.update(t); timeText.textContent = time.label(t); });
-  timeText.textContent = time.label(0);
-  if (noData) for (const c of [playBtn, slider]) c.closest('.control').hidden = true;
+  // Built-in timeline controls (not for no-data modes: nothing to step through).
+  if (!noData) {
+    const tl = createPanel($('#timeline'));
+    const playBtn = tl.button('Play', () => {
+      if (time.playing) time.pause(); else time.play();
+      describe(time.playing ? 'Playing' : `Stopped at ${time.label()}`);
+    });
+    const showPlay = (p) => { playBtn.innerHTML = p ? '&#9632; Stop' : '&#9654; Play'; playBtn.setAttribute('aria-label', p ? 'Stop' : 'Play'); };
+    time.onPlayState(showPlay); showPlay(false);
+    const slider = tl.slider('Time', { min: 0, max: time.count - 1, step: 1, value: 0, format: (n) => time.label(n) },
+      (n) => time.seek(n));
+    const timeText = $('#time-label');
+    time.onFrame((t) => { slider.update(t); timeText.textContent = time.label(t); });
+    timeText.textContent = time.label(0);
+  }
   createPanel($('#view-controls')).checkbox('Coastlines', viewer.basemap, (on) => viewer.setBasemap(on),
     { hint: 'Natural Earth coastlines and borders drawn faintly over the map (visual only).' });
 
