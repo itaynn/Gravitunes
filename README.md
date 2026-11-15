@@ -17,7 +17,7 @@ To run the code on your computer, run:
 ```
 python3 -m http.server 8000
 ```
-And then open http://localhost:8000/app/ in your browser.
+And then open http://localhost:8000/app/modes/storm-picker/ in your browser.
 
 To regenerate the speech tutorial, run:
 ```
