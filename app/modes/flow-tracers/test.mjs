@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { parseLayer, flowAt, advect, compass, rankNormaliser } from '../../core/flow.js';
 import { parseGrid } from '../../core/grid.js';
 import { distKm } from '../../core/geo.js';
-import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture } from './tracers.js';
+import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture, flowBetween, rateOf, rateText, moveParticle } from './tracers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(here, 'data/4285');
@@ -42,6 +42,22 @@ assert.ok(Math.abs(tr.lon - 10 / 111.32) < 1e-9 && tr.speed === 10 && tr.quiet =
 const still = stepTracer({ id: 1, lat: 0, lon: 0, quiet: 2 }, parseLayer(L, empty), 0, 1, { value: () => 0 });
 assert.equal(still.lon, 0); assert.equal(still.quiet, 3); assert.equal(still.speed, 0);
 
+// between frames: blend, rain rate decoding, particle motion
+{
+  const two = new Int8Array(bytes.length);
+  for (let i = 0; i < 16; i++) two[i] = 10;          // t0: u = 10, v = 10
+  for (let i = 16; i < 32; i++) two[i] = (i % 16) < 8 ? 30 : 0;   // t1: u = 30, v = 0
+  const fl2 = parseLayer(L, two);
+  const m = flowBetween(fl2, 10, 10, 0, 0.5, 2);
+  assert.ok(Math.abs(m.u - 20) < 1e-9 && Math.abs(m.v - 5) < 1e-9);
+  { const z = flowBetween(fl2, 10, 10, 0, 0, 2); assert.ok(Math.abs(z.u - 10) < 1e-9 && Math.abs(z.v - 10) < 1e-9); }
+  assert.equal(rateOf(0), 0); assert.ok(Math.abs(rateOf(1) - 50) < 1e-9); assert.ok(Math.abs(rateOf(0.02) - 0.1) < 0.02);
+  assert.equal(rateText(0), 'dry'); assert.match(rateText(0.5), /moderate rain, \d mm per hour/);
+  const p = { lat: 0, lon: 0, age: 0, life: 2 };
+  assert.equal(moveParticle(p, { u: 111.32, v: 0 }, 1), true); assert.ok(Math.abs(p.lon - 1) < 1e-9);
+  assert.equal(moveParticle(p, null, 1), false);       // too old
+}
+
 // voices: loudest first, capped, quiet ones excluded
 const trs = [{ value: 0.2 }, { value: null }, { value: 0.9 }, { value: 0.01 }, { value: 0.5 }];
 assert.deepEqual(pickVoices(trs, 2), [2, 4]);
@@ -64,7 +80,7 @@ assert.ok(rainy.every((p) => p.lat > 0));
 
 // shipped data
 const head = JSON.parse(readFileSync(join(dataDir, 'flow.json'), 'utf8'));
-const lay = head.layers.flow_128x64;
+const lay = head.layers.flow_160x80;
 const real = parseLayer(lay, new Int8Array(readFileSync(join(dataDir, lay.file))));
 assert.equal(real.frames, head.frames);
 let moving = 0, n = 0;

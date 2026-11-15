@@ -20,14 +20,15 @@ import sys
 import cv2
 import numpy as np
 
-from .sources import REPO_ROOT, load_dataset
+from .sources import REPO_ROOT, data_root, load_dataset
 
 FLOW_SCRIPT = REPO_ROOT / "analysis" / "scripts" / "flow" / "run.py"
 
 
-def run_flow(dataset: str, data_dir: Path | None, out: Path, coarse: list[str]) -> None:
-    cmd = [sys.executable, str(FLOW_SCRIPT), "--dataset", dataset, "--out", str(out), "--diagnostics", "0",
-           "--coarse", *coarse]
+def run_flow(dataset: str, data_dir: Path | None, out: Path, coarse: list[str], width: int = 1440,
+             diagnostics: int = 0) -> None:
+    cmd = [sys.executable, str(FLOW_SCRIPT), "--dataset", dataset, "--out", str(out),
+           "--diagnostics", str(diagnostics), "--width", str(width), "--coarse", *coarse]
     if data_dir:
         cmd += ["--data-dir", str(data_dir)]
     subprocess.run(cmd, check=True)
@@ -43,8 +44,78 @@ def write_field_grid(dataset: str, data_dir: Path | None, dest: Path, times: lis
     out.tofile(dest / f"field_{W}x{H}.bin")
     header = {"id": dataset, "dims": [W, H], "frames": int(out.shape[0]), "dtype": "uint8", "layout": "t,y,x",
               "offset": 0.0, "scale": 1 / 254, "nodata": 255, "units": "relative", "times": times,
-              "note": "relative precipitation 0..1 (IMERG PNG alpha), from mode_export.py"}
+              "note": "precipitation rate 0..1 = log10 scale 0.1..50 mm/h decoded from the SVS colours (0 = dry), from mode_export.py",
+              "rate_log10": [-1.0, 1.69897]}
     (dest / f"field_{W}x{H}.json").write_text(json.dumps(header))
+
+
+def write_frames(dataset: str, data_dir: Path | None, dest: Path, times: list[str], width: int = 1800) -> None:
+    """The original SVS RGBA frames (NASA colours, transparent where dry) as lossless WebP, one per time step,
+    nearest-neighbour resized so the palette stays exact. Written to dest/frames/<i>.webp + frames.json."""
+    from PIL import Image
+    root = Path(data_dir) if data_dir else data_root()
+    folder = root / "nasa-svs" / dataset
+    (dest / "frames").mkdir(exist_ok=True)
+    files = []
+    for i, t in enumerate(times):
+        im = Image.open(folder / f"imergert_alpha.{t}.png").convert("RGBA")
+        im = im.resize((width, width // 2), Image.NEAREST)
+        name = f"frames/{i:03d}.webp"
+        im.save(dest / name, "WEBP", lossless=True, method=6)
+        files.append(name)
+    meta = {"source": "https://svs.gsfc.nasa.gov/4285 imergert_alpha frames (3600x1800), resized", "size": [width, width // 2],
+            "files": files, "colorbars": {"rain": "frames/rainbar.png", "snow": "frames/snowbar.png"}}
+    (dest / "frames.json").write_text(json.dumps(meta))
+    for k in ("rain", "snow"):  # NASA colour bars (svs.gsfc.nasa.gov/4285 {rain,snow}barblack2.png) if downloaded
+        src = folder / f"{k}barblack2.png"
+        if src.is_file():
+            shutil.copy(src, dest / "frames" / f"{k}bar.png")
+
+
+def land_mask(lines: list[list[float]], W: int, H: int) -> np.ndarray:
+    """Fill Natural Earth coastlines (data/earth/coastlines.json) into a land mask. Lines cut at the date line
+    are chained back together; a chain that wraps the globe (Antarctica) is closed through the pole."""
+    segs = [[(ln[i], ln[i + 1]) for i in range(0, len(ln), 2)] for ln in lines]
+    polys = [sg for sg in segs if sg[0] == sg[-1]]
+    open_ = [sg for sg in segs if sg[0] != sg[-1]]
+
+    def key(p):
+        lon = 180.0 if abs(abs(p[0]) - 180) < 1e-6 else p[0]
+        return (round(lon, 2), round(p[1], 2))
+    while open_:
+        chain = open_.pop()
+        while key(chain[-1]) != key(chain[0]) or len(chain) < 3:
+            nxt = next((sg for sg in open_ if key(sg[0]) == key(chain[-1])), None)
+            if nxt is None:
+                break
+            open_.remove(nxt)
+            chain = chain + nxt[1:]
+        out, off = [chain[0]], 0.0
+        for lon, lat in chain[1:]:
+            lon += off
+            while lon - out[-1][0] > 180:
+                lon -= 360; off -= 360
+            while lon - out[-1][0] < -180:
+                lon += 360; off += 360
+            out.append((lon, lat))
+        if abs(out[-1][0] - out[0][0]) > 300:
+            pole = -90.0 if np.mean([p[1] for p in out]) < 0 else 90.0
+            out += [(out[-1][0], pole), (out[0][0], pole)]
+        polys.append(out)
+    m = np.zeros((H, W), np.uint8)
+    for p in polys:
+        a = np.array(p, np.float64)
+        for sh in (-360, 0, 360):
+            pts = np.stack([(a[:, 0] + sh + 180) / 360 * W, (90 - a[:, 1]) / 180 * H], -1)
+            if pts[:, 0].max() < 0 or pts[:, 0].min() > W:
+                continue
+            cv2.fillPoly(m, [np.round(pts * 8).astype(np.int32)], 255, cv2.LINE_8, shift=3)
+    return m
+
+
+def write_land(dest: Path, size=(1440, 720)) -> None:
+    lines = json.loads((REPO_ROOT / "data" / "earth" / "coastlines.json").read_text())["lines"]
+    cv2.imwrite(str(dest / "land.png"), land_mask(lines, *size))
 
 
 def compact_vortices(v: dict, min_track_frames: int) -> dict:
@@ -68,9 +139,11 @@ def compact_vortices(v: dict, min_track_frames: int) -> dict:
 
 
 def export_mode(mode: str, dataset: str, layers: list[str], coarse: list[str], data_dir: Path | None,
-                vortices: bool = False, min_track_frames: int = 3, work: Path | None = None) -> Path:
+                vortices: bool = False, min_track_frames: int = 3, work: Path | None = None,
+                frames_width: int = 1800, rerun: bool = True) -> Path:
     work = work or REPO_ROOT / "data" / "derived" / dataset / "flow"
-    run_flow(dataset, data_dir, work, coarse)
+    if rerun or not (work / "flow.json").is_file():
+        run_flow(dataset, data_dir, work, coarse, diagnostics=4)
     dest = REPO_ROOT / "app" / "modes" / mode / "data" / dataset
     if dest.exists():
         shutil.rmtree(dest)
@@ -88,6 +161,9 @@ def export_mode(mode: str, dataset: str, layers: list[str], coarse: list[str], d
     for k in layers:
         shutil.copy(work / head["layers"][k]["file"], dest / head["layers"][k]["file"])
     write_field_grid(dataset, data_dir, dest, head["times"])
-    total = sum(p.stat().st_size for p in dest.iterdir())
+    if frames_width:
+        write_frames(dataset, data_dir, dest, head["times"], frames_width)
+        write_land(dest)
+    total = sum(p.stat().st_size for p in dest.rglob("*") if p.is_file())
     print(f"[{mode}] wrote {total / 1e6:.2f} MB to {dest}")
     return dest

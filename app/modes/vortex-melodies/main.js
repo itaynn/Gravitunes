@@ -7,7 +7,9 @@ import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch, pickVoice } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
-import { volumeSlider, soundHint, throttle, timbreControl } from '../../core/ui.js';
+import { volumeSlider, throttle, timbreControl, fold } from '../../core/ui.js';
+import { MAX_FUND_HZ } from '../../core/sound.js';
+import { createBackdrop } from '../../core/svs-frames.js';
 import { motifFreq, MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes, nearestText } from './vortex.js';
 
 export default function start(ctx) {
@@ -39,12 +41,13 @@ export default function start(ctx) {
 
     const s = {
       maxVoices: 4, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0], melody: 'size',
-      melodies: true, bed: true, arrows: false, volume: 0.6,
+      melodies: true, bed: true, arrows: false, volume: 0.6, sound: true,
     };
+    const backdrop = createBackdrop(dir, { viewer, time });
     const phase = new Map();           // vortex id -> loop start (seconds, performance clock)
     let active = [], solo = null;      // solo: { id, until }
 
-    const tones = () => scaleFreqs(s.scale, noteHz(-24), noteHz(12));   // C2..C5
+    const tones = () => scaleFreqs(s.scale, noteHz(-24), MAX_FUND_HZ);   // the shared range: C2 to the top fundamental
     function voiceFor(v) {
       const region = voiceAt(v.lat, v.lon, centers, instruments, 900);
       if (s.timbre === 'region') return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary };
@@ -58,6 +61,7 @@ export default function start(ctx) {
       return { ...m, steps: orient(m.steps, v.track?.direction || 'ccw') };
     }
     function playStep(v, k, at, ampScale = 1) {
+      if (!s.sound) return;
       const { voice, center } = voiceFor(v);
       const m = motifOf(v, center);
       const freq = motifFreq(tones(), noteHz(m.root), m.steps[k % m.steps.length], voice.octave || 0);
@@ -73,7 +77,7 @@ export default function start(ctx) {
     const sched = setInterval(() => {
       const now = performance.now() / 1000, to = now + 0.15;
       const soloing = solo && solo.until > now ? solo.id : null;
-      if (time.playing && s.melodies) {
+      if (time.playing && s.sound && s.melodies) {
         const list = soloing != null
           ? activeVortices(data, ranks, time.now(), Infinity, trackById).filter((v) => v.id === soloing) : active;
         const n = Math.max(1, list.length);
@@ -96,7 +100,7 @@ export default function start(ctx) {
       // Keep the soloed vortex's loop phase too, so its motif does not restart every frame.
       if (solo && solo.until > performance.now() / 1000) ids.add(solo.id);
       for (const id of phase.keys()) if (!ids.has(id)) phase.delete(id);
-      if (time.playing && s.bed) {
+      if (time.playing && s.sound && s.bed) {
         const c = bedByFrame[t] || 0, frameDur = 1 / Math.max(0.1, time.fps || 2);
         // Convergence swells and brightens; divergence thins. Low pad on the scale's root (C2) and the scale
         // tone nearest G2, re-struck each frame.
@@ -119,24 +123,43 @@ export default function start(ctx) {
       return c > 0.4 ? 'more converging than usual' : c < -0.4 ? 'more spreading out than usual' : 'converging and spreading about usual';
     };
 
-    // ---- controls
-    panel.checkbox('Vortex melodies', s.melodies, (v) => { s.melodies = v; }, { hint: 'Mute or unmute the melody layer.' });
-    panel.checkbox('Divergence bed', s.bed, (v) => { s.bed = v; }, { hint: 'Soft low pad: swells where the rain converges.' });
-    panel.slider('Max vortices heard', { min: 1, max: 10, step: 1, value: s.maxVoices, format: (v) => `${v} vortices`,
-      hint: 'Only the loudest (strongest and largest) play at once.' }, (v) => { s.maxVoices = v; active = activeVortices(data, ranks, time.now(), v, trackById); });
-    timbreControl(panel, { options: [['region', 'World-orchestra region at the center'], ['size', 'By size'], ['strength', 'By strength'], ['single', 'Single voice']],
-      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
-    panel.select('Melody', [['size', 'By size (big = longer, lower)'], ['region', 'By region'], ['lifetime', 'By lifetime']],
-      (v) => { s.melody = v; }, { value: s.melody });
+    // ---- controls: Sound, Scale, Volume up front; the rest under "More".
+    const soundCb = panel.checkbox('Sound', s.sound, (v) => { s.sound = v; if (!v) sound.stopAll(); describe(v ? 'Sound on' : 'Sound off'); });
+    soundCb.setAttribute('aria-label', 'Sound on or off. Off silences the melodies and the hum.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
-    panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
-    panel.text(`Spin rates are underestimated by the analysis smoothing, so loop speed follows each vortex's rank (faster or slower than the others), not its measured rate. Vortices seen in fewer than ${data.min_track_frames} frames are left out.`);
+    const howTo = panel.text('How it sounds: each swirl loops a short tune; faster spin = faster loop, bigger = louder. A low hum swells where rain converges.');
+    howTo.classList.add('hint');
+    const legend = document.createElement('p');
+    legend.className = 'hint';
+    legend.innerHTML = '<span aria-hidden="true" style="color:#2fd16a;font-weight:bold">&#9711;</span> counterclockwise (tune rises) '
+      + '&nbsp;<span aria-hidden="true" style="color:#ff4fd8;font-weight:bold">&#9711;</span> clockwise (tune falls); thick ring = heard';
+    howTo.after(legend);
+    const melCb = panel.checkbox('Tunes', s.melodies, (v) => { s.melodies = v; });
+    melCb.setAttribute('aria-label', 'Vortex melodies on or off');
+    const bedCb = panel.checkbox('Hum', s.bed, (v) => { s.bed = v; });
+    bedCb.setAttribute('aria-label', 'Convergence hum (low pad) on or off');
+    const maxSl = panel.slider('Voices', { min: 1, max: 10, step: 1, value: s.maxVoices, format: (v) => `at most ${v} vortices heard at once` },
+      (v) => { s.maxVoices = v; active = activeVortices(data, ranks, time.now(), v, trackById); });
+    const timbre = timbreControl(panel, { options: [['region', 'By region'], ['size', 'By size'], ['strength', 'By strength'], ['single', 'One voice']],
+      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
+    const melSel = panel.select('Tune', [['size', 'By size'], ['region', 'By region'], ['lifetime', 'By lifetime']],
+      (v) => { s.melody = v; }, { value: s.melody });
+    const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
+    arrowsCb.setAttribute('aria-label', 'Show flow arrows');
+    const more = fold('More', [melCb, bedCb, maxSl, timbre.timbre, timbre.single, melSel, arrowsCb]);
+    const offPlay = time.onPlayState((p) => { if (!p) sound.stopAll(); });
+    const hostBar = document.getElementById('colorbar');
+    if (hostBar) hostBar.hidden = true;
+    const bars = document.createElement('div');
+    (hostBar || viewer.canvas).after(bars);
+    backdrop.colorbars().then((ims) => { if (alive) bars.append(...ims); });
 
     // ---- hover / keys: solo the vortex under the cursor and describe it
     let lastId = null;
     const ready = throttle(200);
     function probe({ lat, lon, keyboard = false }, force = false) {
+      if (!keyboard && !force) return;   // mouse hover is silent
       if (!ready(force, () => probe({ lat, lon, keyboard }, force))) return;
       const now = performance.now();
       const t = time.now();
@@ -157,7 +180,7 @@ export default function start(ctx) {
       const { name } = voiceFor(best);
       const faster = Math.round(best.spinRank * 100);
       describe(`${keyboard ? `${formatLatLon(lat, lon)}: ` : ''}Vortex ${best.id}, ${dirTxt}, ${periodText(best.spin)} (spins faster than ${faster} percent of vortices), ${Math.round(best.r * 2 / 50) * 50} km wide, ${name}-inspired.`);
-      if (!same && !time.playing && s.melodies) {
+      if (force && !time.playing && s.melodies) {
         const m = motifOf(best, voiceFor(best).center), step = loopSeconds(best.spinRank) / m.steps.length;
         const t0 = now / 1000 + 0.05;
         for (let k = 0; k < m.steps.length; k++) playStep({ ...best, loud: Math.max(0.6, best.loud) }, k, t0 + k * step);
@@ -170,17 +193,22 @@ export default function start(ctx) {
     const removeOverlay = viewer.addOverlay((g, vw) => {
       const W = vw.canvas.width, t = time.now(), sec = performance.now() / 1000;
       g.save();
+      backdrop.draw(g, vw);
       if (s.arrows) drawFlowArrows(g, vw, flow, t, { heads: false });
+      const ph = backdrop.phase(), nextPos = new Map((data.frames[(t + 1) % data.frames.length] || []).map((n) => [n.id, n]));
       const heard = new Set(active.map((v) => v.id));
       for (const v of data.frames[t] || []) {
-        const [x, y] = vw.toPixel(v.lat, v.lon);
+        // Glide toward the same vortex's next position while playing (no jump at the date line).
+        const nx = nextPos.get(v.id);
+        const dLon = nx ? ((nx.lon - v.lon + 540) % 360) - 180 : 0;
+        const [x, y] = vw.toPixel(nx ? v.lat + (nx.lat - v.lat) * ph : v.lat, nx ? v.lon + dLon * ph : v.lon);
         const rpx = Math.max(4, (v.r / 40030) * W / Math.max(0.2, Math.cos((v.lat * Math.PI) / 180)));
         const cw = trackById.get(v.id)?.direction === 'cw';
         const ang = (cw ? -1 : 1) * sec * (2 * Math.PI) / loopSeconds(ranks.spin(v.spin));
         const lw = heard.has(v.id) ? 3 : 1.5;
         g.globalAlpha = solo && solo.id !== v.id && solo.until > sec ? 0.3 : 1;
         // Black outline under each ring keeps it visible on the light map.
-        for (const [style, w] of [['#000', lw + 2], [cw ? '#d01fa8' : '#0a8a3a', lw]]) {
+        for (const [style, w] of [['#000', lw + 2], [cw ? '#ff4fd8' : '#2fd16a', lw]]) {
           g.strokeStyle = style; g.lineWidth = w;
           g.beginPath(); g.arc(x, y, rpx, -ang, -ang + Math.PI * 1.6); g.stroke();
         }   // canvas y is down: negate for ccw
@@ -192,9 +220,11 @@ export default function start(ctx) {
     raf = requestAnimationFrame(spin);
 
     active = activeVortices(data, ranks, time.now(), s.maxVoices, trackById);
-    soundHint(panel, sound, 'press Play. Without sound, vortices are still described.');
     describe(`Vortex melodies ready: ${data.tracks.length} tracked vortices. Press Play, or move over the map with the arrow keys to find and solo a vortex.`);
-    return () => { offFrame(); offHover(); offClick(); clearInterval(sched); clearTimeout(pausedTimer); removeOverlay(); cancelAnimationFrame(raf); };
+    return () => {
+      offFrame(); offPlay(); offHover(); offClick(); clearInterval(sched); clearTimeout(pausedTimer); removeOverlay(); cancelAnimationFrame(raf);
+      more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
+    };
   }
 
   return () => { alive = false; setup?.(); };

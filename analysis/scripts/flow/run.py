@@ -48,6 +48,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--flow-sigma", type=float, default=d.flow_sigma)
     p.add_argument("--valid-threshold", type=float, default=d.valid_threshold)
     p.add_argument("--temporal", type=int, default=d.temporal)
+    p.add_argument("--iterations", type=int, default=d.iterations)
+    p.add_argument("--valid-dilate", type=int, default=d.valid_dilate)
     # vortices
     v = VortexParams()
     p.add_argument("--k", type=float, default=v.k, help="Okubo-Weiss threshold: W < -k * std(W)")
@@ -161,7 +163,8 @@ def main(argv=None) -> int:
     T = len(stack.fields)
     print(f"[flow] {a.dataset}: {T} frames, analysis grid {grid.width}x{grid.height}, dt {stack.dt_hours} h")
     fp = FlowParams(pre_sigma=a.pre_sigma, winsize=a.winsize, levels=a.levels, flow_sigma=a.flow_sigma,
-                    valid_threshold=a.valid_threshold, temporal=a.temporal)
+                    valid_threshold=a.valid_threshold, temporal=a.temporal,
+                    iterations=a.iterations, valid_dilate=a.valid_dilate)
     # Flow pixel sizes are tuned for ~1024 px wide globes; keep them in degrees for other widths.
     k = grid.width / 1024
     fp.pre_sigma *= k

@@ -4,7 +4,7 @@
       "id": "flow-tracers",
       "name": "Flow tracers",
       "author": "moran",
-      "description": "About 30 evenly scattered tracers drift with the apparent motion of the rain (optical flow) and sing as they travel: more rain under a tracer plays a higher, louder note, faster motion sounds brighter, east/west pans left/right, and the voice changes with the world-orchestra region it passes. Hover or use the arrow keys to hear the local motion described, e.g. moving north-east, 30 km/h.",
+      "description": "NASA's real-time precipitation (IMERG) over the continents, with streams of particles following the rain's motion. Yellow tracers over rain sing: heavier rain plays higher and louder, west to east pans left to right.",
       "datasets": [
         "4285"
       ],
@@ -110,7 +110,7 @@
       "id": "vortex-melodies",
       "name": "Vortex melodies",
       "author": "moran",
-      "description": "Every tracked swirl in the rain plays its own short repeating melody: faster spin loops faster, stronger and larger swirls are louder, counterclockwise rises and clockwise falls. A soft bed swells where the rain pattern converges and thins where it spreads. Hover or use the arrow keys on a vortex to solo it and hear it described.",
+      "description": "Swirling storms in NASA real-time precipitation (IMERG), found by optical flow and tracked over the day. Each swirl loops a short tune: faster spin plays faster, bigger swirls louder; a low hum swells where rain converges.",
       "datasets": [
         "4285"
       ],

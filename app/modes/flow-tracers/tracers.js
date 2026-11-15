@@ -74,3 +74,32 @@ export function hoverGesture(u, v, lon, top = 60) {
   const p1 = Math.max(-1, Math.min(1, p0 + 0.5 * dir));
   return { rate, notes: Math.max(2, Math.round(rate)), pan0: p0, pan1: p1 };
 }
+
+// Flow between frames: linear blend of frame t and t+1 at phase ph (0..1). Null only if both are empty.
+export function flowBetween(flow, lat, lon, t, ph, count = flow.frames) {
+  const a = flowAt(flow, lat, lon, t), b = ph > 0 ? flowAt(flow, lat, lon, (t + 1) % count) : null;
+  if (!a || !b) return a || (b && { u: b.u * ph, v: b.v * ph });
+  return { u: a.u + (b.u - a.u) * ph, v: a.v + (b.v - a.v) * ph };
+}
+
+// The 4285 field is log10 rain rate: 0 = dry, 0..1 spans 0.1..50 mm/h (field header rate_log10).
+export const RATE_LOG10 = [-1, Math.log10(50)];
+export const rateOf = (v) => (v == null || v <= 0 ? 0 : 10 ** (RATE_LOG10[0] + v * (RATE_LOG10[1] - RATE_LOG10[0])));
+export function rateText(v) {
+  const r = rateOf(v);
+  if (!r) return 'dry';
+  const n = r < 1 ? r.toFixed(1) : String(Math.round(r));
+  const word = r < 1 ? 'light rain' : r < 5 ? 'moderate rain' : r < 20 ? 'heavy rain' : 'very heavy rain';
+  return `${word}, ${n} mm per hour`;
+}
+
+// Visual particle: moves with the flow for dtH hours. Returns false when it should be respawned
+// (too old, or no flow under it for a while).
+export function moveParticle(p, f, dtH) {
+  p.age++;
+  if (!f) { p.idle = (p.idle || 0) + 1; return p.age < p.life && p.idle < 30; }
+  p.idle = 0;
+  const n = advect(p.lat, p.lon, f.u, f.v, dtH);
+  p.lat = n.lat; p.lon = n.lon;
+  return p.age < p.life;
+}

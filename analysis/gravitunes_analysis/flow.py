@@ -78,17 +78,19 @@ class Grid:
 class FlowParams:
     """Farneback and smoothing settings. Pixel sizes refer to the analysis grid."""
 
+    # Tuned on 4285 (analysis/scripts/flow-tracers/validate.py): a wide window and 6 pyramid levels follow
+    # whole storm systems, temporal + spatial smoothing make the field coherent instead of noisy.
     pre_sigma: float = 1.5          # Gaussian blur of the scalar field before Farneback (px)
     pyr_scale: float = 0.5
-    levels: int = 4
-    winsize: int = 21
-    iterations: int = 5
+    levels: int = 6
+    winsize: int = 29
+    iterations: int = 6
     poly_n: int = 7
     poly_sigma: float = 1.5
-    flow_sigma: float = 8.0         # normalized-convolution smoothing of the flow (px)
-    valid_threshold: float = 0.06   # field value (0..1) above which flow is trusted
-    valid_dilate: int = 6           # grow the trusted area by this many px
-    min_weight: float = 0.25        # keep smoothed flow only where local trusted fraction >= this
+    flow_sigma: float = 7.0         # normalized-convolution smoothing of the flow (px)
+    valid_threshold: float = 0.03   # field value (0..1) above which flow is trusted
+    valid_dilate: int = 7           # grow the trusted area by this many px
+    min_weight: float = 0.2         # keep smoothed flow only where local trusted fraction >= this
     temporal: int = 2               # average flow over +-temporal neighbouring frame pairs
     wrap_pad: int = 32              # columns of wrap-around padding for global grids
 
@@ -249,8 +251,8 @@ def kinematics(u: np.ndarray, v: np.ndarray, grid: Grid, max_abs_lat: float = 80
 
 @dataclass
 class VortexParams:
-    k: float = 0.4                  # W < -k * std(W) marks rotation-dominated cells
-    min_area_km2: float = 20000.0   # ~ 160 km diameter
+    k: float = 0.5                  # W < -k * std(W) marks rotation-dominated cells
+    min_area_km2: float = 80000.0   # ~ 320 km diameter (the smoother 4285 flow finds many small eddies)
     min_spin_turns_per_hour: float = 0.0
     close_px: int = 1               # morphological closing radius on the vortex mask
 

@@ -15,7 +15,7 @@ from gravitunes_analysis.mode_export import export_mode  # noqa: E402
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--dataset", default="4285")
 p.add_argument("--data-dir", type=Path)
-p.add_argument("--min-track-frames", type=int, default=3)
+p.add_argument("--min-track-frames", type=int, default=8)
 a = p.parse_args()
-export_mode("vortex-melodies", a.dataset, ["flow_64x32", "divergence_64x32"], ["64x32"], a.data_dir,
+export_mode("vortex-melodies", a.dataset, ["flow_64x32", "divergence_64x32"], ["160x80", "64x32"], a.data_dir,
             vortices=True, min_track_frames=a.min_track_frames)

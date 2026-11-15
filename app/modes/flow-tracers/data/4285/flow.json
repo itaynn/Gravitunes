@@ -2,7 +2,7 @@
  "format": "gravitunes-flow",
  "version": 1,
  "dataset": "4285",
- "units_field": "relative precipitation (PNG alpha)",
+ "units_field": "precipitation rate, log scale 0.1..50 mm/h",
  "times": [
   "2026-11-07T00:00:00Z",
   "2026-11-07T00:30:00Z",
@@ -63,28 +63,28 @@
   "lat_south": -90.0
  },
  "analysis_size": [
-  1024,
-  512
+  1440,
+  720
  ],
  "params": {
   "flow": {
-   "pre_sigma": 1.5,
+   "pre_sigma": 2.109375,
    "pyr_scale": 0.5,
-   "levels": 4,
-   "winsize": 21,
-   "iterations": 5,
+   "levels": 6,
+   "winsize": 41,
+   "iterations": 6,
    "poly_n": 7,
    "poly_sigma": 1.5,
-   "flow_sigma": 8.0,
-   "valid_threshold": 0.06,
-   "valid_dilate": 6,
-   "min_weight": 0.25,
+   "flow_sigma": 9.84375,
+   "valid_threshold": 0.03,
+   "valid_dilate": 10,
+   "min_weight": 0.2,
    "temporal": 2,
    "wrap_pad": 32
   },
   "vortex": {
-   "k": 0.4,
-   "min_area_km2": 20000.0,
+   "k": 0.5,
+   "min_area_km2": 80000.0,
    "min_spin_turns_per_hour": 0.0,
    "close_px": 1
   },
@@ -95,14 +95,14 @@
    "memory_frames": 2,
    "min_lifetime_frames": 2
   },
-  "okubo_weiss_std": 0.0263964377458437
+  "okubo_weiss_std": 0.004992068512976658
  },
  "layers": {
-  "flow_128x64": {
-   "file": "flow_128x64.bin",
+  "flow_160x80": {
+   "file": "flow_160x80.bin",
    "dims": [
-    128,
-    64
+    160,
+    80
    ],
    "dtype": "int8",
    "layout": "t,c,y,x",
@@ -111,7 +111,7 @@
     "v"
    ],
    "nodata": -128,
-   "scale": 0.7660738126499447,
+   "scale": 0.6951680821696604,
    "units": "km/h",
    "note": "u east, v north; value = byte * scale"
   }

@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -42,7 +43,49 @@ def _parse_time(s: str) -> datetime:
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
-def load_imerg_pngs(folder: Path, width: int = 1440, dataset: str = "4285") -> FrameStack:
+# The SVS 4285 frames are RGBA with a binary alpha (rain / no rain); the rate is in the colour, a 10-step
+# palette per phase (svs.gsfc.nasa.gov/4285 rainbarblack2.png, snowbarblack2.png), bins 0.1..50 mm/h.
+RATE_EDGES = [0.1, 0.2, 0.3, 0.5, 1, 2, 3, 5, 10, 20, 50]
+RAIN_COLORS = [(0, 129, 20), (0, 139, 82), (0, 179, 48), (96, 211, 0), (180, 231, 0), (255, 251, 0),
+               (255, 196, 0), (255, 147, 0), (255, 0, 0), (200, 0, 0), (145, 0, 0)]
+SNOW_COLORS = [(69, 255, 255), (73, 221, 255), (77, 187, 255), (79, 154, 255), (81, 122, 255), (82, 93, 255),
+               (83, 70, 255), (90, 47, 217), (115, 33, 187), (140, 20, 156)]
+RATE_LOG_RANGE = (math.log10(0.1), math.log10(50.0))
+
+
+def rate_to_field(rate):
+    """mm/h -> 0..1 on a log scale (0.1 mm/h -> 0, 50 mm/h -> 1); 0 stays 0 (dry)."""
+    r = np.asarray(rate, np.float32)
+    lo, hi = RATE_LOG_RANGE
+    f = (np.log10(np.maximum(r, 1e-6)) - lo) / (hi - lo)
+    return np.where(r > 0, np.clip(f, 0.02, 1.0), 0.0).astype(np.float32)
+
+
+def palette_rates() -> list[tuple[tuple[int, int, int], float]]:
+    """(rgb, representative mm/h) per palette colour: geometric bin centre; the 11th rain colour is > 50."""
+    out = []
+    for cols in (RAIN_COLORS, SNOW_COLORS):
+        for i, c in enumerate(cols):
+            lo, hi = (RATE_EDGES[i], RATE_EDGES[i + 1]) if i + 1 < len(RATE_EDGES) else (50.0, 50.0)
+            out.append((c, math.sqrt(lo * hi)))
+    return out
+
+
+def decode_rate(rgba: np.ndarray) -> np.ndarray:
+    """RGBA SVS frame -> 0..1 log-rate field (nearest palette colour; transparent = 0)."""
+    pal = palette_rates()
+    cols = np.array([c for c, _ in pal], np.int32)
+    vals = rate_to_field([r for _, r in pal])
+    key = (rgba[..., 0].astype(np.int32) << 16) | (rgba[..., 1].astype(np.int32) << 8) | rgba[..., 2]
+    uniq, inv = np.unique(key, return_inverse=True)
+    urgb = np.stack([uniq >> 16, (uniq >> 8) & 255, uniq & 255], -1)
+    nearest = ((urgb[:, None] - cols[None]) ** 2).sum(-1).argmin(-1)
+    out = vals[nearest][inv.reshape(key.shape)]
+    out[rgba[..., 3] < 128] = 0.0
+    return out.astype(np.float32)
+
+
+def load_imerg_pngs(folder: Path, width: int = 1440, dataset: str = "4285", field: str = "rate") -> FrameStack:
     pat = re.compile(r"imergert_alpha\.(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)\.png$")
     files = sorted((p for p in folder.iterdir() if pat.search(p.name)), key=lambda p: p.name)
     if not files:
@@ -54,12 +97,18 @@ def load_imerg_pngs(folder: Path, width: int = 1440, dataset: str = "4285") -> F
         if img is None or img.ndim != 3 or img.shape[2] != 4:
             raise ValueError(f"Expected RGBA PNG: {p}")
         h = round(img.shape[0] * width / img.shape[1])
-        a = cv2.resize(img[:, :, 3], (width, h), interpolation=cv2.INTER_AREA)
-        frames.append(a.astype(np.float32) / 255.0)
+        rgba = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+        if field == "alpha":
+            f = rgba[:, :, 3].astype(np.float32) / 255.0
+        else:  # decode at 1800 px wide (exact palette), then area-average down
+            small = cv2.resize(rgba, (1800, 900), interpolation=cv2.INTER_NEAREST)
+            f = decode_rate(small)
+        frames.append(cv2.resize(f, (width, h), interpolation=cv2.INTER_AREA))
     dt = (_parse_time(times[1]) - _parse_time(times[0])).total_seconds() / 3600 if len(times) > 1 else 1.0
     fields = np.stack(frames)
+    units = "relative precipitation (PNG alpha)" if field == "alpha" else "precipitation rate, log scale 0.1..50 mm/h"
     return FrameStack(dataset, fields, Grid(width, fields.shape[1]), times, dt,
-                      "relative precipitation (PNG alpha)", (0.0, 1.0), f"{folder}/imergert_alpha.*.png")
+                      units, (0.0, 1.0), f"{folder}/imergert_alpha.*.png")
 
 
 def load_web_grid(header: Path, width: int | None = None, start: int = 0, count: int | None = None,

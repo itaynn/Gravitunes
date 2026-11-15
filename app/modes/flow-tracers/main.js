@@ -1,25 +1,28 @@
-// Flow tracers: a few dozen evenly scattered points drift with the apparent motion of the data (optical flow,
-// analysis/scripts/flow-tracers/build.py) and sing as they go. Pitch <- value under the tracer (scale-quantized,
-// low register), loudness <- value, pan <- longitude, brightness <- tracer speed, timbre <- world-orchestra region.
+// Flow tracers: the original NASA IMERG frames (cross-faded, over land and coastlines) with ~1000 faint particles
+// streaming along the apparent motion of the rain (optical flow, analysis/scripts/flow-tracers/build.py), plus a
+// few dozen larger "singing" tracers. A singing tracer over rain plays a note: heavier rain = higher and louder,
+// faster motion = brighter, east/west = right/left, timbre = world-orchestra region. Dry tracers are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, noteName, scaleFreqs } from '../../core/scales.js';
+import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
-import { loadEarth, valueHelpers } from '../../core/data.js';
-import { volumeSlider, soundHint, fold, timbreControl } from '../../core/ui.js';
-import { rng, scatter, stepTracer, pickVoices, speedBrightness, hoverGesture } from './tracers.js';
+import { loadEarth } from '../../core/data.js';
+import { MAX_FUND_HZ } from '../../core/sound.js';
+import { volumeSlider, fold, timbreControl } from '../../core/ui.js';
+import { createBackdrop } from '../../core/svs-frames.js';
+import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle, rateText } from './tracers.js';
+
+// Pitch range: the shared bounds (C2 up to the engine's top fundamental).
+const LOW_HZ = noteHz(-24), HIGH_HZ = MAX_FUND_HZ;
+const DRY = 0.02;   // field value of the lightest rain colour (0.1 mm/h); below = dry
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, setup = null;
-  // The mode's own copy of the dataset (mode.json datasetDirs) also holds the flow layers.
   const dir = new URL(dataset.dir, location.href);
   (async () => {
-    const [flowData, mj, ij] = await Promise.all([
-      loadFlow(dir, null),
-      loadEarth('musical-centers'), loadEarth('instruments'),
-    ]);
+    const [flowData, mj, ij] = await Promise.all([loadFlow(dir, null), loadEarth('musical-centers'), loadEarth('instruments')]);
     if (!alive) return;
     setup = run(flowData, mj.centers, ij.instruments);
   })().catch((e) => { console.error(e); describe(`Flow tracers could not load (only dataset 4285 is prepared): ${e.message}`); });
@@ -27,44 +30,47 @@ export default function start(ctx) {
   function run({ header, layers }, centers, instruments) {
     const flow = layerByPrefix(layers, 'flow_');
     const dtH = header.dt_hours || dataset.stepHours || 0.5;
-    const { norm, fmtV } = valueHelpers(dataset);
     const instIds = Object.keys(instruments);
     const instLabel = (id) => instruments[id]?.label || id;
+    const backdrop = createBackdrop(dir, { viewer, time });
 
-    const s = {
-      count: 30, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
-      lowSemis: -17, highSemis: 7, minValue: 0.06, drift: 4, respawn: true, arrows: true, volume: 0.6, seed: 1,
-    };
-    let tracers = [];
+    const s = { count: 24, particles: 1200, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
+      drift: 5, arrows: false, volume: 0.6, sound: true };
     const random = rng(Date.now() & 0xffff);
-    const hasRain = (t) => (lat, lon) => (dataset.valueAt(lat, lon, t) ?? 0) >= s.minValue;
+    const val = (lat, lon, t = time.now()) => dataset.valueAt(lat, lon, t) ?? 0;
+    const rainy = (t) => (lat, lon) => val(lat, lon, t) >= DRY;
+    let tracers = [], parts = [];
 
-    function rescatter() {
-      tracers = scatter(s.count, { random }).map((p, id) => ({ id, ...p, quiet: 0, trail: [] }));
-      refreshValues(time.now());
-      viewer.redraw();
+    function spawn(p = {}) {
+      const t = time.now();
+      let lat = 0, lon = 0;
+      for (let k = 0; k < 25; k++) {
+        lat = (Math.asin(random() * 2 - 1) * 180) / Math.PI * 0.9; lon = random() * 360 - 180;
+        if (val(lat, lon, t) >= DRY) break;
+      }
+      return Object.assign(p, { lat, lon, age: 0, idle: 0, life: 40 + random() * 60 });
     }
-    function refreshValues(t) {
-      tracers = tracers.map((tr) => ({ ...tr, value: dataset.valueAt(tr.lat, tr.lon, t) }));
+    function rescatter() {
+      tracers = scatter(s.count, { random, accept: rainy(time.now()) }).map((p, id) => ({ id, ...p, quiet: 0, u: 0, v: 0, speed: 0 }));
+      tracers.forEach((tr) => { tr.value = val(tr.lat, tr.lon); });
+      parts = Array.from({ length: s.particles }, () => spawn());
+      parts.forEach((p) => { p.age = random() * p.life; });
+      clearTrails();
     }
 
     function voiceFor(tr) {
       if (s.timbre === 'single') return { voice: instruments[s.single], name: instLabel(s.single) };
-      if (s.timbre === 'speed') {
-        const id = pickVoice(instIds, speedBrightness(tr.speed || 0));
-        return { voice: instruments[id], name: instLabel(id) };
-      }
+      if (s.timbre === 'speed') { const id = pickVoice(instIds, speedBrightness(tr.speed || 0)); return { voice: instruments[id], name: instLabel(id) }; }
       const r = voiceAt(tr.lat, tr.lon, centers, instruments, 900);
-      return { voice: r.voice, name: instLabel(r.primary.instrument), region: r.primary.region || r.primary.label };
+      return { voice: r.voice, name: instLabel(r.primary.instrument) };
     }
-    const noteFor = (value) => quantize(norm(value), [0, 1], s.scale, noteHz(s.lowSemis), noteHz(s.highSemis)).freq;
+    const tones = () => scaleFreqs(s.scale, LOW_HZ, HIGH_HZ);
+    // Pitch from the rain rate, within the lower two-thirds of the range so voice octave shifts stay inside it.
+    const noteFor = (value) => quantize(Math.min(1, value), [0, 1], s.scale, LOW_HZ, LOW_HZ * (HIGH_HZ / LOW_HZ) ** 0.7).freq;
     function sing(tr, { amp, dur, t = 0, pan = tr.lon / 180, sustained = false }) {
-      const { voice } = voiceFor(tr);
-      // The voice's octave shift, snapped back into the chosen scale within C2..C5.
-      const sh = voiceNote(voice, noteFor(tr.value), { tones: scaleFreqs(s.scale, noteHz(-24), noteHz(12)) }).note;
+      if (!s.sound) return null;
+      const sh = voiceNote(voiceFor(tr).voice, noteFor(tr.value), { tones: tones() }).note;
       const freq = sh.freq;
-      // Sustained lines: a pad envelope and a glide from the previous frame's pitch, so each tracer is one
-      // continuous note instead of a re-attack per frame (plucked voices would stutter otherwise).
       const envelope = sustained ? { attack: dur * 0.3, decay: 0.1, sustain: 0.9, release: dur * 0.3 } : sh.envelope;
       const glide = sustained && tr.lastFreq && tr.lastFreq !== freq ? { to: freq, time: dur * 0.5 } : undefined;
       sound.play({ freq: glide ? tr.lastFreq : freq, amp, pan, dur, t, harmonics: sh.harmonics, partials: sh.partials, envelope,
@@ -72,127 +78,168 @@ export default function start(ctx) {
       return freq;
     }
 
-    // ---- controls
-    panel.button('Re-scatter tracers', () => { rescatter(); describe(`${s.count} tracers scattered evenly over the map`); });
-    panel.slider('Tracer count', { min: 5, max: 80, step: 1, value: s.count, format: (v) => `${v} tracers` },
-      (v) => { s.count = v; rescatter(); });
-    panel.slider('Max voices', { min: 1, max: 12, step: 1, value: s.maxVoices, format: (v) => `${v} voices`,
-      hint: 'Only the loudest tracers (most rain) sing at once.' }, (v) => { s.maxVoices = v; });
-    timbreControl(panel, { options: [['region', 'World-orchestra region it passes'], ['single', 'Single voice'], ['speed', 'By speed']],
-      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
+    // ---- controls: Sound, Scale, Volume up front; the rest folded under "More".
+    const soundCb = panel.checkbox('Sound', s.sound, (v) => { s.sound = v; if (!v) sound.stopAll(); describe(v ? 'Sound on' : 'Sound off'); });
+    soundCb.setAttribute('aria-label', 'Sound on or off. Off silences every note; Play still animates the map.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
-    const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: noteName },
-      (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
-    const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: noteName,
-      hint: 'Pitch range, C2 to C5. Default G2 to G4.' }, (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
-    const driftSl = panel.slider('Drift exaggeration', { min: 1, max: 10, step: 1, value: s.drift, format: (v) => `${v} times real motion`,
-      hint: 'Tracers move this many times faster than the measured flow so the drift is easy to follow.' }, (v) => { s.drift = v; });
-    const respawnCb = panel.checkbox('Respawn quiet tracers', s.respawn, (v) => { s.respawn = v; },
-      { hint: 'A tracer that has been in dry air for a few frames jumps to a new rainy spot.' });
-    panel.checkbox('Show flow arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
-    // Less-used settings in a collapsed "More settings" disclosure.
-    const more = fold('More settings', [low, high, driftSl, respawnCb]);
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
-    panel.text('Motion is the apparent motion of the rain pattern (optical flow), not wind.');
+    const howTo = panel.text('How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.');
+    howTo.classList.add('hint');
+    const legend = document.createElement('p');
+    legend.className = 'hint';
+    legend.innerHTML = '<span aria-hidden="true" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffd166;border:2px solid #000;vertical-align:middle"></span> singing (over rain) '
+      + '&nbsp;<span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;border:2px solid #dfe6ee;vertical-align:middle"></span> silent (dry) '
+      + '&nbsp;<span aria-hidden="true" style="display:inline-block;width:18px;height:2px;background:#fff;vertical-align:middle"></span> streams = rain motion';
+    howTo.after(legend);
+    const timbre = timbreControl(panel, { options: [['region', 'By region'], ['single', 'One voice'], ['speed', 'By speed']],
+      value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
+    const countSl = panel.slider('Tracers', { min: 5, max: 60, step: 1, value: s.count, format: (v) => `${v} singing tracers` }, (v) => { s.count = v; rescatter(); });
+    const voicesSl = panel.slider('Voices', { min: 1, max: 12, step: 1, value: s.maxVoices, format: (v) => `at most ${v} notes at once` }, (v) => { s.maxVoices = v; });
+    const driftSl = panel.slider('Speed-up', { min: 1, max: 8, step: 1, value: s.drift, format: (v) => `tracers move ${v} times faster than the measured flow` }, (v) => { s.drift = v; });
+    const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
+    arrowsCb.setAttribute('aria-label', 'Show flow arrows');
+    const more = fold('More', [timbre.timbre, timbre.single, countSl, voicesSl, driftSl, arrowsCb]);
+    // The NASA colour bars replace the host's generic one.
+    const hostBar = document.getElementById('colorbar');
+    if (hostBar) hostBar.hidden = true;
+    const bars = document.createElement('div');
+    (hostBar || viewer.canvas).after(bars);
+    backdrop.colorbars().then((ims) => { if (alive) bars.append(...ims); });
 
-    // ---- frames
-    let prevT = time.now();
+    // ---- sound: one sustained line per singing tracer, re-struck each frame while playing
+    let singing = new Set(), prevFreq = new Map(), prevT = time.now();
     const offFrame = time.onFrame((t) => {
-      const forward = t === prevT + 1 || (prevT === time.count - 1 && t === 0);
+      const forward = t === (prevT + 1) % time.count;
       prevT = t;
-      if (!forward) { refreshValues(t); viewer.redraw(); return; }
-      const value = (lat, lon) => dataset.valueAt(lat, lon, t);
-      tracers = tracers.map((tr) => stepTracer(tr, flow, t, dtH * s.drift, { value, minValue: s.minValue }));
-      if (s.respawn) {
-        const dead = tracers.filter((tr) => tr.quiet >= 4);
-        if (dead.length) {
-          const fresh = scatter(dead.length, { random, accept: hasRain(t), avoid: tracers.filter((tr) => tr.quiet < 4) });
-          let k = 0;
-          tracers = tracers.map((tr) => (tr.quiet >= 4 ? { id: tr.id, ...fresh[k++], quiet: 0, trail: [], speed: 0,
-            value: dataset.valueAt(fresh[k - 1].lat, fresh[k - 1].lon, t) } : tr));
-        }
+      tracers.forEach((tr) => { tr.value = val(tr.lat, tr.lon, t); tr.quiet = tr.value >= DRY ? 0 : (tr.quiet || 0) + 1; });
+      // A tracer dry for 4 frames jumps to a rainy spot.
+      const dead = tracers.filter((tr) => tr.quiet >= 4);
+      if (dead.length) {
+        const fresh = scatter(dead.length, { random, accept: rainy(t), avoid: tracers.filter((tr) => tr.quiet < 4) });
+        dead.forEach((tr, k) => Object.assign(tr, fresh[k], { quiet: 0, hist: [], value: val(fresh[k].lat, fresh[k].lon, t) }));
       }
+      const on = pickVoices(tracers, s.maxVoices, DRY);
+      singing = new Set(on.map((i) => tracers[i].id));
+      if (!forward || !time.playing || !s.sound) { prevFreq = new Map(); return; }
       const frameDur = 1 / Math.max(0.1, time.fps || 2);
-      const on = pickVoices(tracers, s.maxVoices, s.minValue);
-      const lastFreq = new Map();
+      const next = new Map();
       on.forEach((i, k) => {
         const tr = tracers[i];
-        // Re-struck every frame with overlap, gliding from the last pitch: a sustained, slowly changing line per tracer.
-        lastFreq.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * norm(tr.value)) / Math.sqrt(on.length),
+        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * tr.value) / Math.sqrt(on.length),
           dur: frameDur * 1.1, t: (k * 0.02) % frameDur, sustained: true }));
       });
-      prevFreq = lastFreq;
-      singing = new Set(on.map((i) => tracers[i].id));
-      viewer.redraw();
+      prevFreq = next;
     });
-    let singing = new Set(), prevFreq = new Map();
+    const offPlay = time.onPlayState((p) => { if (!p) sound.stopAll(); });
 
     // Screen-reader summary while playing.
     const sumTimer = setInterval(() => {
       if (!time.playing) return;
-      const on = pickVoices(tracers, s.maxVoices, s.minValue).map((i) => tracers[i]);
+      const on = pickVoices(tracers, s.maxVoices, DRY).map((i) => tracers[i]);
       if (!on.length) { describe(`${time.label()}. All tracers are in dry air.`); return; }
       const top = on[0];
-      const regions = [...new Set(on.map((tr) => voiceFor(tr).name))].slice(0, 3);
-      describe(`${time.label()}. ${on.length} tracers singing (${regions.join(', ')}). Loudest moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
+      describe(`${time.label()}. ${on.length} tracers singing. Loudest: ${rateText(top.value)}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
     }, 6000);
 
-    // ---- hover / keys: local flow as a short gesture
-    // Announce only when the 3-degree cell or nearby tracer changes; the gesture plays when paused or on click/Enter.
+    // ---- keys / click: describe the spot (text). Mouse hover is silent and says nothing; Enter or click also plays it.
     let lastKey = null;
-    function probe({ lat, lon }, force = false) {
+    function probe({ lat, lon, keyboard = false }, play = false) {
+      if (!keyboard && !play) return;
       const t = time.now();
-      const f = flowAt(flow, lat, lon, t);
-      const v = dataset.valueAt(lat, lon, t);
-      const near = tracers.find((tr) => Math.abs(tr.lat - lat) < 3 && Math.abs(((tr.lon - lon + 540) % 360) - 180) < 3);
-      const tracerTxt = near ? ` Tracer ${near.id + 1} is here.` : '';
-      const key = `${Math.floor(lat / 3)},${Math.floor(lon / 3)},${near?.id ?? ''}`;
-      if (!force && key === lastKey) return;
+      const f = flowAt(flow, lat, lon, t), v = val(lat, lon, t);
+      const key = `${lat.toFixed(1)},${lon.toFixed(1)}`;
+      if (!play && key === lastKey) return;
       lastKey = key;
-      if (!f || v == null || v < s.minValue) {
-        describe(`${formatLatLon(lat, lon)}: ${v != null && v >= s.minValue ? fmtV(v) : 'dry'}, no detectable motion.${tracerTxt}`);
-        return;
+      const motion = f && v >= DRY ? `moving ${compass(f.u, f.v)} at ${Math.round(Math.hypot(f.u, f.v))} km/h` : 'no detectable motion';
+      describe(`${formatLatLon(lat, lon)}: ${rateText(v)}, ${motion}.`);
+      if (play && f && v >= DRY) {
+        const speed = Math.hypot(f.u, f.v), g = hoverGesture(f.u, f.v, lon), pt = { lat, lon, value: v, speed };
+        for (let k = 0; k < g.notes; k++) {
+          const x = g.notes > 1 ? k / (g.notes - 1) : 0;
+          sing(pt, { amp: 0.3, dur: 0.6 / g.rate, t: k / g.rate, pan: g.pan0 + (g.pan1 - g.pan0) * x });
+        }
       }
-      const speed = Math.hypot(f.u, f.v);
-      const g = hoverGesture(f.u, f.v, lon);
-      const probeTr = { lat, lon, value: v, speed };
-      if (force || !time.playing) for (let k = 0; k < g.notes; k++) {
-        const x = g.notes > 1 ? k / (g.notes - 1) : 0;
-        sing(probeTr, { amp: 0.3, dur: 0.6 / g.rate, t: k / g.rate, pan: g.pan0 + (g.pan1 - g.pan0) * x });
-      }
-      const vn = voiceFor(probeTr);
-      describe(`${formatLatLon(lat, lon)}: moving ${compass(f.u, f.v)}, ${Math.round(speed)} km/h, ${fmtV(v)}, ${vn.name}-inspired.${tracerTxt}`);
     }
     const offHover = input.onHover((p) => probe(p));
-    const offClick = input.onClick((p) => probe(p, true));
+    const offClick = input.onClick((p) => probe({ ...p, keyboard: true }, true));
 
-    // ---- visuals
+    // ---- animation: particles and tracers advect continuously (flow blended between frames, 10 steps a second)
+    // and keep their last ~2.5 s of positions, drawn as tails that fade toward the back.
+    const STEP = 0.1, KEEP = 25;
+    function clearTrails() { parts.forEach((p) => { p.hist = []; }); tracers.forEach((tr) => { tr.hist = []; }); }
+    let last = performance.now(), acc = 0, raf = 0;
+    function step() {
+      const t = time.now(), ph = backdrop.phase();
+      const hours = STEP * (time.fps || 2) * dtH * s.drift;
+      for (const p of parts) {
+        (p.hist ||= []).push([p.lat, p.lon]);
+        if (p.hist.length > KEEP) p.hist.shift();
+        if (!moveParticle(p, flowBetween(flow, p.lat, p.lon, t, ph, time.count), hours)) { spawn(p); p.hist = []; }
+      }
+      for (const tr of tracers) {
+        (tr.hist ||= []).push([tr.lat, tr.lon]);
+        if (tr.hist.length > KEEP) tr.hist.shift();
+        const f = flowBetween(flow, tr.lat, tr.lon, t, ph, time.count);
+        if (!f) continue;
+        const m = { lat: tr.lat, lon: tr.lon, age: 0, life: Infinity };
+        moveParticle(m, f, hours);
+        Object.assign(tr, { lat: m.lat, lon: m.lon, u: f.u, v: f.v, speed: Math.hypot(f.u, f.v) });
+      }
+    }
+    function tick(now) {
+      if (time.playing) {
+        acc += Math.min(0.25, (now - last) / 1000);
+        while (acc >= STEP) { step(); acc -= STEP; }
+        viewer.redraw();
+      }
+      last = now;
+      if (alive) raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    // Tails in 5 alpha bands (old = faint), each one batched path.
+    function tails(g, vw, list, color, width) {
+      const W = vw.canvas.width, bands = 5;
+      g.lineWidth = width; g.lineCap = 'round';
+      for (let b = 0; b < bands; b++) {
+        g.strokeStyle = color(((b + 1) / bands) ** 1.5); g.beginPath();
+        for (const p of list) {
+          const h = p.hist; if (!h || h.length < 2) continue;
+          const n = h.length, i0 = Math.floor((b * n) / bands), i1 = Math.floor(((b + 1) * n) / bands);
+          let prev = vw.toPixel(h[i0][0], h[i0][1]);
+          for (let i = i0 + 1; i <= i1; i++) {
+            const q = i < n ? h[i] : [p.lat, p.lon];
+            const cur = vw.toPixel(q[0], q[1]);
+            if (Math.abs(cur[0] - prev[0]) < W / 2) { g.moveTo(prev[0], prev[1]); g.lineTo(cur[0], cur[1]); }
+            prev = cur;
+          }
+        }
+        g.stroke();
+      }
+    }
+
     const removeOverlay = viewer.addOverlay((g, vw) => {
-      const W = vw.canvas.width, t = time.now();
+      backdrop.draw(g, vw);
+      if (s.arrows) drawFlowArrows(g, vw, flow, time.now());
+      const W = vw.canvas.width;
+      tails(g, vw, parts, (a) => `rgba(235,245,255,${0.7 * a})`, Math.max(1, W / 1100));
+      tails(g, vw, tracers, (a) => `rgba(255,209,102,${0.95 * a})`, Math.max(2, W / 500));
       g.save();
-      if (s.arrows) drawFlowArrows(g, vw, flow, t);
       for (const tr of tracers) {
         const [x, y] = vw.toPixel(tr.lat, tr.lon);
-        const pts = (tr.trail || []).map((p) => vw.toPixel(p.lat, p.lon));
-        g.strokeStyle = 'rgba(255,220,120,0.7)'; g.lineWidth = 2; g.beginPath();
-        let started = false;
-        for (const [px, py] of pts) {
-          if (started && Math.abs(px - x) > W / 2) { started = false; continue; }   // date-line jump
-          if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py);
-        }
-        if (started) g.lineTo(x, y);
-        g.stroke();
-        const on = singing.has(tr.id);
-        g.fillStyle = on ? '#ffd166' : 'rgba(70,70,70,0.85)'; g.strokeStyle = '#000'; g.lineWidth = 1;
-        g.beginPath(); g.arc(x, y, on ? 5 : 3, 0, 7); g.fill(); g.stroke();
+        g.beginPath(); g.arc(x, y, singing.has(tr.id) ? 6 : 3.5, 0, 7);
+        if (singing.has(tr.id)) { g.fillStyle = '#ffd166'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#000'; g.stroke(); }
+        else { g.lineWidth = 2; g.strokeStyle = '#dfe6ee'; g.stroke(); }
       }
       g.restore();
     });
+    backdrop.ready.then(() => viewer.redraw());
 
     rescatter();
-    soundHint(panel, sound, 'press Play. Without sound, motion is still announced.');
-    describe(`Flow tracers ready: ${s.count} tracers on precipitation. Press Play, or explore the map with the arrow keys to hear the local motion.`);
-    return () => { offFrame(); offHover(); offClick(); clearInterval(sumTimer); removeOverlay(); more.remove(); };
+    describe(`Flow tracers ready: NASA precipitation with ${s.count} singing tracers. Press Play to hear it, or use the arrow keys to explore.`);
+    return () => {
+      offFrame(); offPlay(); offHover(); offClick(); clearInterval(sumTimer); cancelAnimationFrame(raf);
+      removeOverlay(); more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
+    };
   }
 
   return () => { alive = false; setup?.(); };
