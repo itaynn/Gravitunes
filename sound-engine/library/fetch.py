@@ -65,10 +65,14 @@ def build_samples(manifest, only=None):
                     time.sleep(3.0)
             fade = min(0.25, z["dur"] * 0.3)
             af = f"afade=t=out:st={z['dur'] - fade:.3f}:d={fade:.3f}"
+            dn = s.get("denoise", "")  # optional per-sample ffmpeg chain: band-limit + afftdn noise reduction
+            pre = f"{dn}," if dn else ""
             if s.get("clean"):  # field recordings: 5 ms fade-in, lowpass ~7 kHz, peak-normalize to -1 dBFS
-                af = f"afade=t=in:d=0.005,lowpass=f=7000,{af}"
-                gain = peak_gain(src, z["start"], z["dur"], f"lowpass=f=7000")
+                af = f"{pre}afade=t=in:d=0.005,lowpass=f=7000,{af}"
+                gain = peak_gain(src, z["start"], z["dur"], f"{pre}lowpass=f=7000")
                 af += f",volume={gain:.2f}dB"
+            elif dn:
+                af = f"{pre}{af}"
             # clean cuts are low-passed at 7 kHz, so 16 kHz / 32 kb/s keeps everything audible at half the size
             rate, kbps = ("16000", "32k") if s.get("clean") else ("32000", "48k")
             cmd = ["ffmpeg", "-v", "error", "-y", "-ss", str(z["start"]), "-t", str(z["dur"]), "-i", str(src),

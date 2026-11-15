@@ -945,27 +945,27 @@
   ]
  },
  "gamelan": {
-  "label": "Gamelan (gong kebyar)",
+  "label": "Gamelan (saron)",
   "kind": "pluck",
   "realism": "recorded",
-  "license": "Public domain",
+  "license": "CC BY-SA 4.0",
   "source": "Wikimedia Commons",
-  "attribution": "\"Gamelan Gong Lagu Kebiar (1931).ogg\", Balinese court gamelan, from 'Musik des Orients' (E. M. von Hornbostel, Lindström 1931), public domain, via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Gamelan_Gong_Lagu_Kebiar_(1931).ogg",
+  "attribution": "\"Saron Salendro koleksi Jurusan Karawitan ISBI Bandung.wav\" by Salomo Christian Hutajulu, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/), via Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Saron_Salendro_koleksi_Jurusan_Karawitan_ISBI_Bandung.wav",
   "zones": [
    {
     "file": "gamelan-0.mp3",
-    "f0": 153.3,
-    "bytes": 3537
+    "f0": 494.5,
+    "bytes": 7713
    },
    {
     "file": "gamelan-1.mp3",
-    "f0": 285.5,
-    "bytes": 2961
+    "f0": 651.7,
+    "bytes": 4833
    },
    {
     "file": "gamelan-2.mp3",
-    "f0": 429.3,
-    "bytes": 4113
+    "f0": 1003.2,
+    "bytes": 4833
    }
   ]
  },
