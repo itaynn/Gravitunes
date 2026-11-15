@@ -158,7 +158,7 @@ export default function start(ctx) {
     (hostBar || viewer.canvas).after(bars);
     backdrop.colorbars().then((ims) => { if (alive) bars.append(...ims); });
 
-    // ---- click / Enter: solo the vortex there (again, or Escape: back to all). Mouse hover is silent.
+    // ---- click / Enter: solo the vortex there (again, empty map, or Escape: back to all). Mouse hover is silent.
     const vortexText = (v) => {
       const dirTxt = v.track?.direction === 'cw' ? 'clockwise' : 'counterclockwise';
       return `vortex ${v.id}, ${dirTxt}, ${periodText(v.spin)} (spins faster than ${Math.round(v.spinRank * 100)} percent of vortices), ${Math.round(v.r * 2 / 50) * 50} km wide, ${voiceFor(v).name}-inspired`;
@@ -180,7 +180,7 @@ export default function start(ctx) {
     }
     function onSelect({ lat, lon }) {
       const v = hit(lat, lon);
-      if (!v) { describe(`No vortex here. ${active.length} vortices at ${time.label()}.${soloId != null ? ' Press Escape to hear all again.' : ''}`); return; }
+      if (!v) { if (soloId != null) unsolo(); else describe(`No vortex here. ${active.length} vortices at ${time.label()}.`); return; }
       if (soloId === v.id) { unsolo(); return; }
       soloId = v.id; viewer.redraw();
       describe(`Solo: ${vortexText(v)}. ${time.playing ? '' : 'Press Play to hear it. '}Select it again or press Escape to hear all.`);
