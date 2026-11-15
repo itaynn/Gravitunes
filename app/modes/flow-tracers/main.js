@@ -11,10 +11,10 @@ import { rangeControl } from '../../core/range-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
 import { loadEarth } from '../../core/data.js';
-import { volumeSlider, fold, timbreControl } from '../../core/ui.js';
+import { volumeSlider, timbreControl } from '../../core/ui.js';
 import { createBackdrop, plainBackdrop } from '../../core/svs-frames.js';
 import { fieldOf } from '../../core/fields.js';
-import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle } from './tracers.js';
+import { rng, scatter, speedBrightness, hoverGesture, flowBetween, moveParticle, listenWeights, listenAmps } from './tracers.js';
 
 
 export default function start(ctx) {
@@ -38,7 +38,7 @@ export default function start(ctx) {
     sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
     const backdrop = field.rain ? createBackdrop(dir, { viewer, time }) : plainBackdrop({ time });
 
-    const s = { count: 24, particles: 1200, maxVoices: 6, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
+    const s = { count: 40, particles: 1200, maxVoices: 14, listen: 'everything', point: null, scale: 'pentatonic-minor', timbre: 'region', single: instIds[0],
       drift: 5, arrows: false, volume: 0.6, sound: true };
     const random = rng(Date.now() & 0xffff);
     const val = (lat, lon, t = time.now()) => field.level(lat, lon, t);
@@ -88,6 +88,17 @@ export default function start(ctx) {
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     range = rangeControl(panel, { describe });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
+    const listenSel = (panel.bar || panel).select('Listen', [['everything', 'Everything'], ['near', 'Near point']], (v) => setListen(v),
+      { value: s.listen, hint: 'Everything: the whole map sings, bigger and stronger features louder. Near point: click the map (or arrows and Enter) to hear what is near there.' });
+    function setListen(v, point = s.point) {
+      s.listen = v; s.point = v === 'near' ? point : null;
+      if (listenSel.value !== v) listenSel.value = v;
+      viewer.redraw();
+      describe(v === 'near'
+        ? (s.point ? `Listening near ${formatLatLon(s.point.lat, s.point.lon)}: closer tracers are louder. Escape or Listen: Everything returns to the whole map.`
+          : 'Listening near a point: click the map, or use the arrow keys and Enter, to choose where.')
+        : 'Listening to everything: the whole map sings, bigger and stronger features louder.');
+    }
     const howTo = panel.text(field.rain ? 'How it sounds: yellow tracers are over rain and sing. Heavier rain = higher, louder note; left/right = west/east.'
       : `How it sounds: yellow tracers are over high ${NAME} (above its median) and sing. Higher ${NAME} = higher, louder note; left/right = west/east.`);
     howTo.classList.add('hint');
@@ -98,11 +109,10 @@ export default function start(ctx) {
     const timbre = timbreControl(panel, { options: [['region', 'By region'], ['single', 'One voice'], ['speed', 'By speed']],
       value: s.timbre, single: s.single, instruments, onChange: (t) => Object.assign(s, t) });
     const countSl = panel.slider('Tracers', { min: 5, max: 60, step: 1, value: s.count, format: (v) => `${v} singing tracers` }, (v) => { s.count = v; rescatter(); });
-    const voicesSl = panel.slider('Voices', { min: 1, max: 12, step: 1, value: s.maxVoices, format: (v) => `at most ${v} notes at once` }, (v) => { s.maxVoices = v; });
+    const voicesSl = panel.slider('Voices', { min: 1, max: 16, step: 1, value: s.maxVoices, format: (v) => `at most ${v} notes at once` }, (v) => { s.maxVoices = v; });
     const driftSl = panel.slider('Speed-up', { min: 1, max: 8, step: 1, value: s.drift, format: (v) => `tracers move ${v} times faster than the measured flow` }, (v) => { s.drift = v; });
     const arrowsCb = panel.checkbox('Arrows', s.arrows, (v) => { s.arrows = v; viewer.redraw(); });
     arrowsCb.setAttribute('aria-label', 'Show flow arrows');
-    const more = fold('More', [timbre.timbre, timbre.single, countSl, voicesSl, driftSl, arrowsCb]);
     // Rain: the NASA colour bars replace the host's generic one (gases keep the host's).
     const hostBar = field.rain ? document.getElementById('colorbar') : null;
     if (hostBar) hostBar.hidden = true;
@@ -122,27 +132,33 @@ export default function start(ctx) {
         const fresh = scatter(dead.length, { random, accept: rainy(t), avoid: tracers.filter((tr) => tr.quiet < 4) });
         dead.forEach((tr, k) => Object.assign(tr, fresh[k], { quiet: 0, hist: [], value: val(fresh[k].lat, fresh[k].lon, t) }));
       }
-      const on = pickVoices(tracers, s.maxVoices, DRY);
+      const wts = weigh(), amps = listenAmps(wts);
+      const on = wts.map((x) => x.i);
       singing = new Set(on.map((i) => tracers[i].id));
       if (!forward || !time.playing || !s.sound) { prevFreq = new Map(); return; }
       const frameDur = 1 / Math.max(0.1, time.fps || 2);
       const next = new Map();
       on.forEach((i, k) => {
         const tr = tracers[i];
-        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: (0.12 + 0.4 * field.spread(tr.value)) / Math.sqrt(on.length),
+        next.set(tr.id, sing({ ...tr, lastFreq: prevFreq.get(tr.id) }, { amp: amps[k] * (0.4 + 0.6 * field.spread(tr.value)),
           dur: frameDur * 1.1, t: (k * 0.02) % frameDur, sustained: true }));
       });
       prevFreq = next;
     });
+    // Everything: strongest / biggest features across the globe; Near point: distance falloff from the marker.
+    function weigh() {
+      return listenWeights(tracers, { mode: s.listen === 'near' && s.point ? 'near' : 'everything', point: s.point, cap: s.maxVoices, minValue: DRY });
+    }
     const offPlay = time.onPlayState((p) => { if (!p) sound.stopAll(); });
 
     // Screen-reader summary while playing.
     const sumTimer = setInterval(() => {
       if (!time.playing) return;
-      const on = pickVoices(tracers, s.maxVoices, DRY).map((i) => tracers[i]);
-      if (!on.length) { describe(`${time.label()}. All tracers are over ${field.rain ? 'dry air' : `low ${NAME}`}.`); return; }
+      const on = weigh().map((x) => tracers[x.i]);
+      const where = s.listen === 'near' && s.point ? ` near ${formatLatLon(s.point.lat, s.point.lon)}` : '';
+      if (!on.length) { describe(`${time.label()}. No tracers singing${where}: ${field.rain ? 'dry air' : `low ${NAME}`}.`); return; }
       const top = on[0];
-      describe(`${time.label()}. ${on.length} tracers singing. Loudest: ${field.text(top.lat, top.lon, time.now())}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
+      describe(`${time.label()}. ${on.length} tracers singing${where}. Loudest: ${field.text(top.lat, top.lon, time.now())}, moving ${compass(top.u, top.v)} at ${Math.round(top.speed)} km/h.`);
     }, 6000);
 
     // ---- keys / click: describe the spot (text). Mouse hover is silent and says nothing; Enter or click also plays it.
@@ -165,7 +181,10 @@ export default function start(ctx) {
       }
     }
     const offHover = input.onHover((p) => probe(p));
-    const offClick = input.onClick((p) => probe({ ...p, keyboard: true }, true));
+    // Click / Enter also sets the listening point (switching to Near point); Escape returns to Everything.
+    const offClick = input.onClick((p) => { setListen('near', { lat: p.lat, lon: p.lon }); probe({ ...p, keyboard: true }, true); });
+    const onEsc = (e) => { if (e.key === 'Escape' && s.listen === 'near') { e.preventDefault(); setListen('everything'); } };
+    document.addEventListener('keydown', onEsc);
 
     // ---- animation: particles and tracers advect continuously (flow blended between frames, 10 steps a second)
     // and keep their last ~2.5 s of positions, drawn as tails that fade toward the back.
@@ -236,15 +255,22 @@ export default function start(ctx) {
         g.beginPath(); g.arc(x, y, r, 0, 7);
         g.fillStyle = '#ffd166'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#000'; g.stroke();
       }
+      if (s.listen === 'near' && s.point) {
+        const [x, y] = vw.toPixel(s.point.lat, s.point.lon), R = Math.max(10, W / 120);
+        g.lineWidth = 3; g.strokeStyle = '#000'; g.beginPath(); g.arc(x, y, R, 0, 7); g.stroke();
+        g.lineWidth = 2; g.strokeStyle = '#fff'; g.beginPath(); g.arc(x, y, R, 0, 7);
+        g.moveTo(x - R * 1.6, y); g.lineTo(x - R * 0.5, y); g.moveTo(x + R * 0.5, y); g.lineTo(x + R * 1.6, y);
+        g.moveTo(x, y - R * 1.6); g.lineTo(x, y - R * 0.5); g.moveTo(x, y + R * 0.5); g.lineTo(x, y + R * 1.6); g.stroke();
+      }
       g.restore();
     });
     backdrop.ready.then(() => viewer.redraw());
 
     rescatter();
-    describe(`Flow tracers ready: ${dataset.title}, with ${s.count} singing tracers following the motion of ${NAME}. Press Play to hear it, or use the arrow keys to explore; choose another dataset with the Data menu.`);
+    describe(`Flow tracers ready: ${dataset.title}, with ${s.count} singing tracers following the motion of ${NAME}. Listen: Everything (the whole map sings). Press Play to hear it; click the map to listen near a point, or use the arrow keys to explore; choose another dataset with the Data menu.`);
     return () => {
-      offFrame(); offPlay(); offHover(); offClick(); clearInterval(sumTimer); cancelAnimationFrame(raf);
-      removeOverlay(); more.remove(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
+      offFrame(); offPlay(); offHover(); offClick(); document.removeEventListener('keydown', onEsc); clearInterval(sumTimer); cancelAnimationFrame(raf);
+      removeOverlay(); legend.remove(); bars.remove(); backdrop.dispose(); if (hostBar) hostBar.hidden = false;
     };
   }
 
