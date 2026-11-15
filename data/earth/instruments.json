@@ -194,6 +194,7 @@
    "sample": "gamelan"
   },
   "sitar": {
+      "drone": true,
    "label": "sitar",
    "inspiredBy": "North Indian sitar",
    "family": "plucked, jawari buzz, meend slides",
@@ -774,6 +775,7 @@
    "sample": "bandoneon"
   },
   "didgeridoo": {
+      "drone": true,
    "label": "didgeridoo-like drone",
    "inspiredBy": "Australian didgeridoo (yidaki)",
    "family": "lip-buzzed drone, moving formants",
@@ -953,6 +955,7 @@
    "sample": "kalimba"
   },
   "duduk": {
+      "drone": true,
    "label": "duduk",
    "inspiredBy": "Armenian duduk (apricot-wood double-reed)",
    "family": "double reed, slow breathy swell, mournful slides",
@@ -1836,6 +1839,7 @@
    }
   },
   "bagpipe": {
+      "drone": true,
    "label": "bagpipe",
    "inspiredBy": "Scottish Highland bagpipe",
    "family": "chanter over a drone",
@@ -2170,6 +2174,7 @@
    }
   },
   "throat": {
+      "drone": true,
    "label": "throat singing",
    "inspiredBy": "Tuvan khöömei (throat singing)",
    "family": "low drone with a whistled overtone melody",
@@ -2210,6 +2215,7 @@
    }
   },
   "morinkhuur": {
+      "drone": true,
    "label": "morin khuur",
    "inspiredBy": "Mongolian morin khuur (horsehead fiddle)",
    "family": "two-string bowed fiddle",
@@ -2491,6 +2497,7 @@
    }
   },
   "shehnai": {
+      "drone": true,
    "label": "shehnai",
    "inspiredBy": "South Asian shehnai / nadaswaram",
    "family": "double-reed oboe",

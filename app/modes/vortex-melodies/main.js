@@ -42,7 +42,7 @@ export default function start(ctx) {
 
     const s = {
       scale: 'pentatonic-minor', map: { ...DEFAULT_MAP },
-      bed: true, arrows: false, streams: false, volume: 0.6,
+      bed: false, arrows: false, streams: false, volume: 0.6,
     };
     const backdrop = createBackdrop(dir, { viewer, time });
     // vortex id -> { t0, loop, root, n }: loop origin (performance clock, s), loop length, motif root, notes per loop. Kept for the
@@ -65,7 +65,7 @@ export default function start(ctx) {
     }
     function voiceFor(v) {
       const region = voiceAt(v.lat, v.lon, centers, instruments, 900);
-      return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary, sample: instruments[region.primary.instrument]?.sample, color: colorOf.get(region.primary.id) };
+      return { drone: !!instruments[region.primary.instrument]?.drone, voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary, sample: instruments[region.primary.instrument]?.sample, color: colorOf.get(region.primary.id) };
     }
     function motifOf(v) {
       const p = loopOf(v, clock), steps = motifSteps(p.n);
@@ -115,6 +115,20 @@ export default function start(ctx) {
             harmonics: [1, 0.3 + 0.3 * b, 0.1 + 0.25 * b, 0.1 * b], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur } });
         }
       }
+      // Drone only for drone-based traditions (instrument "drone": true): a soft held root under that vortex's tune.
+      if (time.playing) {
+        const frameDur = 1 / Math.max(0.1, time.fps || 2), list = soloId != null ? active.filter((v) => v.id === soloId) : active;
+        const droned = new Set();
+        for (const v of list) {
+          if (!voiceFor(v).drone) continue;
+          const freq = snapToScale(noteHz(motifOf(v).root) / 2, bedTones());
+          const key = `${Math.round(freq)}|${Math.round(v.lon / 30)}`;
+          if (droned.has(key)) continue;
+          droned.add(key);
+          sound.play({ freq, amp: 0.04 * mapped(v, s.map).loud, pan: v.lon / 180, dur: frameDur * 1.3,
+            harmonics: [1, 0.4, 0.2, 0.1], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur } });
+        }
+      }
       // Debounced so scrubbing does not flood the live region; one merged message after the host's "Paused at".
       clearTimeout(pausedTimer);
       if (!time.playing) pausedTimer = setTimeout(() => {
@@ -133,7 +147,7 @@ export default function start(ctx) {
     const legend = document.createElement('p');
     legend.className = 'hint';
     const legendList = document.createElement('span'), legendNote = document.createElement('span');
-    legendNote.textContent = ' Ring colour = instrument. The dot goes round once per tune (its direction is the spin). A low hum swells where rain converges.';
+    legendNote.textContent = ' Ring colour = instrument. The dot goes round once per tune (its direction is the spin). Drone only under drone-tradition instruments (sitar, bagpipe, didgeridoo...). Hum (More) adds a low hum where rain converges.';
     legend.append(legendList, legendNote);
     let legendKey = null;
     function updateLegend(vs) {
