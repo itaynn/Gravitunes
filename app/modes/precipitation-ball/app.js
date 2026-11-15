@@ -1,3 +1,6 @@
+import "../../core/switcher.js";
+import { rainFromColor, rainLevel as rainWords, scaleMidi, midiHz } from "../../core/imerg.js";
+
 (() => {
   "use strict";
 
@@ -148,18 +151,13 @@
 
   // Pitch follows the rain under the ball, on a C major pentatonic scale from C3 to C5.
   const PENTA = [0, 2, 4, 7, 9];
-  const RAIN_NOTES = Array.from({ length: 11 }, (_, i) => 48 + 12 * Math.floor(i / 5) + PENTA[i % 5]);
+  const RAIN_NOTES = scaleMidi(PENTA, 48, 11); // C3..C5 pentatonic
   function rainFrequency(rain) {
     const i = Math.round(Math.max(0, Math.min(1, rain)) * (RAIN_NOTES.length - 1));
-    return 440 * 2 ** ((RAIN_NOTES[i] - 69) / 12);
+    return midiHz(RAIN_NOTES[i]);
   }
 
-  function rainLevel(rain) {
-    if (rain <= MIN_SURFACE_HEIGHT) return "no rain";
-    if (rain < 0.25) return "light rain";
-    if (rain < 0.6) return "moderate rain";
-    return "heavy rain";
-  }
+  const rainLevel = (rain) => rainWords(rain, MIN_SURFACE_HEIGHT);
 
   function describeSpot(x, y) {
     const ns = y < WORLD_HEIGHT / 3 ? "north" : y > (2 * WORLD_HEIGHT) / 3 ? "south" : "";
@@ -193,13 +191,7 @@
     status.textContent = message;
   }
 
-  function colorToHeight(red, green, blue) {
-    const max = Math.max(red, green, blue);
-    if (max < 32) return 0;
-    const saturation = (max - Math.min(red, green, blue)) / max;
-    if (saturation < 0.22) return 0;
-    return Math.min(1, (red + blue) / 255) * saturation;
-  }
+  const colorToHeight = rainFromColor;
 
   function smoothField(source, target) {
     for (let y = 0; y < FIELD_HEIGHT; y += 1) {

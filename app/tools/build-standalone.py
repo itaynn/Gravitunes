@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / 'dist'
 MODES = ROOT / 'app' / 'modes'
-SKIP = {'storm-watch': '48 full-size PNG frames (~25 MB) plus 2.3 MB of tracks; too big for one file'}
+SKIP = {}
 DEFAULT_EVERY = 3  # a mode can override with "standalone": {"every": N} in mode.json
 DROP_SOURCES = ('.mp4',)
 FIRST = ['synth-lab', 'timbre-atlas']  # gallery order, as in app/core/switcher.js orderModes()

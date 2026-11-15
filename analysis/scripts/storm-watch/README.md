@@ -1,8 +1,8 @@
 # Storm Watch (analysis)
 
-By **itay**, brought over from his `clustering` branch (`storm-tracker/`). Run everything from the repo root. Inputs: `data/nasa-svs/4285/`. Output: `app/modes/storm-watch/data/preprocessed-tracks.json`.
+By **itay**, brought over from his `clustering` branch (`storm-tracker/`). Run everything from the repo root. Inputs: `data/nasa-svs/4285/`. Output: `app/modes/storm-watch/data/4285/storms.json`.
 
-Storm Watch follows precipitation shapes through the 48 bundled half-hourly NASA IMERG snapshots for 2026-11-07. The browser loads compact, offline-generated polygons from `app/modes/storm-watch/data/preprocessed-tracks.json`; it does not run inference or download a model.
+Storm Watch follows precipitation shapes through the 48 bundled half-hourly NASA IMERG snapshots for 2026-11-07. The browser loads compact, offline-generated polygons from `app/modes/storm-watch/data/4285/storms.json`; it does not run inference or download a model.
 
 ## Rebuild the polygon tracks
 
@@ -15,10 +15,10 @@ python -m pip install -r analysis/scripts/storm-watch/requirements.txt
 python analysis/scripts/storm-watch/preprocess.py
 ```
 
-The two runtime packages are NumPy and headless OpenCV; no neural-network runtime or model is required. The script analyzes all 48 bundled RGBA PNGs at 900 × 450 pixels and rewrites `app/modes/storm-watch/data/preprocessed-tracks.json`. Defaults are configurable, for example:
+The two runtime packages are NumPy and headless OpenCV; no neural-network runtime or model is required. The script analyzes all 48 bundled RGBA PNGs at 900 × 450 pixels and rewrites `app/modes/storm-watch/data/4285/storms.json`. Defaults are configurable, for example:
 
 ```sh
-python analysis/scripts/storm-watch/preprocess.py --minimum-area 200 --maximum-motion 64 --output app/modes/storm-watch/data/preprocessed-tracks.json
+python analysis/scripts/storm-watch/preprocess.py --minimum-area 200 --maximum-motion 64 --output app/modes/storm-watch/data/4285/storms.json
 ```
 
 The explainable CV pipeline thresholds the precipitation alpha channel, closes tiny mask gaps, detects dark saturated red/blue local core peaks, watershed-splits connected masks using separated core seeds, attaches nearby non-core fragments only when distance and color agree, and simplifies the resulting contours. Frame association forward-warps masks with Farneback optical flow, then scores overlap, advected core distance, area, and color. Core identity updates are motion-gated even when a merged component's mask overlaps; lineage anchors that cannot be matched are retained only while they remain inside the associated component. Family IDs still propagate across splits, while stale anchors no longer pull the marker away from a branch. The artifact contains polygon rings, track IDs, lineage, and core anchors rather than per-pixel label arrays.

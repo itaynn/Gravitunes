@@ -1,17 +1,19 @@
+import "../../core/switcher.js";
+import { rainStrength, scaleMidi, midiHz, midiName } from "../../core/imerg.js";
+
 (() => {
   "use strict";
 
   const PITCH_BANDS = 88;
   // The 88 image bands share a C major scale from C2 to C5 (22 notes, 4 bands each): no shrill highs.
   const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
-  const SCALE_NOTES = Array.from({ length: 22 }, (_, i) => 36 + 12 * Math.floor(i / 7) + MAJOR_STEPS[i % 7]);
+  const SCALE_NOTES = scaleMidi(MAJOR_STEPS, 36, 22);
   const bandMidi = (band) => SCALE_NOTES[Math.floor((band * SCALE_NOTES.length) / PITCH_BANDS)];
   const COLUMN_COUNT = 3600;
   const PROGRESS_INTERVAL_MS = 25;
   const AUDIO_START_LEAD_SECONDS = 0.05;
   const NOTE_ATTACK_SECONDS = 0.008;
   const NOTE_RELEASE_SECONDS = 0.08;
-  const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   const ACTIVE_THRESHOLD = 0.12;
 
   const image = document.querySelector("#sonification-source");
@@ -44,9 +46,7 @@
     status.textContent = message;
   }
 
-  function noteName(midiNote) {
-    return `${NOTE_NAMES[midiNote % 12]}${Math.floor(midiNote / 12) - 1}`;
-  }
+  const noteName = midiName;
 
   function drawScore() {
     const width = canvas.width;
@@ -108,18 +108,8 @@
       const pitchBand = Math.min(PITCH_BANDS - 1, Math.floor((image.naturalHeight - y - 1) / rowHeight));
       for (let x = 0; x < image.naturalWidth; x += 1) {
         const pixel = (y * image.naturalWidth + x) * 4;
-        const alpha = pixels[pixel + 3] / 255;
-        if (alpha === 0) continue;
-
-        const red = pixels[pixel];
-        const green = pixels[pixel + 1];
-        const blue = pixels[pixel + 2];
-        const maximum = Math.max(red, green, blue);
-        if (maximum < 30) continue;
-        const minimum = Math.min(red, green, blue);
-        const saturation = (maximum - minimum) / maximum;
-        const brightness = maximum / 255;
-        const colorStrength = alpha * (0.25 + saturation * 0.75) * (0.5 + brightness * 0.5);
+        const colorStrength = rainStrength(pixels[pixel], pixels[pixel + 1], pixels[pixel + 2], pixels[pixel + 3]);
+        if (colorStrength === 0) continue;
         const scoreIndex = x * PITCH_BANDS + pitchBand;
         score[scoreIndex] = Math.max(score[scoreIndex], colorStrength);
       }
@@ -170,7 +160,7 @@
       const oscillator = audioContext.createOscillator();
       const noteGain = audioContext.createGain();
       const midiNote = bandMidi(band);
-      const frequency = 440 * (2 ** ((midiNote - 69) / 12));
+      const frequency = midiHz(midiNote);
 
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(frequency, playbackStartTime);

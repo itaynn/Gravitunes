@@ -163,3 +163,40 @@ console.log('grid tests ok');
   }
   console.log('tuning switch tests ok');
 }
+
+// ---- storm tracks (core/storms.js) and IMERG helpers (core/imerg.js), on the real track file
+{
+  const S = await import('../core/storms.js');
+  const I = await import('../core/imerg.js');
+  const sq = (x, y, r) => [[x - r, y - r], [x + r, y - r], [x + r, y + r], [x - r, y + r]];
+  const a = { id: 1, lineageIds: [1], coreX: 100, coreY: 50, area: 400, polygons: [{ outer: sq(100, 50, 10), holes: [sq(100, 50, 3)] }] };
+  const b = { id: 2, lineageIds: [2, 7], coreX: 300, coreY: 200, area: 900, polygons: [{ outer: sq(300, 200, 15) }],
+    lineageAnchors: [{ id: 7, x: 305, y: 201 }] };
+  assert.equal(S.stormAt([a, b], 95, 50), a);
+  assert.equal(S.stormAt([a, b], 100, 50), null);        // in the hole
+  assert.equal(S.stepStorm([a, b], null, 1), b);         // largest first
+  assert.equal(S.stepStorm([a, b], 7, 1), a);            // 7 is in b's family
+  assert.deepEqual(S.anchorOf(b, 7), { x: 305, y: 201 });
+  const f = { components: [a, b], missingSources: [{ id: 7, lineageIds: [7] }, { id: 9, lineageIds: [9, 7] }] };
+  assert.deepEqual(S.familyParts(f, 7).parts, [b]);
+  assert.deepEqual(S.familyParts(f, 7).remembered.map((s) => s.id), [9]);
+  assert.match(S.stormPlace({ coreX: 450, coreY: 225 }, 900, 450), /tropical Europe and Africa, near 0°N 0°E/);
+  const c = S.stormColor(3);
+  assert.ok(c.css.startsWith('hsl(') && [c.r, c.g, c.b].every((v) => v >= 0 && v <= 255));
+  const p = S.latLonToGrid(10, 20, 900, 450), q = S.gridToLatLon(p.x, p.y, 900, 450);
+  near(q.lat, 10, 1e-9); near(q.lon, 20, 1e-9);
+  const file = join(dirname(fileURLToPath(import.meta.url)), '../modes/storm-watch/data/4285/storms.json');
+  const data = S.checkStormTracks(JSON.parse(readFileSync(file, 'utf8')), { frames: 48 });
+  assert.ok(data.frames.every((fr) => fr.components.every((x) => x.polygons.length)));
+  assert.throws(() => S.checkStormTracks({ version: 2 }));
+
+  assert.equal(I.rainFromColor(20, 20, 20), 0);
+  assert.ok(I.rainFromColor(200, 0, 0) > I.rainFromColor(120, 90, 90));
+  assert.equal(I.rainStrength(255, 0, 0, 0), 0);
+  assert.equal(I.rainLevel(0.7), 'heavy rain');
+  const major = I.scaleMidi([0, 2, 4, 5, 7, 9, 11], 36, 22);
+  assert.equal(major[0], 36); assert.equal(major.at(-1), 72);
+  assert.ok(I.scaleMidi([0, 2, 4, 7, 9], 48, 30).every((m) => m >= I.MIDI_C2 && m <= I.MIDI_C5));
+  near(I.midiHz(69), 440, 1e-3); assert.equal(I.midiName(60), 'C4');
+  console.log('storm and imerg helper tests ok');
+}

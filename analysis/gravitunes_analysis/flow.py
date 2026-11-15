@@ -119,6 +119,16 @@ def farneback(prev01: np.ndarray, next01: np.ndarray, params: FlowParams = FlowP
     return flow[:, pad:pad + prev01.shape[1]] if pad else flow
 
 
+def farneback_gray(prev: np.ndarray, nxt: np.ndarray, winsize: int = 21, levels: int = 3,
+                   gaussian: bool = False) -> np.ndarray:
+    """Plain Farneback on two uint8 images (no wrap, no smoothing): storm tracking uses this on masked
+    grey frames. Returns (H, W, 2) pixel displacement."""
+    return cv2.calcOpticalFlowFarneback(
+        prev, nxt, None, pyr_scale=0.5, levels=levels, winsize=winsize, iterations=3, poly_n=5,
+        poly_sigma=1.2, flags=cv2.OPTFLOW_FARNEBACK_GAUSSIAN if gaussian else 0,
+    )
+
+
 def valid_mask(field01: np.ndarray, params: FlowParams = FlowParams()) -> np.ndarray:
     f = np.nan_to_num(field01, nan=0.0)
     if params.pre_sigma > 0:

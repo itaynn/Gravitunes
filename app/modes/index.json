@@ -70,12 +70,14 @@
       "id": "storm-watch",
       "name": "Storm watch",
       "author": "itay",
-      "description": "Follows individual storms through 48 half-hourly IMERG snapshots using offline computer-vision tracks (OpenCV optical flow and watershed). From itay's clustering branch.",
+      "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Hover, or press N and P on the map, to hear about each storm: north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
       "datasets": [
         "4285"
       ],
-      "source": "itay, branch clustering",
-      "href": "index.html"
+      "datasetDirs": {
+        "4285": "data/4285/"
+      },
+      "source": "itay, branch clustering"
     },
     {
       "id": "synth-lab",

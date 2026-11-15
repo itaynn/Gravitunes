@@ -1,3 +1,9 @@
+import "../../core/switcher.js";
+import {
+  stormColor, stormAt, stormSize, stormPlace, stepStorm, bySize, anchorOf, drawStormShape, drawCoreMarker,
+  checkStormTracks,
+} from "../../core/storms.js";
+
 (() => {
   "use strict";
 
@@ -8,7 +14,7 @@
   const SEQUENCE_DURATION_MS = 12_500;
   const SETTINGS_STORAGE_KEY = "storm-watch.settings.v1";
   const SNAPSHOT_PATH = "../../../data/nasa-svs/4285/imergert_alpha.2026-11-07T";
-  const PREPROCESSED_PATH = "./data/preprocessed-tracks.json";
+  const PREPROCESSED_PATH = "./data/4285/storms.json";
 
   const canvas = document.querySelector("#storm-map");
   const context = canvas.getContext("2d");
@@ -930,11 +936,6 @@
     }
   }
 
-  function stormColor(id) {
-    const hue = (id * 137.508) % 360;
-    return { hue, rgb: `hsl(${hue} 96% 62%)` };
-  }
-
   function renderStormList(components) {
     list.replaceChildren();
     stormCount.textContent = `${components.length} DETECTED`;
@@ -954,7 +955,7 @@
       const isSelectedFamily = selectedStormId === component.id || component.lineageIds.includes(selectedStormId);
       button.setAttribute("aria-pressed", String(isSelectedFamily));
       const color = stormColor(isSelectedFamily ? selectedStormId : component.id);
-      button.style.setProperty("--storm-color", color.rgb);
+      button.style.setProperty("--storm-color", color.css);
       const title = document.createElement("span");
       title.className = "storm-option-title";
       title.textContent = `Storm ${isSelectedFamily ? selectedStormId : component.id}`;
@@ -1027,35 +1028,15 @@
       );
     if (preprocessedMode) {
       overlayContext.clearRect(0, 0, ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
-      function drawPolygons(component, fillAlpha, lineAlpha, dashed = false) {
-        const { hue } = stormColor(selectedStormId ?? component.id);
-        const color = hueToRgb(hue);
-        overlayContext.beginPath();
-        for (const polygon of component.polygons ?? []) {
-          for (const ring of [polygon.outer, ...(polygon.holes ?? [])]) {
-            if (!ring?.length) continue;
-            overlayContext.moveTo(ring[0][0], ring[0][1]);
-            for (let point = 1; point < ring.length; point += 1) {
-              overlayContext.lineTo(ring[point][0], ring[point][1]);
-            }
-            overlayContext.closePath();
-          }
-        }
-        overlayContext.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${fillAlpha})`;
-        overlayContext.fill("evenodd");
-        overlayContext.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${lineAlpha})`;
-        overlayContext.lineWidth = dashed ? 1 : 1.5;
-        overlayContext.setLineDash(dashed ? [5, 4] : []);
-        overlayContext.stroke();
-        overlayContext.setLineDash([]);
+      function drawPolygons(component, fill, line, dashed = false) {
+        drawStormShape(overlayContext, component, stormColor(selectedStormId ?? component.id), { fill, line, dashed });
       }
       for (const component of selected) drawPolygons(component, 0.35, 0.98);
       for (const source of remembered) drawPolygons(source, 0.14, 0.62, true);
     } else {
       const overlay = overlayContext.createImageData(ANALYSIS_WIDTH, ANALYSIS_HEIGHT);
       function paintMask(component, alpha, edgeAlpha, dx = 0, dy = 0) {
-        const { hue } = stormColor(selectedStormId ?? component.id);
-        const color = hueToRgb(hue);
+        const color = stormColor(selectedStormId ?? component.id);
         const translated = [];
         const memberPixels = new Set();
         for (const pixel of component.pixels) {
@@ -1099,52 +1080,12 @@
     context.drawImage(overlayCanvas, 0, 0, canvas.width, canvas.height);
     context.restore();
     if (selectedStormId !== null) {
-      const { rgb } = stormColor(selectedStormId);
-      function drawCoreMarker(x, y) {
-        const canvasX = x * canvas.width / ANALYSIS_WIDTH;
-        const canvasY = y * canvas.height / ANALYSIS_HEIGHT;
-        context.save();
-        context.shadowBlur = 12;
-        context.shadowColor = rgb;
-        context.strokeStyle = "#fff";
-        context.lineWidth = 3;
-        context.beginPath();
-        context.arc(canvasX, canvasY, 8, 0, Math.PI * 2);
-        context.stroke();
-        context.strokeStyle = rgb;
-        context.lineWidth = 2;
-        context.beginPath();
-        context.arc(canvasX, canvasY, 8, 0, Math.PI * 2);
-        context.stroke();
-        context.fillStyle = "#fff";
-        context.beginPath();
-        context.arc(canvasX, canvasY, 2, 0, Math.PI * 2);
-        context.fill();
-        context.restore();
-      }
-      if (selected.length) {
-        for (const component of selected) {
-          const anchor = component.lineageAnchors.find((item) => item.id === selectedStormId);
-          drawCoreMarker(anchor?.x ?? component.coreX, anchor?.y ?? component.coreY);
-        }
-      } else {
-        for (const source of remembered) {
-          const anchor = source.lineageAnchors?.find((item) => item.id === selectedStormId);
-          drawCoreMarker(anchor?.x ?? source.coreX, anchor?.y ?? source.coreY);
-        }
+      const { css } = stormColor(selectedStormId);
+      for (const part of selected.length ? selected : remembered) {
+        const { x, y } = anchorOf(part, selectedStormId);
+        drawCoreMarker(context, (x * canvas.width) / ANALYSIS_WIDTH, (y * canvas.height) / ANALYSIS_HEIGHT, css);
       }
     }
-  }
-
-  function hueToRgb(hue) {
-    const chroma = 1;
-    const x = chroma * (1 - Math.abs((hue / 60) % 2 - 1));
-    const section = Math.floor(hue / 60);
-    const values = [
-      [chroma, x, 0], [x, chroma, 0], [0, chroma, x],
-      [0, x, chroma], [x, 0, chroma], [chroma, 0, x],
-    ][section];
-    return { r: Math.round(values[0] * 255), g: Math.round(values[1] * 255), b: Math.round(values[2] * 255) };
   }
 
   function onMapClick(event) {
@@ -1154,10 +1095,7 @@
     if (x < 0 || x >= ANALYSIS_WIDTH || y < 0 || y >= ANALYSIS_HEIGHT) return;
     const components = analyzedFrames[currentFrameIndex]?.components ?? [];
     const component = preprocessedMode
-      ? [...components].reverse().find((item) => item.polygons?.some((polygon) =>
-        pointInRing(x, y, polygon.outer)
-        && !(polygon.holes ?? []).some((hole) => pointInRing(x, y, hole)),
-      ))
+      ? stormAt(components, x, y)
       : components.find((item) => item.label === analyzedFrames[currentFrameIndex]?.labels[y * ANALYSIS_WIDTH + x]);
     if (!component) {
       selectedStormId = null;
@@ -1168,22 +1106,13 @@
     renderFrame(currentFrameIndex);
   }
 
-  function pointInRing(x, y, ring) {
-    let inside = false;
-    for (let first = 0, second = ring.length - 1; first < ring.length; second = first, first += 1) {
-      const [x1, y1] = ring[first];
-      const [x2, y2] = ring[second];
-      if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) inside = !inside;
-    }
-    return inside;
-  }
-
   async function loadPreprocessed() {
     try {
       const response = await fetch(PREPROCESSED_PATH);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      if (data.version !== 1 || data.frames?.length !== SNAPSHOT_COUNT || data.width !== ANALYSIS_WIDTH || data.height !== ANALYSIS_HEIGHT) {
+      checkStormTracks(data, { frames: SNAPSHOT_COUNT });
+      if (data.width !== ANALYSIS_WIDTH || data.height !== ANALYSIS_HEIGHT) {
         throw new Error("Preprocessed polygon data has an unsupported format.");
       }
       analyzedFrames = data.frames.map((frame) => ({
@@ -1264,16 +1193,16 @@
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[keyEvent.key];
     if (!step) return;
     keyEvent.preventDefault();
-    const sorted = [...(analyzedFrames[currentFrameIndex]?.components ?? [])].sort((a, b) => b.area - a.area);
-    if (!sorted.length) {
+    const components = analyzedFrames[currentFrameIndex]?.components ?? [];
+    const sorted = bySize(components);
+    const next = stepStorm(components, selectedStormId, step);
+    if (!next) {
       status.textContent = "No storms in this frame.";
       return;
     }
-    const at = sorted.findIndex((c) => c.id === selectedStormId || c.lineageIds.includes(selectedStormId));
-    const next = sorted[at < 0 ? (step > 0 ? 0 : sorted.length - 1) : (at + step + sorted.length) % sorted.length];
     selectedStormId = next.id;
     renderFrame(currentFrameIndex);
-    status.textContent = `Storm ${next.id}, ${sorted.indexOf(next) + 1} of ${sorted.length}, ${stormSize(next, sorted)}, ${stormPlace(next)}.`;
+    status.textContent = `Storm ${next.id}, ${sorted.indexOf(next) + 1} of ${sorted.length}, ${stormSize(next, sorted)}, ${stormPlace(next, ANALYSIS_WIDTH, ANALYSIS_HEIGHT)}.`;
   });
   // PageUp/PageDown (or , and .) step through time while keeping the selected storm.
   canvas.addEventListener("keydown", (keyEvent) => {
@@ -1287,20 +1216,8 @@
       && components.find((c) => c.id === selectedStormId || c.lineageIds.includes(selectedStormId));
     status.textContent = `${formatTime(index)}, ${index + 1} of ${SNAPSHOT_COUNT}. `
       + (selectedStormId === null ? `${components.length} storms.`
-        : tracked ? `Storm ${selectedStormId} still tracked, ${stormPlace(tracked)}.` : `Storm ${selectedStormId} not detected now.`);
+        : tracked ? `Storm ${selectedStormId} still tracked, ${stormPlace(tracked, ANALYSIS_WIDTH, ANALYSIS_HEIGHT)}.` : `Storm ${selectedStormId} not detected now.`);
   });
-  function stormSize(c, sorted) {
-    const rank = sorted.indexOf(c) / Math.max(1, sorted.length - 1);
-    return rank < 0.25 ? "large" : rank < 0.7 ? "medium" : "small";
-  }
-  // Rough place from the storm's centre on the equirectangular analysis grid.
-  function stormPlace(c) {
-    const lon = (c.x / ANALYSIS_WIDTH) * 360 - 180, lat = 90 - (c.y / ANALYSIS_HEIGHT) * 180;
-    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return "location unknown";
-    const ns = lat > 23 ? "northern" : lat < -23 ? "southern" : "tropical";
-    const region = lon < -100 || lon > 145 ? "Pacific" : lon < -20 ? "Atlantic and the Americas" : lon < 60 ? "Europe and Africa" : "Asia and the Indian Ocean";
-    return `over the ${ns} ${region}, near ${Math.abs(Math.round(lat))}°${lat >= 0 ? "N" : "S"} ${Math.abs(Math.round(lon))}°${lon >= 0 ? "E" : "W"}`;
-  }
   settingsPanel.addEventListener("toggle", () => {
     settingsPanel.querySelector(".settings-toggle").textContent = settingsPanel.open ? "−" : "+";
   });

@@ -11,3 +11,7 @@ dependencies = ["numpy", "opencv-python-headless", "scipy"]
 
 [tool.setuptools]
 packages = ["gravitunes_analysis"]
+
+[project.scripts]
+gravitunes-storms = "gravitunes_analysis.storms:main"
+gravitunes-storm-benchmark = "gravitunes_analysis.storm_benchmark:main"
