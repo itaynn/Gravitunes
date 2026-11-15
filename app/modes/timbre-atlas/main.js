@@ -36,8 +36,9 @@ export default function start(ctx) {
     panel.text('Keys on the map: arrows move, [ and ] jump to the previous or next instrument region.');
     panel.text('Voices are hand-synthesized impressions "inspired by" each instrument, not recordings.');
 
-    let lastKey = null, lastAt = 0, lastLen = 0, keyboard = false;
-    function probe({ lat, lon }, force = false) {
+    let lastKey = null, lastAt = 0, lastLen = 0, jumping = false;
+    function probe({ lat, lon, keyboard: fromKey = false }, force = false) {
+      const keyboard = fromKey || jumping;
       const { primary, secondary, weight, voice } = voiceAt(lat, lon, centers, instruments, BLEND_KM);
       const key = primary.id, now = performance.now();
       const changed = key !== lastKey;
@@ -59,7 +60,7 @@ export default function start(ctx) {
     const offHover = input.onHover((p) => probe(p));
     const offClick = input.onClick((p) => probe(p, true));
 
-    // Mark keyboard-driven moves (capture runs before the viewer's own key handler), and add [ / ] region jumps.
+    // [ / ] region jumps (arrow-key moves arrive with keyboard: true from the input).
     const canvas = viewer.canvas;
     const onKey = (e) => {
       if (e.key === '[' || e.key === ']') {
@@ -68,12 +69,10 @@ export default function start(ctx) {
         const cur = voiceAt(lat, lon, centers, instruments, BLEND_KM).primary;
         const i = order.indexOf(cur), n = order.length;
         const c = order[(i + (e.key === ']' ? 1 : -1) + n) % n];
-        keyboard = true; lastKey = null; lastAt = 0;
-        input.moveTo(c.lat, c.lon);
-        keyboard = false;
+        jumping = true; lastKey = null; lastAt = 0;
+        try { input.moveTo(c.lat, c.lon); } finally { jumping = false; }
         return;
       }
-      if (e.key.startsWith('Arrow') || e.key === 'Home') { keyboard = true; queueMicrotask(() => { keyboard = false; }); }
     };
     canvas.addEventListener('keydown', onKey, true);
 

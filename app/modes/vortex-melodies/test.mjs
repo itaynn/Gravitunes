@@ -87,3 +87,13 @@ console.log(`vortex-melodies tests ok (${data.tracks.length} tracks, bed ${Math.
   assert.doesNotMatch(src, /world-orchestra\/|const getJson/);
 }
 console.log('vortex-melodies scale wiring ok');
+
+// keyboard text: nearest vortex distance and compass direction
+{
+  const { nearestText } = await import('./vortex.js');
+  const { distKm, compass } = await import('../../core/geo.js');
+  assert.equal(compass(0, 0, 10, -10), 'north-west'); assert.equal(compass(0, 0, -10, 0), 'south');
+  assert.equal(compass(0, 0, 0, 10), 'east');
+  assert.match(nearestText(0, 0, [{ lat: 10, lon: -10 }, { lat: -40, lon: 60 }], distKm, compass), /^no vortex; nearest 1600 km north-west$/);
+  assert.equal(nearestText(0, 0, [], distKm, compass), 'no vortex; none at this time');
+}

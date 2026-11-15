@@ -5,10 +5,10 @@ import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../c
 import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch, pickVoice } from '../../core/voices.js';
-import { voiceAt, distKm } from '../../core/geo.js';
+import { voiceAt, distKm, compass, formatLatLon } from '../../core/geo.js';
 import { getJson, loadEarth } from '../../core/data.js';
 import { volumeSlider, soundHint, throttle, timbreControl } from '../../core/ui.js';
-import { motifFreq, MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes } from './vortex.js';
+import { motifFreq, MOTIFS, orient, buildRanks, loopSeconds, motifIndex, activeVortices, convergence, periodText, dueNotes, nearestText } from './vortex.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -136,25 +136,28 @@ export default function start(ctx) {
     // ---- hover / keys: solo the vortex under the cursor and describe it
     let lastId = null;
     const ready = throttle(200);
-    function probe({ lat, lon }, force = false) {
-      if (!ready(force, () => probe({ lat, lon }, force))) return;
+    function probe({ lat, lon, keyboard = false }, force = false) {
+      if (!ready(force, () => probe({ lat, lon, keyboard }, force))) return;
       const now = performance.now();
       const t = time.now();
       const all = activeVortices(data, ranks, t, Infinity, trackById);
       let best = null, bestD = Infinity;
       for (const v of all) { const d = distKm(lat, lon, v.lat, v.lon); if (d < v.r + 400 && d < bestD) { bestD = d; best = v; } }
       if (!best) {
-        if (lastId != null || force) describe(`No vortex here. ${all.length} vortices at ${time.label()}.`);
+        // Keyboard moves always say where you are and where the nearest vortex is; mouse hover stays quiet.
+        if (keyboard) describe(`${formatLatLon(lat, lon)}: ${nearestText(lat, lon, all, distKm, compass)}.`);
+        else if (lastId != null || force) describe(`No vortex here. ${all.length} vortices at ${time.label()}.`);
         lastId = null; solo = null; return;
       }
       solo = { id: best.id, until: now / 1000 + 4 };
-      if (best.id === lastId && !force) return;
+      const same = best.id === lastId && !force;
+      if (same && !keyboard) return;
       lastId = best.id;
       const dirTxt = best.track?.direction === 'cw' ? 'clockwise' : 'counterclockwise';
       const { name } = voiceFor(best);
       const faster = Math.round(best.spinRank * 100);
-      describe(`Vortex ${best.id}, ${dirTxt}, ${periodText(best.spin)} (spins faster than ${faster} percent of vortices), ${Math.round(best.r * 2 / 50) * 50} km wide, ${name}-inspired.`);
-      if (!time.playing && s.melodies) {
+      describe(`${keyboard ? `${formatLatLon(lat, lon)}: ` : ''}Vortex ${best.id}, ${dirTxt}, ${periodText(best.spin)} (spins faster than ${faster} percent of vortices), ${Math.round(best.r * 2 / 50) * 50} km wide, ${name}-inspired.`);
+      if (!same && !time.playing && s.melodies) {
         const m = motifOf(best, voiceFor(best).center), step = loopSeconds(best.spinRank) / m.steps.length;
         const t0 = now / 1000 + 0.05;
         for (let k = 0; k < m.steps.length; k++) playStep({ ...best, loud: Math.max(0.6, best.loud) }, k, t0 + k * step);

@@ -101,7 +101,7 @@ export function createInput(viewer) {
   c.addEventListener('pointerdown', (e) => { c.focus(); emit(click, fromEvent(e)); emit(hover, fromEvent(e)); });
   c.style.touchAction = 'none';  // touch drag explores instead of scrolling
 
-  // Arrow keys move 5 degrees (Shift: 1, Alt: 20). Enter/Space = click. Home = 0,0.
+  // Arrow keys move 5 degrees (Shift: 1, Alt: 20). Enter/Space = click. Home = 0,0. Key moves carry keyboard: true.
   c.addEventListener('keydown', (e) => {
     const d = e.shiftKey ? 1 : e.altKey ? 20 : 5;
     let { lat, lon } = pos;
@@ -115,7 +115,7 @@ export function createInput(viewer) {
       default: return;
     }
     e.preventDefault();
-    emit(hover, { lat: clampLat(lat), lon: wrapLon(lon) });
+    emit(hover, { lat: clampLat(lat), lon: wrapLon(lon), keyboard: true });
   });
 
   const sub = (set) => (fn) => { set.add(fn); return () => set.delete(fn); };

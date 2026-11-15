@@ -14,6 +14,14 @@ export function distKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
+// 8-point compass direction from point 1 toward point 2, by initial great-circle bearing: "north-west".
+export function compass(lat1, lon1, lat2, lon2) {
+  const y = Math.sin(rad(lon2 - lon1)) * Math.cos(rad(lat2));
+  const x = Math.cos(rad(lat1)) * Math.sin(rad(lat2)) - Math.sin(rad(lat1)) * Math.cos(rad(lat2)) * Math.cos(rad(lon2 - lon1));
+  const deg = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  return ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][Math.round(deg / 45) % 8];
+}
+
 // The two nearest centers: [{center, km}, {center, km}].
 export function nearestCenters(lat, lon, centers) {
   return centers.map((c) => ({ center: c, km: distKm(lat, lon, c.lat, c.lon) }))

@@ -93,3 +93,11 @@ export function motifFreq(tones, rootHz, step, octave = 0) {
   const f = tones[Math.max(0, Math.min(tones.length - 1, root + step))] * 2 ** octave;
   return snapToScale(f, tones);
 }
+
+// Keyboard-move text when no vortex is under the cursor: "no vortex; nearest 1200 km north-west".
+export function nearestText(lat, lon, vortices, dist, compass) {
+  let best = null, bestD = Infinity;
+  for (const v of vortices) { const d = dist(lat, lon, v.lat, v.lon); if (d < bestD) { bestD = d; best = v; } }
+  if (!best) return 'no vortex; none at this time';
+  return `no vortex; nearest ${Math.round(bestD / 100) * 100} km ${compass(lat, lon, best.lat, best.lon)}`;
+}
