@@ -8,11 +8,13 @@ import {
 } from '../../core/storms.js';
 import { scaleFreqs, noteHz } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
-import { volumeSlider, soundHint, throttle, fold } from '../../core/ui.js';
+import { volumeSlider, soundHint, throttle } from '../../core/ui.js';
 import { voiceAt, centerColors } from '../../core/geo.js';
 import { shapeForPitch } from '../../core/voices.js';
 import { loadEarth } from '../../core/data.js';
-import { ranks, stormNote, noteTimes, panOf, kmBetween, cssToRgb, DEFAULT_MAP, PITCH_LOW, PITCH_HIGH } from './mapping.js';
+import {
+  ranks, stormTune, tuneFreq, tuneSteps, dueNotes, mixGains, markTurn, panOf, kmBetween, cssToRgb, DEFAULT_MAP, PITCH_LOW, PITCH_HIGH,
+} from './mapping.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
@@ -36,7 +38,7 @@ export default function start(ctx) {
       const { lat, lon } = gridToLatLon(c.coreX, c.coreY, W, H);
       const reg = voiceAt(lat, lon, centers, instruments, 900);
       const css = colorOf.get(reg.primary.id) || 'hsl(0 0% 75%)';
-      return { lat, lon, voice: reg.voice, sample: instruments[reg.primary.instrument]?.sample, name: instLabel(reg.primary.instrument), css, rgb: cssToRgb(css) };
+      return { lat, lon, inst: reg.primary.instrument, voice: reg.voice, sample: instruments[reg.primary.instrument]?.sample, name: instLabel(reg.primary.instrument), css, rgb: cssToRgb(css) };
     }
     const nameOf = (c) => `Storm ${s.followed != null && familyParts(frame(), s.followed).parts.includes(c) ? s.followed : c.id}`;
 
@@ -68,38 +70,86 @@ export default function start(ctx) {
       propCache.set(key, out);
       return out;
     }
-    // A storm's note: the region's instrument, panned by longitude; pitch, volume and tempo follow the storm
-    // properties chosen under More (default: bigger storms louder). Tempo repeats the note within `dur`.
-    function voice(c, comps, dur = 0.5) {
-      if (!c) return;
-      const reg = regionOf(c);
-      const { freq, amp, gap } = stormNote(ranks(c, comps, (x) => propsOf(x)), s.map, tones());
-      const sh = shapeForPitch(reg.voice, freq);
-      const times = noteTimes(gap, Math.max(dur, 0.45));
-      const each = gap == null ? Math.max(dur, sh.dur ?? 0) : Math.max(0.9 * gap, Math.min(sh.dur ?? 0, 2 * gap));
-      for (const t of times) {
-        sound.play({ freq, dur: each, amp, pan: panOf(reg.lon), sample: reg.sample, t,
-          harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah });
+    // ---- tunes. Every storm in the frame loops a short melody on its region's instrument, panned by longitude;
+    // pitch / volume / tempo / notes follow the storm properties chosen in the menus. A soloed storm (s.followed)
+    // plays alone. The loudest MAX_VOICES play together, normalised so many storms do not get louder.
+    const MAX_VOICES = 8;
+    // storm id -> { t0, loop }: loop origin (performance clock, s) and length, kept for the storm's life.
+    const phase = new Map();
+    let playing = [];   // [{ c, reg, tune, gain }] for this frame
+    let clock = performance.now() / 1000;
+    function loopOf(id, loop, now) {
+      let p = phase.get(id);
+      if (!p) { p = { t0: now, loop }; phase.set(id, p); }
+      else if (Math.abs(p.loop - loop) > 1e-6) { p.t0 = now - ((now - p.t0) / p.loop) * loop; p.loop = loop; }
+      return p;
+    }
+    function soloLead(f = frame()) {
+      if (s.followed == null) return null;
+      const { parts } = familyParts(f, s.followed);
+      return parts.length ? bySize(parts)[0] : null;
+    }
+    function computePlaying() {
+      const f = frame(), comps = f?.components ?? [];
+      const lead = soloLead(f);
+      const list = s.followed != null ? (lead ? [lead] : []) : comps;
+      const items = list.map((c) => ({ c, reg: regionOf(c), tune: stormTune(ranks(c, comps, (x) => propsOf(x)), s.map) }));
+      const gains = s.followed != null ? items.map((it) => it.tune.amp) : mixGains(items.map((it) => it.tune.amp), MAX_VOICES);
+      items.forEach((it, i) => { it.gain = gains[i]; });
+      playing = items.filter((it) => it.gain > 0);
+      const now = performance.now() / 1000;
+      for (const it of playing) loopOf(it.c.id, it.tune.loop, now);
+    }
+    const freqOf = (it, k) => tuneFreq(tones(), noteHz(it.tune.root), tuneSteps(it.tune.n)[k % it.tune.n]);
+    function playStep(it, k, at) {
+      const freq = freqOf(it, k), sh = shapeForPitch(it.reg.voice, freq), step = it.tune.loop / it.tune.n;
+      sound.play({ freq, amp: 0.4 * it.gain, pan: panOf(it.reg.lon), sample: it.reg.sample, t: Math.max(0, at - performance.now() / 1000),
+        dur: Math.min(sh.dur ?? 0.4, step * 0.9), harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
+        vibrato: sh.vibrato, wah: sh.wah });
+    }
+    // Scheduler: notes due in the next 150 ms.
+    let lastTick = performance.now() / 1000;
+    const sched = setInterval(() => {
+      const now = performance.now() / 1000, to = now + 0.15;
+      if (time.playing) {
+        for (const it of playing) {
+          const p = loopOf(it.c.id, it.tune.loop, now);
+          for (const { k, at } of dueNotes(it.tune.n, p.loop, p.t0, Math.max(lastTick, now), to)) playStep(it, k, at);
+        }
+      }
+      lastTick = to;
+    }, 100);
+    // Drone only for drone-tradition instruments ("drone": true): a soft held root an octave under that storm's tune.
+    function drones() {
+      const frameDur = 0.5, done = new Set();
+      for (const it of playing) {
+        if (!instruments[it.reg.inst]?.drone) continue;
+        const freq = tuneFreq(tones(), noteHz(it.tune.root), 0) / 2;
+        const key = `${Math.round(freq)}|${Math.round(it.reg.lon / 30)}`;
+        if (done.has(key)) continue;
+        done.add(key);
+        sound.play({ freq, amp: 0.05 * it.gain, pan: panOf(it.reg.lon), dur: frameDur * 1.3,
+          harmonics: [1, 0.4, 0.2, 0.1], envelope: { attack: frameDur * 0.4, decay: 0.2, sustain: 0.9, release: frameDur } });
       }
     }
+
     function say(c, comps) {
       const sorted = bySize(comps);
       const sp = propsOf(c).speed;
       return `${nameOf(c)}, ${sorted.indexOf(c) + 1} of ${sorted.length}, ${stormSize(c, sorted)}, ${stormPlace(c, W, H)}, ${regionOf(c).name}`
         + `${sp != null ? `, moving about ${Math.round(sp / 5) * 5} km/h` : ''}.`;
     }
-    function follow(c, { announce = true } = {}) {
+    function solo(c) {
       s.followed = c ? c.id : null;
-      viewer.redraw();
-      if (!announce) return;
-      if (!c) { describe('No storm followed.'); return; }
-      describe(`Following ${say(c, frame().components)} Page Up and Page Down step through time.`);
-      voice(c, frame().components, 0.8);
+      computePlaying(); viewer.redraw();
+      if (!c) { describe(`All ${frame().components.length} storms playing.`); return; }
+      describe(`Solo: ${say(c, frame().components)} ${time.playing ? '' : 'Press Play to hear it. '}Select it again, click empty map or press Escape to hear all.`);
     }
 
     const overlay = viewer.addOverlay((g, v) => {
       const f = frame();
       if (!f) return;
+      if (time.playing) clock = performance.now() / 1000;
       const sx = v.canvas.width / W, sy = v.canvas.height / H;
       g.save();
       if (s.outlines) for (const c of f.components) drawStormShape(g, c, regionOf(c).rgb, { fill: 0.08, line: 0.55, sx, sy });
@@ -112,8 +162,26 @@ export default function start(ctx) {
         const { x, y } = anchorOf(c, s.followed);
         drawCoreMarker(g, x * sx, y * sy, col.css);
       }
+      // Tune progress: a ring at each sounding storm's core with one tick per note and a dot that goes round
+      // once per tune, resting on note k's tick as it sounds.
+      for (const it of playing) {
+        const p = phase.get(it.c.id); if (!p) continue;
+        const n = it.tune.n, x = it.c.coreX * sx, y = it.c.coreY * sy, r = 11;
+        const turn = markTurn((clock - p.t0) / (p.loop / n), n);
+        const at = (fr) => { const a = fr * 2 * Math.PI - Math.PI / 2; return [x + r * Math.cos(a), y + r * Math.sin(a)]; };
+        g.lineWidth = 3; g.strokeStyle = '#000'; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.stroke();
+        g.lineWidth = 1.5; g.strokeStyle = it.reg.css; g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.stroke();
+        g.fillStyle = '#000';
+        for (let k = 0; k < n; k++) { const [tx, ty] = at(k / n); g.fillRect(tx - 1.5, ty - 1.5, 3, 3); }
+        const [dx, dy] = at(turn);
+        g.beginPath(); g.arc(dx, dy, 5, 0, 2 * Math.PI); g.fillStyle = '#000'; g.fill();
+        g.beginPath(); g.arc(dx, dy, 3.5, 0, 2 * Math.PI); g.fillStyle = s.followed != null ? '#fff' : it.reg.css; g.fill();
+      }
       g.restore();
     });
+    let raf = 0;
+    const spin = () => { if (time.playing) viewer.redraw(); raf = requestAnimationFrame(spin); };
+    raf = requestAnimationFrame(spin);
 
     // The storm under a point, else the one whose core is nearest within `near` grid pixels (cores can sit
     // just outside a ragged outline, and keyboard users land exactly on the core).
@@ -125,6 +193,7 @@ export default function start(ctx) {
       for (const c of comps) { const d = Math.hypot(c.coreX - x, c.coreY - y); if (d <= bd) { best = c; bd = d; } }
       return best;
     };
+    // Hover is silent: keyboard moves announce the storm there; the mouse only names it.
     const hoverSay = throttle(250);
     let lastHover = null;
     const offHover = input.onHover((p) => {
@@ -132,61 +201,77 @@ export default function start(ctx) {
       if (c?.id === lastHover) return;
       lastHover = c?.id ?? null;
       if (!c) return;
-      const tell = () => {
-        if (under(input.position())?.id !== c.id) return;
-        describe(`${say(c, frame().components)} Enter follows it.`);
-        if (p.keyboard) voice(c, frame().components, 0.3);   // the mouse only announces; sound needs a click, key or Play
-      };
+      const tell = () => { if (under(input.position(), 4)?.id === c.id) describe(`${say(c, frame().components)} Enter solos it.`); };
       if (hoverSay(false, tell)) tell();
     });
-    const offClick = input.onClick((p) => follow(under(p, 12)));
+    // Click / Enter: solo the storm there; again, on empty map, or Escape: back to all.
+    const offClick = input.onClick((p) => {
+      const c = under(p, 12);
+      if (!c) { if (s.followed != null) solo(null); else describe(`No storm here. ${frame().components.length} storms at ${time.label()}.`); return; }
+      if (s.followed != null && (c.id === s.followed || familyParts(frame(), s.followed).parts.includes(c))) { solo(null); return; }
+      solo(c);
+    });
 
-    // Keys on the map: N / P (or ] and [) pick the next / previous storm, largest first; PageUp/PageDown
-    // (or , and .) step time keeping the followed storm; Escape stops following. Arrows move the cursor.
+    // Keys on the map: N / P (or ] and [) move to the next / previous storm, largest first (Enter solos it);
+    // PageUp/PageDown (or , and .) step time; Escape returns to all storms. Arrows move the cursor.
+    let picked = null;
     function onKey(e) {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       const step = { n: 1, N: 1, ']': 1, p: -1, P: -1, '[': -1 }[e.key];
       if (step) {
         e.preventDefault();
-        const comps = frame().components, next = stepStorm(comps, s.followed, step);
+        const comps = frame().components, next = stepStorm(comps, picked, step);
         if (!next) { describe('No storms in this frame.'); return; }
-        follow(next, { announce: false });
+        picked = next.id;
         const { lat, lon } = gridToLatLon(next.coreX, next.coreY, W, H);
+        lastHover = next.id;
         input.moveTo(lat, lon);
-        describe(say(next, comps));
-        voice(next, comps, 0.6);
+        describe(`${say(next, comps)} Enter solos it.`);
         return;
       }
       const dt = { PageUp: -1, ',': -1, PageDown: 1, '.': 1 }[e.key];
       if (dt) { e.preventDefault(); time.pause(); stepped = true; time.step(dt); return; }
-      if (e.key === 'Escape' && s.followed != null) { e.preventDefault(); follow(null); }
+      if (e.key === 'Escape' && s.followed != null) { e.preventDefault(); solo(null); }
     }
     viewer.canvas.addEventListener('keydown', onKey);
+    const onEsc = (e) => { if (e.key === 'Escape' && s.followed != null && e.target !== viewer.canvas) solo(null); };
+    document.addEventListener('keydown', onEsc);
 
-    // Each new frame: redraw; while following, play the storm's note and say where it went when stepping.
-    function onFrame(byKey) {
+    // Each new frame: storms join and leave the tune set; describe when stepped by key or paused.
+    let stepped = false, pausedTimer = 0;
+    const offFrame = time.onFrame((t) => {
+      const byKey = stepped; stepped = false;
+      updateLegend();
+      const f = frame(), ids = new Set(f.components.map((c) => c.id));
+      for (const id of phase.keys()) if (!ids.has(id)) phase.delete(id);
+      if (s.followed != null && !familyParts(f, s.followed).parts.length && !familyParts(f, s.followed).remembered.length) {
+        s.followed = null; describe('The soloed storm has faded; all storms play again.');
+      }
+      computePlaying();
+      if (time.playing) drones();
       viewer.redraw();
-      const f = frame();
-      if (s.followed == null) { if (byKey) describe(`${time.label()}, ${f.components.length} storms.`); return; }
-      const { parts, remembered } = familyParts(f, s.followed);
-      const lead = parts.length ? bySize(parts)[0] : null;
-      if (lead) voice(lead, f.components, 0.45);
-      if (!byKey && time.playing) return;
-      describe(`${time.label()}. ` + (lead ? `Storm ${s.followed} ${parts.length > 1 ? `in ${parts.length} parts, ` : ''}${stormPlace(lead, W, H)}.`
-        : remembered.length ? `Storm ${s.followed} is below the size cutoff; showing where it is expected.`
-          : `Storm ${s.followed} is not detected now.`));
-    }
-    let stepped = false;
-    const offFrame = time.onFrame(() => { const k = stepped; stepped = false; updateLegend(); onFrame(k); });
+      clearTimeout(pausedTimer);
+      if (byKey || !time.playing) pausedTimer = setTimeout(() => {
+        if (!alive || time.playing) return;
+        const lead = soloLead();
+        describe(`${time.label()}. ` + (s.followed == null ? `${f.components.length} storms.`
+          : lead ? `Storm ${s.followed} ${stormPlace(lead, W, H)}.` : `Storm ${s.followed} is below the size cutoff; showing where it is expected.`));
+      }, byKey ? 0 : 400);
+    });
+    const offPlay = time.onPlayState((p) => {
+      const now = performance.now() / 1000;
+      if (!p) sound.stopAll?.(); else for (const q of phase.values()) q.t0 += now - clock;   // resume where the dots stopped
+      clock = now;
+    });
 
-    soundHint(panel, sound, 'hover over a storm or press N for the largest storm; Enter follows the storm under the cursor.');
+    soundHint(panel, sound, 'press Play to hear every storm; click a storm (or N, then Enter) to solo it.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume);
     // Legend: the instruments of the storms in this frame, in their outline colours.
     const legend = document.createElement('p');
     legend.className = 'hint';
     const legendList = document.createElement('span'), legendNote = document.createElement('span');
-    legendNote.textContent = ' Outline colour = instrument (the region where the storm is).';
+    legendNote.textContent = ' Outline colour = instrument (the region where the storm is). The dot goes round once per tune. Drone only under drone-tradition instruments.';
     legend.append(legendList, legendNote);
     let legendKey = null;
     function updateLegend() {
@@ -197,7 +282,7 @@ export default function start(ctx) {
       legendKey = key; legendList.replaceChildren();
       for (const [name, col] of seen) {
         const sw = document.createElement('span');
-        sw.setAttribute('aria-hidden', 'true'); sw.style.cssText = `color:${col};font-weight:bold`; sw.textContent = '\u25CF ';
+        sw.setAttribute('aria-hidden', 'true'); sw.style.cssText = `color:${col};font-weight:bold`; sw.textContent = '● ';
         const it = document.createElement('span'); it.style.marginRight = '.7em'; it.append(sw, name);
         legendList.append(it);
       }
@@ -206,35 +291,41 @@ export default function start(ctx) {
     updateLegend();
     // Mapping menus, one per sound property: which storm property it follows.
     const SOURCE_OPTS = [['nothing', 'Nothing'], ['size', 'Size'], ['latitude', 'Latitude'], ['rain', 'Rain intensity'], ['speed', 'Speed']];
-    const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo' };
+    const SOUND_NAMES = { pitch: 'Pitch', volume: 'Volume', tempo: 'Tempo', notes: 'Notes' };
     const MORE = { size: 'bigger', latitude: 'further north', rain: 'heavier rain', speed: 'faster moving' };
-    const EFFECT = { pitch: 'higher', volume: 'louder', tempo: 'faster repeats' };
-    const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'one note each time' };
-    const mapSels = ['pitch', 'volume', 'tempo'].map((key) => panel.select(`${SOUND_NAMES[key]} \u2190`, SOURCE_OPTS, (val) => {
-      s.map[key] = val;
+    const EFFECT = { pitch: 'higher', volume: 'louder', tempo: 'faster tune', notes: 'more notes, 3 to 8' };
+    const FIXED = { pitch: 'fixed middle pitch', volume: 'fixed volume', tempo: 'fixed tempo', notes: 'fixed at 5 notes' };
+    const mapSels = ['pitch', 'volume', 'tempo', 'notes'].map((key) => panel.select(`${SOUND_NAMES[key]} ←`, SOURCE_OPTS, (val) => {
+      s.map[key] = val; phase.clear(); computePlaying();
       const label = SOURCE_OPTS.find((o) => o[0] === val)[1].toLowerCase();
       describe(val === 'nothing' ? `${SOUND_NAMES[key]}: ${FIXED[key]}.`
         : `${SOUND_NAMES[key]} now follows ${label} (${MORE[val]} = ${EFFECT[key]}).`);
     }, { value: s.map[key] }));
-    const more = fold('More', mapSels);
-    more.before(legend);
+    // No hidden fold: the menus sit directly in the panel.
+    mapSels[0].before(legend);
     panel.checkbox('Outlines', s.outlines, (on) => { s.outlines = on; viewer.redraw(); },
-      { hint: 'Faint outlines of every tracked storm; the followed storm is always drawn bright.' });
-    panel.button('Largest', () => follow(bySize(frame().components)[0] ?? null)).setAttribute('aria-label', 'Follow the largest storm');
-    panel.button('Unfollow', () => follow(null)).setAttribute('aria-label', 'Stop following');
-    panel.text('Keys on the map: N and P pick storms (largest first), Enter follows the storm under the cursor, '
-      + 'Page Up and Page Down step through time, Escape stops following. Each region plays its own instrument, '
-      + 'panned left to right by longitude; bigger storms are louder. Under More, pitch, volume and tempo can each follow size, latitude, '
-      + 'rain intensity or speed.');
+      { hint: 'Faint outlines of every tracked storm; the soloed storm is always drawn bright.' });
+    panel.button('All storms', () => solo(null)).setAttribute('aria-label', 'Stop solo; hear all storms');
+    panel.text('Play: every storm loops a short tune on its region\'s instrument, panned left to right by longitude (the loudest 8 at once). '
+      + 'Click a storm, or press N and P then Enter, to solo it; click it again, click empty map or press Escape to hear all. '
+      + 'Page Up and Page Down step through time. Pitch, volume, tempo and number of notes can each follow size, latitude, '
+      + 'rain intensity or speed (menus above).');
     // The studio needs the full-size frames, so the single-file (blob:) build leaves the link out.
     if (!import.meta.url.startsWith('blob:')) {
       panel.text('', { visible: true }).append(Object.assign(document.createElement('a'), { href: new URL('studio.html', import.meta.url).href,
         textContent: 'Studio' }));
     }
-    describe(`${data.summary.trackCount} storms tracked across ${data.frames.length} frames. Press N for the largest storm.`);
+    computePlaying();
+    describe(`${data.summary.trackCount} storms tracked across ${data.frames.length} frames. Press Play to hear every storm; click one to solo it.`);
     viewer.redraw();
+    // For tests: what is scheduled now.
+    window.__stormWatch = { playing: () => playing.map((it) => ({ id: it.c.id, n: it.tune.n, loop: it.tune.loop, root: it.tune.root, gain: it.gain })), solo: () => s.followed };
 
-    return () => { more.remove(); legend.remove(); overlay(); offHover(); offClick(); offFrame(); viewer.canvas.removeEventListener('keydown', onKey); };
+    return () => {
+      clearInterval(sched); cancelAnimationFrame(raf); clearTimeout(pausedTimer); delete window.__stormWatch;
+      legend.remove(); overlay(); offHover(); offClick(); offFrame(); offPlay();
+      viewer.canvas.removeEventListener('keydown', onKey); document.removeEventListener('keydown', onEsc);
+    };
   }
 
   return () => { alive = false; cleanup(); };

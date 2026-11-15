@@ -1,8 +1,8 @@
 {
   "name": "Storm watch",
-  "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: each region plays its own instrument, bigger storms louder.",
+  "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Press Play to hear every storm loop a short tune on its region's instrument; click one to solo it.",
   "author": "itay",
-  "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): each region plays its own instrument, panned by longitude, and bigger storms are louder (under More, pitch, volume and tempo can each follow size, latitude, rain intensity or speed). Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
+  "description": "Follow storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Play: every storm loops a short melody on its region's instrument, panned by longitude (the loudest 8 at once); storms join and leave as the hours pass. Click a storm, or press N and P then Enter, to solo it; click it again, click empty map or press Escape to hear all. Pitch, volume, tempo and number of notes can each follow size, latitude, rain intensity or speed. The full tracking studio is linked from the panel. From itay's clustering branch.",
   "datasets": [
     "4285"
   ],
