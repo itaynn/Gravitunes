@@ -20,6 +20,6 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 1. Fresh critic per demo → fix → new critic, until clean
 
 ## Needs Moran
-- Listen in Chrome (`python3 -m http.server 8000` → `/app/`) or open `dist/index.html`
+- Listen in Chrome (`python3 app/tools/serve.py` → `/app/`; it supports byte ranges, which video seeking needs — plain `python3 -m http.server` does not) or open `dist/index.html`
 - Browser-only checks: `/sound-engine/tests/browser/smoke.html`, `realtime.html`, `playground.html#selftest`
 - Clean old worktrees (sandbox blocks it for Claude)

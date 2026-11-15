@@ -205,6 +205,29 @@ body.hts {
   display: grid;
   flex: 1;
   gap: 10px;
+  /* A taller hit area than the 2px track, so it is easy to click. */
+  padding: 10px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.hts-timeline[aria-disabled="true"] {
+  cursor: default;
+}
+
+.hts-timeline:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 4px;
+}
+
+.hts-timeline:not([aria-disabled="true"]):hover .hts-head,
+.hts-timeline.is-dragging .hts-head {
+  transform: scale(1.25);
+}
+
+.hts-head {
+  transition: transform 120ms ease;
 }
 
 .hts-track {
