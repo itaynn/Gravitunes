@@ -1,8 +1,8 @@
 {
   "name": "Storm watch",
-  "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: north sounds higher, bigger storms louder.",
+  "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Click a storm or press N to hear it: each region plays its own instrument, bigger storms louder.",
   "author": "itay",
-  "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
+  "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Click a storm, or press N and P on the map, to hear it (hovering only names it): each region plays its own instrument, panned by longitude, and bigger storms are louder (under More, size or latitude can drive pitch or volume instead). Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
   "datasets": [
     "4285"
   ],
@@ -12,8 +12,7 @@
   "source": "itay, branch clustering",
   "standalone": {
     "files": [
-      "sound-engine/library/samples/index.json",
-      "sound-engine/library/samples/marimba-*"
+      "sound-engine/library/samples/*"
     ]
   }
 }

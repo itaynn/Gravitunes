@@ -6,39 +6,53 @@ import {
   loadStormTracks, latLonToGrid, gridToLatLon, stormAt, stepStorm, bySize, familyParts, anchorOf,
   stormColor, stormSize, stormPlace, drawStormShape, drawCoreMarker,
 } from '../../core/storms.js';
-import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
+import { scaleFreqs, noteHz } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
-import { volumeSlider, soundHint, throttle } from '../../core/ui.js';
+import { volumeSlider, soundHint, throttle, fold } from '../../core/ui.js';
+import { voiceAt, centerColors } from '../../core/geo.js';
+import { shapeForPitch } from '../../core/voices.js';
+import { loadEarth } from '../../core/data.js';
+import { ranks, stormNote, panOf, cssToRgb, DEFAULT_MAP, PITCH_LOW, PITCH_HIGH } from './mapping.js';
 
 export default function start(ctx) {
   const { dataset, time, input, sound, panel, describe, viewer } = ctx;
   let alive = true, cleanup = () => {};
   const dir = new URL(dataset.dir, location.href);
-  loadStormTracks(new URL('storms.json', dir), { frames: time.count })
-    .then((data) => { if (alive) cleanup = run(data); })
+  Promise.all([loadStormTracks(new URL('storms.json', dir), { frames: time.count }), loadEarth('musical-centers'), loadEarth('instruments')])
+    .then(([data, mj, ij]) => { if (alive) cleanup = run(data, mj.centers, ij.instruments); })
     .catch((e) => { console.error(e); describe(`Storm tracks could not load (only dataset 4285 is prepared): ${e.message}`); });
 
-  function run(data) {
+  function run(data, centers, instruments) {
     const W = data.width, H = data.height;
-    sound.loadSamples?.(['marimba']);   // recorded marimba; synthesized until it loads
-    const s = { followed: null, outlines: true, scale: 'pentatonic-major', volume: 0.7 };
+    // Recorded samples for every instrument; until loaded (or on the built-in synth) notes are synthesized.
+    sound.loadSamples?.(Object.values(instruments).map((v) => v.sample).filter(Boolean));
+    const s = { followed: null, outlines: true, scale: 'pentatonic-major', volume: 0.7, map: { ...DEFAULT_MAP } };
     const frame = () => data.frames[time.now()];
-    const tones = () => scaleFreqs(s.scale, noteHz(-12), noteHz(24));   // C3..C6
+    const tones = () => scaleFreqs(s.scale, noteHz(PITCH_LOW), noteHz(PITCH_HIGH));   // C3..E6
+    const colorOf = centerColors(centers);   // same colours as World orchestra / Vortex melodies
+    const instLabel = (id) => instruments[id]?.label || id;
+    // The instrument of the region at a storm's core (and its colour).
+    function regionOf(c) {
+      const { lat, lon } = gridToLatLon(c.coreX, c.coreY, W, H);
+      const reg = voiceAt(lat, lon, centers, instruments, 900);
+      const css = colorOf.get(reg.primary.id) || 'hsl(0 0% 75%)';
+      return { lat, lon, voice: reg.voice, sample: instruments[reg.primary.instrument]?.sample, name: instLabel(reg.primary.instrument), css, rgb: cssToRgb(css) };
+    }
     const nameOf = (c) => `Storm ${s.followed != null && familyParts(frame(), s.followed).parts.includes(c) ? s.followed : c.id}`;
 
-    // A storm's note: north is higher, larger storms louder; pan follows longitude.
+    // A storm's note: the region's instrument, panned by longitude; size and latitude drive pitch or volume
+    // as chosen under More (default: bigger storms louder).
     function voice(c, comps, dur = 0.5) {
       if (!c) return;
-      const { lat, lon } = gridToLatLon(c.coreX, c.coreY, W, H);
-      const sorted = bySize(comps);
-      const big = 1 - sorted.indexOf(c) / Math.max(1, sorted.length - 1);
-      const north = Math.max(0, Math.min(1, (lat + 60) / 120));
-      const f = snapToScale(noteHz(-12) * 2 ** (3 * north), tones());
-      sound.play({ freq: f, duration: dur, amplitude: 0.25 + 0.5 * big, pan: lon / 180, sample: 'marimba', harmonics: [1, 0.35, 0.12] });
+      const reg = regionOf(c);
+      const { freq, amp } = stormNote(ranks(c, bySize(comps), reg.lat), s.map, tones());
+      const sh = shapeForPitch(reg.voice, freq);
+      sound.play({ freq, dur: Math.max(dur, sh.dur ?? 0), amp, pan: panOf(reg.lon), sample: reg.sample,
+        harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise, vibrato: sh.vibrato, wah: sh.wah });
     }
     function say(c, comps) {
       const sorted = bySize(comps);
-      return `${nameOf(c)}, ${sorted.indexOf(c) + 1} of ${sorted.length}, ${stormSize(c, sorted)}, ${stormPlace(c, W, H)}.`;
+      return `${nameOf(c)}, ${sorted.indexOf(c) + 1} of ${sorted.length}, ${stormSize(c, sorted)}, ${stormPlace(c, W, H)}, ${regionOf(c).name}.`;
     }
     function follow(c, { announce = true } = {}) {
       s.followed = c ? c.id : null;
@@ -54,9 +68,10 @@ export default function start(ctx) {
       if (!f) return;
       const sx = v.canvas.width / W, sy = v.canvas.height / H;
       g.save();
-      if (s.outlines) for (const c of f.components) drawStormShape(g, c, stormColor(c.id), { fill: 0.08, line: 0.45, sx, sy });
+      if (s.outlines) for (const c of f.components) drawStormShape(g, c, regionOf(c).rgb, { fill: 0.08, line: 0.55, sx, sy });
       const { parts, remembered } = familyParts(f, s.followed);
-      const col = s.followed != null ? stormColor(s.followed) : null;
+      const lead = bySize(parts.length ? parts : remembered)[0];
+      const col = lead ? regionOf(lead).rgb : s.followed != null ? stormColor(s.followed) : null;
       for (const c of parts) drawStormShape(g, c, col, { fill: 0.35, line: 0.98, sx, sy });
       for (const c of remembered) drawStormShape(g, c, col, { fill: 0.14, line: 0.62, dashed: true, sx, sy });
       for (const c of parts.length ? parts : remembered) {
@@ -128,17 +143,50 @@ export default function start(ctx) {
           : `Storm ${s.followed} is not detected now.`));
     }
     let stepped = false;
-    const offFrame = time.onFrame(() => { const k = stepped; stepped = false; onFrame(k); });
+    const offFrame = time.onFrame(() => { const k = stepped; stepped = false; updateLegend(); onFrame(k); });
 
     soundHint(panel, sound, 'hover over a storm or press N for the largest storm; Enter follows the storm under the cursor.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume);
+    // Legend: the instruments of the storms in this frame, in their outline colours.
+    const legend = document.createElement('p');
+    legend.className = 'hint';
+    const legendList = document.createElement('span'), legendNote = document.createElement('span');
+    legendNote.textContent = ' Outline colour = instrument (the region where the storm is).';
+    legend.append(legendList, legendNote);
+    let legendKey = null;
+    function updateLegend() {
+      const seen = new Map();
+      for (const c of frame()?.components ?? []) { const r = regionOf(c); if (!seen.has(r.name)) seen.set(r.name, r.css); }
+      const key = [...seen.keys()].join('|');
+      if (key === legendKey) return;
+      legendKey = key; legendList.replaceChildren();
+      for (const [name, col] of seen) {
+        const sw = document.createElement('span');
+        sw.setAttribute('aria-hidden', 'true'); sw.style.cssText = `color:${col};font-weight:bold`; sw.textContent = '\u25CF ';
+        const it = document.createElement('span'); it.style.marginRight = '.7em'; it.append(sw, name);
+        legendList.append(it);
+      }
+      if (!seen.size) legendList.textContent = 'No storms in this frame.';
+    }
+    updateLegend();
+    // Mapping menus: what size and latitude control.
+    const OPTS = [['nothing', 'Nothing'], ['pitch', 'Pitch'], ['volume', 'Volume']];
+    const PROP = { size: 'Size', latitude: 'Latitude' };
+    const NOTE = { size: { pitch: ' (bigger = higher)', volume: ' (bigger = louder)' }, latitude: { pitch: ' (north = higher)', volume: ' (north = louder)' } };
+    const mapSels = Object.keys(PROP).map((key) => panel.select(`${PROP[key]} \u2192`, OPTS, (val) => {
+      s.map[key] = val;
+      describe(`${PROP[key]} now controls ${OPTS.find((o) => o[0] === val)[1].toLowerCase()}${NOTE[key][val] ?? ''}.`);
+    }, { value: s.map[key] }));
+    const more = fold('More', mapSels);
+    more.before(legend);
     panel.checkbox('Outlines', s.outlines, (on) => { s.outlines = on; viewer.redraw(); },
       { hint: 'Faint outlines of every tracked storm; the followed storm is always drawn bright.' });
     panel.button('Largest', () => follow(bySize(frame().components)[0] ?? null)).setAttribute('aria-label', 'Follow the largest storm');
     panel.button('Unfollow', () => follow(null)).setAttribute('aria-label', 'Stop following');
     panel.text('Keys on the map: N and P pick storms (largest first), Enter follows the storm under the cursor, '
-      + 'Page Up and Page Down step through time, Escape stops following. North sounds higher, bigger storms louder.');
+      + 'Page Up and Page Down step through time, Escape stops following. Each region plays its own instrument, '
+      + 'panned left to right by longitude; bigger storms are louder (change it under More).');
     // The studio needs the full-size frames, so the single-file (blob:) build leaves the link out.
     if (!import.meta.url.startsWith('blob:')) {
       panel.text('', { visible: true }).append(Object.assign(document.createElement('a'), { href: new URL('studio.html', import.meta.url).href,
@@ -147,7 +195,7 @@ export default function start(ctx) {
     describe(`${data.summary.trackCount} storms tracked across ${data.frames.length} frames. Press N for the largest storm.`);
     viewer.redraw();
 
-    return () => { overlay(); offHover(); offClick(); offFrame(); viewer.canvas.removeEventListener('keydown', onKey); };
+    return () => { more.remove(); legend.remove(); overlay(); offHover(); offClick(); offFrame(); viewer.canvas.removeEventListener('keydown', onKey); };
   }
 
   return () => { alive = false; cleanup(); };
