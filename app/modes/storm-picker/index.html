@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="icon" href="data:,">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#090d18">
+    <meta
+      name="description"
+      content="Sound lab: choose which parts of the moving NASA IMERG rain and snow map drive pitch, loudness, overtones, instrument, chord and rhythm, and hear it live."
+    >
+    <title>Storm picker — Earth Jukebox</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./sonification.css">
+    <link rel="stylesheet" href="./soundlab.css?v=picker-5">
+    <script type="module" src="../../core/switcher.js"></script>
+    <script src="./soundlab.js?v=picker-5" defer></script>
+  </head>
+  <body>
+    <nav id="gt-switcher" aria-label="Demos"><a href="../../">All demos</a></nav>
+    <main class="page">
+      <header class="masthead">
+        <a class="brand" href="../../" aria-label="Back to the Gravitunes gallery">
+          <span class="brand-mark" aria-hidden="true">E</span>
+          <span>EARTH JUKEBOX <span class="brand-divider">/</span> STORM PICKER</span>
+        </a>
+        <nav class="masthead-links" aria-label="Related experiments">
+          <a class="source-link" href="../scanning-line/">Scanning line <span aria-hidden="true">↗</span></a>
+          <a
+            class="source-link"
+            href="https://svs.gsfc.nasa.gov/4285/"
+            target="_blank"
+            rel="noreferrer"
+          >NASA SVS 4285 <span aria-hidden="true">↗</span></a>
+        </nav>
+      </header>
+
+      <section class="lab" id="sound-lab" aria-labelledby="lab-title">
+        <div class="sonification-heading">
+          <div>
+            <p class="eyebrow">STORM PICKER / SOUND LAB ON THE MOVING MAP</p>
+            <h2 id="lab-title" class="lab-title">Pick it,<br><em>play it.</em></h2>
+          </div>
+          <p class="sonification-copy">
+            The moving NASA rain and snow map waits on its first frame. Move
+            over it to listen: left and right is which ear, up and down is the
+            pitch, and storms sound their rain or snowstorm. Click storms to
+            pick spots (each keeps sounding its storm), then press
+            <strong>Space</strong>: the day plays, the storm sounds stop, and
+            every pick drifts with its storm through the Sound lab mapping
+            below. A spinning storm adds vibrato (faster spin, faster vibrato;
+            taller spiral, wider), a spreading storm adds overtones and a
+            gathering one adds undertones.
+          </p>
+        </div>
+
+        <div class="lab-stage">
+          <video
+            id="lab-video"
+            class="lab-video"
+            src="../../../data/nasa-svs/4285/4285-imergert-current.mp4"
+            muted
+            loop
+            playsinline
+            preload="auto"
+            aria-hidden="true"
+          ></video>
+          <canvas
+            id="lab-canvas"
+            class="lab-canvas"
+            width="1200"
+            height="600"
+            tabindex="0"
+            role="img"
+            aria-label="Moving NASA precipitation map. Numbered circles are the voices that make sound. Click to place a listening probe; press Enter to place one near the center."
+          ></canvas>
+          <div class="lab-stage-top" aria-hidden="true">
+            <span><span class="live-dot"></span> <span id="lab-source">IMERG / 7 DAYS OF RAIN &amp; SNOW</span></span>
+            <span id="lab-time">LOADING</span>
+          </div>
+          <div class="lab-stage-key" aria-hidden="true">
+            <span><b class="key-shape key-rain">●</b> RAIN <span aria-hidden="true">→</span> <b class="key-shape key-snow">◆</b> SNOW (SHAPE &amp; COLOR BLEND)</span>
+            <span><i class="key-arrow"></i> MOTION</span>
+            <span><i class="key-ccw"></i> SPIN ↺</span>
+            <span><i class="key-cw"></i> SPIN ↻</span>
+          </div>
+        </div>
+
+        <div class="lab-deck">
+          <div class="sonification-buttons">
+            <button class="button button-primary" id="lab-play" type="button" disabled>
+              <span class="button-icon" aria-hidden="true">▶</span>
+              <span id="lab-play-label">Loading map</span>
+            </button>
+            <button class="button button-secondary" id="lab-stop" type="button" disabled>Stop</button>
+          </div>
+          <div class="lab-deck-tools">
+            <select class="lab-select" id="lab-preset" aria-label="Load a preset"></select>
+            <button class="button button-secondary" id="lab-random" type="button">Randomize</button>
+            <button class="button button-secondary" id="lab-copy" type="button">Copy mapping</button>
+            <button class="button button-secondary" id="lab-reset" type="button">Reset</button>
+            <button class="button button-secondary" id="lab-restart" type="button" hidden>Back to the first frame</button>
+            <button class="button button-secondary" id="lab-clear-probes" type="button" hidden>Clear picks</button>
+          </div>
+        </div>
+        <p class="sonification-status" id="lab-status" role="status" aria-live="polite">Loading the moving map…</p>
+
+        <h3 class="lab-subhead">01 / MAPPING: WHICH INPUT DRIVES EACH SOUND</h3>
+        <p class="lab-help lab-help-top">
+          Rain and snow each have their own sound. Pick the tab to edit it: its
+          own key, scale, instrument and ranges. Every voice plays both sounds,
+          mixed by how much snow it is sitting on, so crossing from rain into
+          snow fades one sound into the other (set how gradual under Global sound).
+          With <strong>Notes: Flowing</strong>, sustained instruments hold one
+          continuous tone that glides with the map, and struck ones ring each
+          time the voice reaches a new note.
+        </p>
+        <div class="lab-profile-bar" id="lab-profile-bar"></div>
+        <div class="lab-table-wrap" id="lab-matrix-wrap">
+          <table class="lab-matrix" id="lab-matrix"></table>
+        </div>
+        <p class="lab-help">
+          <strong>Shape</strong>: <em>Normal</em> maps the input's low end to <em>From</em>
+          and its high end to <em>To</em>. <em>Inverted</em> flips that.
+          <em>Strength</em> ignores direction, so a fast storm moving west counts
+          the same as a fast storm moving east. <em>Calmness</em> is the
+          opposite of Strength. <strong>Notes</strong> sets how often a voice
+          strikes, on a tempo grid; <strong>Chord</strong> stacks notes on top of
+          the pitch.
+        </p>
+
+        <h3 class="lab-subhead">02 / VOICES: WHAT EACH ONE IS HEARING</h3>
+        <div class="lab-table-wrap">
+          <table class="lab-voices">
+            <thead>
+              <tr>
+                <th scope="col">Voice</th>
+                <th scope="col">X</th>
+                <th scope="col">Y</th>
+                <th scope="col">X speed</th>
+                <th scope="col">Y speed</th>
+                <th scope="col">Spin</th>
+                <th scope="col">Spread</th>
+                <th scope="col">Color</th>
+                <th scope="col">Size</th>
+                <th scope="col">Rain/Snow</th>
+                <th scope="col">Sound</th>
+                <th scope="col">Playing</th>
+              </tr>
+            </thead>
+            <tbody id="lab-voices-body"></tbody>
+          </table>
+        </div>
+
+        <h3 class="lab-subhead">03 / GLOBAL SOUND</h3>
+        <div class="lab-globals" id="lab-globals"></div>
+        <p class="lab-help">
+          Speed and spin come from how the colored patches move between frames,
+          scaled to how active the map is right now, so the middle of a bar means
+          still. Color follows the NASA legend: rain runs from green to red, and
+          snow from cyan to purple. Your settings are saved in this browser.
+        </p>
+      </section>
+
+      <footer class="footer">
+        <span>AN EXPERIMENT IN DATA, SOUND & MOTION</span>
+        <span>NASA SVS 4285 · IMERG</span>
+      </footer>
+    </main>
+  </body>
+</html>
