@@ -56,7 +56,8 @@
     intro: "Welcome to Hear the storm. Press Space to play the tutorial.",
     details:
       "Here is how the sound is made. Moving from west to east moves the sound from your left ear to your right. " +
-      "Further north, the pitch gets higher. Rain and snow each play their own instrument. " +
+      "Further north, the pitch gets higher, and heavier rain or snow plays louder. Rain plays an organ and snow a glockenspiel. " +
+      "While you are picking, you also hear the rain or the snowstorm itself; that stops when the week plays. " +
       "A spinning storm adds vibrato. A spreading storm adds overtones, and a gathering one adds undertones.",
   };
 
@@ -102,7 +103,7 @@
       title: "Click a storm",
       hint: "SPACE FOLLOWS ITS SOUND OVER TIME",
       ms: 9000,
-      say: "Click on a storm to pick it, or press Enter on the map. Then press Space to follow its sound over time.",
+      say: "Click on a storm to pick it, or press Enter on the map. Click it again to drop it. Then press Space to follow its sound over time, and Space again to stop.",
     },
     {
       title: "Press I",

@@ -1118,7 +1118,7 @@
     }
     for (const probe of probes) probe.waiting = !pickerRunning; // picks are silent until Space
     voices = probes.slice();
-    if (!pickerRunning && hoverOver) voices.push(hoverVoice);
+    if (hoverOver) voices.push(hoverVoice); // the cursor is heard while picking and while the week plays
   }
 
   // Space (or the main button): start or stop the day.
