@@ -1,0 +1,9 @@
+{
+  "name": "Storm picker",
+  "summary": "The Sound lab on the moving NASA map, frozen on its first frame: a tone follows your cursor (left/right = ear, up/down = pitch) and storms sound their rain or snowstorm; click storms to pick them, press Space to hear them play the day.",
+  "author": "balona",
+  "description": "The map waits on the first frame of the moving NASA IMERG video. A soft pulsing tone follows the cursor (west to east moves it from the left ear to the right, south to north raises the pitch), and storms add rain or snowstorm sounds as loud as the storm is big and heavy. Click storms to pick spots; type a spot's number to drop it. Space plays the day once: the storm sounds stop and every pick drifts with its storm, playing through the full Sound lab mapping (rain and snow sounds, 21 instruments, chords, rhythms, scales; spin adds vibrato, spreading adds overtones, gathering adds undertones).",
+  "datasets": [
+    "4285"
+  ]
+}
