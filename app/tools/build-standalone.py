@@ -7,7 +7,10 @@
 How it works: CSS is inlined; ES modules are stored as text and loaded as blob: URLs with their
 import specifiers rewritten; data files (grids, JSON) are stored in a virtual file table and served
 by a small fetch() override; images and video become data: URLs. The served app is not changed.
-Grids are subsampled in time (--every N hours) to keep each file WhatsApp-sized.
+Every hourly frame is kept. Datasets exported with `gravitunes_data export-hd` ship two variants:
+  <mode>.html     light: value grid at 256x128 (6-bit), every hour, painted with the colour bar (~10 MB);
+  <mode>-hd.html  hd: the original SVS frames (1024x512 WebP) + a 512x256 value grid, every hour (larger).
+--variant light|hd|both picks which to build (default both). --every N still thins old raw grids (and says so).
 """
 import argparse
 import base64
@@ -23,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / 'dist'
 MODES = ROOT / 'app' / 'modes'
 SKIP = {}
-DEFAULT_EVERY = 3  # a mode can override with "standalone": {"every": N} in mode.json
+DEFAULT_EVERY = 1  # never drop hours unless asked (--every N, or "standalone": {"every": N} for raw grids only)
 DROP_SOURCES = ('.mp4',)
 FIRST = ['synth-lab', 'world-orchestra']  # gallery order, as in app/core/switcher.js orderModes()
 
@@ -223,6 +226,33 @@ def inline_html(page, link_map, drop_sources=()):
 
 
 # ---- grids ----------------------------------------------------------------------------------
+def b64_file(p):
+    return {'b64': base64.b64encode(p.read_bytes()).decode()}
+
+
+def variant_files(data, ds, variant):
+    """Files from `gravitunes_data export-hd`: web/light/ or web/hd/ (+ 1024 px SVS frames for hd). None if missing."""
+    web = data / 'nasa-svs' / ds / 'web'
+    sub = web / variant
+    if not sub.is_dir():
+        return None
+    base = f'/data/nasa-svs/{ds}/web/'
+    out = {}
+    for p in sorted(sub.iterdir()):
+        out[base + p.name] = ({'text': p.read_text(), 'type': 'application/json'} if p.suffix == '.json' else b64_file(p))
+    if variant == 'hd':
+        man = web / 'frames_1024.json'
+        if not man.is_file():
+            return None
+        m = json.loads(man.read_text())
+        out[base + 'frames.json'] = {'text': json.dumps(m), 'type': 'application/json'}
+        for f in m['frames']:
+            out[base + f['file']] = b64_file(web / f['file'])
+        if m.get('colorbar') and (web / m['colorbar']).is_file():
+            out[base + m['colorbar']] = b64_file(web / m['colorbar'])
+    return out
+
+
 def grid_files(data, ds, every):
     out = {}
     web = data / 'nasa-svs' / ds / 'web'
@@ -239,6 +269,8 @@ def grid_files(data, ds, every):
     if h.get('times'):
         h['times'] = [h['times'][i] for i in keep]
     h['subsampled_every'] = every
+    if every > 1:
+        print(f'  note: {ds} raw grid thinned to every {every} hours ({len(keep)} of {frames} frames)')
     body = b''.join(raw[i * n:(i + 1) * n] for i in keep)
     base = f'/data/nasa-svs/{ds}/web/{ds}_256x128'
     out[base + '.json'] = {'text': json.dumps(h), 'type': 'application/json'}
@@ -258,16 +290,19 @@ def own_files(folder, prefix):
     return out
 
 
-def build_host_mode(m, data, every, link_map, all_modes):
+def build_host_mode(m, data, every, link_map, all_modes, variant='light'):
     mid = m['id']
     datasets = m.get('datasets')
     ids = [str(d) for d in datasets] if isinstance(datasets, list) else ['5152']
+    # The -hd variant only exists for modes that show export-hd datasets (not their own copies, not data: false).
+    if variant == 'hd' and (m.get('data') is False or all((m.get('datasetDirs') or {}).get(ds) for ds in ids)):
+        return None
     files = {}
     for ds in ids:
         own = (m.get('datasetDirs') or {}).get(ds)
         # A mode that ships its own copy of a dataset (mode.json datasetDirs) is bundled whole and not
         # subsampled: its extra layers (e.g. flow) are frame-aligned with the grid. Keys match host.js URLs.
-        g = own_files(MODES / mid / own, f'/modes/{mid}/{own}') if own else grid_files(data, ds, every)
+        g = own_files(MODES / mid / own, f'/modes/{mid}/{own}') if own else (variant_files(data, ds, variant) or (None if variant == 'hd' else grid_files(data, ds, every)))
         if g is None:
             print(f'  ! {mid}: no grid for dataset {ds} in {data}', file=sys.stderr)
             return None
@@ -327,7 +362,8 @@ Each demo is one self-contained file that works offline; every demo has a menu a
 </ul>
 <p class="note"><strong>On iPhone:</strong> WhatsApp's preview does not run the demo. Save the file
 (Share, Save to Files), then open it from the Files app so it opens in Safari. On a computer, open it in Chrome, Safari, Firefox or Edge.
-Tap "Start sound" first; check that the phone is not on silent. Grids are thinned out to keep the files small;
+Tap "Sound" first; check that the phone is not on silent. Every hour is kept: the plain files use a coarser map to stay small,
+and the "HD" files show the original NASA frames (bigger downloads);
 recorded instrument samples are left out (the Tone lab uses their analysed tones instead).{skipped}</p>
 </body></html>
 '''
@@ -336,7 +372,9 @@ recorded instrument samples are left out (the Tone lab uses their analysed tones
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--mode', help='build one mode id')
-    ap.add_argument('--every', type=int, help='keep every Nth hourly frame (default: mode.json standalone.every, else 3)')
+    ap.add_argument('--every', type=int, help='thin raw grids to every Nth hour (default 1: keep all; export-hd grids are never thinned)')
+    ap.add_argument('--variant', choices=['light', 'hd', 'both'], default='both',
+                    help='light: <mode>.html (~10 MB, every hour, coarse); hd: <mode>-hd.html (SVS frames, larger); default both')
     ap.add_argument('--data', help='data/ folder (default: repo data/, or the main checkout\'s in a worktree)')
     ap.add_argument('--out', default=str(DIST), help='output folder (default dist/)')
     a = ap.parse_args()
@@ -361,19 +399,24 @@ def main():
         if mid in SKIP:
             print(f'skip  {mid}: {SKIP[mid]}')
             continue
-        try:
-            page = build_page_mode(m, link_map, all_modes) if m.get('href') else build_host_mode(m, data, a.every or (m.get('standalone') or {}).get('every') or DEFAULT_EVERY, link_map, all_modes)
-        except Exception as e:  # keep going; report
-            print(f'FAIL  {mid}: {e}')
-            continue
-        if page is None:
-            print(f'skip  {mid}: data missing')
-            continue
-        f = out / f'{mid}.html'
-        f.write_text(page)
-        size = f.stat().st_size / 1e6
-        print(f'built {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}  {size:.1f} MB' + ('  (over 10 MB!)' if size > 10 else ''))
-        built.append(m)
+        variants = ['light'] if m.get('href') else (['light', 'hd'] if a.variant == 'both' else [a.variant])
+        for variant in variants:
+            try:
+                page = build_page_mode(m, link_map, all_modes) if m.get('href') else build_host_mode(
+                    m, data, a.every or DEFAULT_EVERY, link_map, all_modes, variant)
+            except Exception as e:  # keep going; report
+                print(f'FAIL  {mid} ({variant}): {e}')
+                continue
+            if page is None:
+                if variant == 'light':
+                    print(f'skip  {mid}: data missing')
+                continue
+            f = out / f"{mid}{'-hd' if variant == 'hd' else ''}.html"
+            f.write_text(page)
+            size = f.stat().st_size / 1e6
+            print(f'built {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}  {size:.1f} MB'
+                  + ('  (over 10 MB!)' if size > 10 and variant == 'light' else ''))
+            built.append(m)
 
     # Timbre atlas is now World orchestra's Instruments view: keep old dist/timbre-atlas.html links working.
     if (out / 'world-orchestra.html').is_file():
@@ -382,17 +425,27 @@ def main():
     # Second pass: the switcher in each built page lists only demos whose files exist.
     have = {m['id'] for m in existing}
     for m in existing:
-        f = out / f"{m['id']}.html"
-        txt = f.read_text()
-        old, new = switcher_js(all_modes, m['id']), switcher_js(all_modes, m['id'], have)
-        if old != new and old in txt:
-            f.write_text(txt.replace(old, new))
+        for f in (out / f"{m['id']}.html", out / f"{m['id']}-hd.html"):
+            if not f.is_file():
+                continue
+            txt = f.read_text()
+            old, new = switcher_js(all_modes, m['id']), switcher_js(all_modes, m['id'], have)
+            if old != new and old in txt:
+                f.write_text(txt.replace(old, new))
+    mb = lambda name: (out / name).stat().st_size / 1e6
+
+    def hd_link(m):
+        name = f"{m['id']}-hd.html"
+        if not (out / name).is_file():
+            return ''
+        return (f'<a href="{name}" aria-label="Open {html.escape(m["name"])} in high resolution, {mb(name):.0f} MB">HD</a> '
+                f'<span class="size">HD {mb(name):.0f} MB</span>')
     items = '\n'.join(
         f'<li class="card"><h2>{html.escape(m["name"])}</h2>'
         f'<p>{html.escape(one_line(m.get("description", "")))}</p>'
         f'<p class="links"><a class="open" href="{m["id"]}.html" aria-label="Open {html.escape(m["name"])}">Open</a> '
         f'<a href="{m["id"]}.html" download aria-label="Download {html.escape(m["name"])}">Download</a> '
-        f'<span class="size">{(out / (m["id"] + ".html")).stat().st_size / 1e6:.1f} MB</span></p></li>'
+        f'<span class="size">{mb(m["id"] + ".html"):.1f} MB</span> {hd_link(m)}</p></li>'
         for m in existing)
     (out / 'index.html').write_text(INDEX.format(items=items, skipped=''.join(
         f' {html.escape(m["name"])} is only in the online version ({html.escape(SKIP[m["id"]])}).' for m in all_modes if m['id'] in SKIP)))

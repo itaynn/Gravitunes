@@ -40,8 +40,41 @@ export function basemapPaths(lines, toPixel) {
   return out;
 }
 
-export function createViewer(canvas, { basemap = true, plain = false } = {}) {
+// imageCanvas (optional): a canvas under `canvas` (same CSS box) that shows the data frames at their own
+// resolution (e.g. 2048x1024 SVS frames), cross-faded; `canvas` then holds only the basemap, overlays and cursor.
+export function createViewer(canvas, { basemap = true, plain = false, imageCanvas = null } = {}) {
   const g = canvas.getContext('2d');
+  const ig = imageCanvas?.getContext('2d');
+  let prev = null, fadeStart = 0, fadeMs = 0, fadeRaf = 0;
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  function drawImageLayer() {
+    if (!ig) return;
+    const W = imageCanvas.width, H = imageCanvas.height;
+    const f = fadeMs ? Math.min(1, (now() - fadeStart) / fadeMs) : 1;
+    ig.imageSmoothingEnabled = true; ig.imageSmoothingQuality = 'high';
+    ig.globalAlpha = 1;
+    if (!image || isPlain) { ig.clearRect(0, 0, W, H); return; }  // plain map: no data image
+    if (prev && f < 1) { ig.drawImage(prev, 0, 0, W, H); ig.globalAlpha = f; }
+    ig.drawImage(image, 0, 0, W, H);
+    ig.globalAlpha = 1;
+    if (f < 1) fadeRaf = requestAnimationFrame(drawImageLayer); else { prev = null; fadeRaf = 0; }
+  }
+  function setImage(im, { fade = 0 } = {}) {
+    if (!ig) { image = im; draw(); return; }
+    const w = im?.naturalWidth || im?.width, h = im?.naturalHeight || im?.height;
+    // The image layer takes the frame's own resolution (at least the overlay canvas's).
+    if (w && h && (imageCanvas.width !== Math.max(w, canvas.width) || imageCanvas.height !== Math.max(h, canvas.height))) {
+      imageCanvas.width = Math.max(w, canvas.width); imageCanvas.height = Math.max(h, canvas.height); prev = null;
+    }
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (fade > 0 && !reduce && image && im !== image && typeof requestAnimationFrame === 'function') {
+      prev = image; fadeStart = now(); fadeMs = fade;
+    } else { prev = null; fadeMs = 0; }
+    image = im;
+    if (fadeRaf) cancelAnimationFrame(fadeRaf);
+    fadeRaf = 0;
+    drawImageLayer();
+  }
   const overlays = new Set();
   let image = null, cursor = null, base = null, showBase = basemap, isPlain = plain;
   if ((basemap || plain) && typeof fetch === 'function') loadBasemap().then((b) => { base = b; draw(); });
@@ -91,7 +124,7 @@ export function createViewer(canvas, { basemap = true, plain = false } = {}) {
     g.clearRect(0, 0, W, H);
     if (isPlain) drawPlain();
     else {
-      if (image) g.drawImage(image, 0, 0, W, H);
+      if (image && !ig) g.drawImage(image, 0, 0, W, H);
       if (showBase && base) drawBasemap();
     }
     for (const fn of overlays) fn(g, viewer);
@@ -103,7 +136,8 @@ export function createViewer(canvas, { basemap = true, plain = false } = {}) {
   }
   const viewer = {
     canvas,
-    setImage(im) { image = im; draw(); },
+    // setImage(im, { fade: ms }) cross-fades from the previous frame when an image layer is used.
+    setImage,
     setCursor(c) { cursor = c; draw(); },
     // Overlay: fn(ctx2d, viewer) drawn on top of the frame. Returns a remover.
     addOverlay(fn) { overlays.add(fn); draw(); return () => { overlays.delete(fn); draw(); }; },
@@ -113,6 +147,7 @@ export function createViewer(canvas, { basemap = true, plain = false } = {}) {
     setPlain(on) {
       isPlain = !!on;
       if (isPlain && !base && typeof fetch === 'function') loadBasemap().then((b) => { base = b; draw(); });
+      drawImageLayer();
       draw();
     },
     // Basemap (coastlines + borders) toggle; on by default.

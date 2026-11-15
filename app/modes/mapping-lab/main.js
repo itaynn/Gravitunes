@@ -93,18 +93,18 @@ export default function start(ctx) {
       hint: 'A point plays when its value rises past this. Default: the dataset\'s 70th percentile.',
       format: (x) => fmtV(Number(fmtNum(denorm(x)))) }, (x) => { s.threshold = Number(fmtNum(denorm(x))); });
     volumeSlider(panel, sound, s.volume, (v) => { s.volume = v; });
-    const dens = panel.slider('Density (max notes per frame)', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
+    const dens = panel.slider('Density', { min: 1, max: 24, step: 1, value: s.maxNotes, format: (v) => `${v} notes` },
       (v) => { s.maxNotes = v; });
     const stepH = dataset.stepHours || 1;
-    const cool = panel.slider('Point cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
+    const cool = panel.slider('Cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
       hint: 'Hours before a point can play again.', format: (v) => `${Math.round(v * stepH)} hours` }, (v) => { s.cooldown = v; });
-    const low = panel.slider('Lowest note', { min: LOW_SEMIS, max: HIGH_SEMIS - 7, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
+    const low = panel.slider('Low note', { min: LOW_SEMIS, max: HIGH_SEMIS - 7, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
-    const high = panel.slider('Highest note', { min: LOW_SEMIS + 7, max: HIGH_SEMIS, step: 1, value: s.highSemis, format: (v) => noteName(v),
+    const high = panel.slider('High note', { min: LOW_SEMIS + 7, max: HIGH_SEMIS, step: 1, value: s.highSemis, format: (v) => noteName(v),
       hint: 'Pitch range, C2 to A5.' }, (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
     // Keep Preset, Scale, Threshold, Volume up front; the rest is one click away.
-    fold('Customize mapping', Object.values(mapControls).flatMap((c) => [c.sel, c.flip]));
-    fold('More sound settings', [dens, cool, low, high]);
+    fold('Mapping', Object.values(mapControls).flatMap((c) => [c.sel, c.flip]));
+    fold('Sound', [dens, cool, low, high]);
     panel.text('Voices are hand-synthesized impressions (organ, bell-like gamelan, flute), not recordings.');
 
     // ---- notes

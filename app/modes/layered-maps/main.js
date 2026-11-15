@@ -12,7 +12,7 @@ export default function start(ctx) {
   let last = null, lastFreq = null;
   let scale = 'pentatonic-major';
   scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; lastFreq = null; } });
-  panel.button('Describe this spot', () => {
+  panel.button('Describe', () => {
     if (!last) describe('Move over the map or use the arrow keys first.');
     else probe(last, { force: true });
   });

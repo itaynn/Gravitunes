@@ -200,3 +200,22 @@ console.log('grid tests ok');
   near(I.midiHz(69), 440, 1e-3); assert.equal(I.midiName(60), 'C4');
   console.log('storm and imerg helper tests ok');
 }
+
+// Compressed grids (delta-gzip, chunked): round trip against a synthetic grid.
+{
+  const { gzipSync } = await import('node:zlib');
+  const { unpackGrid, chunkedGrid, parseGrid } = await import('../core/grid.js');
+  const w = 4, h = 2, T = 5, n = w * h;
+  const raw = Uint8Array.from({ length: T * n }, (_, i) => (i * 37 + (i % 3) * 200) % 256);
+  const pack = (a) => { const d = a.slice(); for (let i = d.length - 1; i >= n; i--) d[i] = (a[i] - a[i - n]) & 255; return gzipSync(d); };
+  const files = { a: pack(raw.subarray(0, 3 * n)), b: pack(raw.subarray(3 * n)) };
+  const header = { dims: [w, h], frames: T, scale: 1, offset: 0, nodata: 255, encoding: 'delta-gzip',
+    chunks: [{ file: 'a', start: 0, frames: 3 }, { file: 'b', start: 3, frames: 2 }] };
+  const get = async (f) => new Uint8Array(files[f]);
+  assert.deepEqual(await unpackGrid(header, get), raw);
+  const fine = chunkedGrid(header, get), g = parseGrid(header, raw);
+  assert.equal(fine.valueAt(10, 10, 4), undefined);   // chunk not loaded yet
+  await fine.loadAll(4);
+  for (let t = 0; t < T; t++) for (const [la, lo] of [[60, -170], [-60, 100], [0, 0]]) assert.equal(fine.valueAt(la, lo, t), g.valueAt(la, lo, t));
+  console.log('compressed grid tests ok');
+}

@@ -6,7 +6,7 @@
 // are the grid's times[] (hourly for 5152). Images come from the frames.json manifest when present
 // (nearest earlier image for each hour); with no images, the grid itself is painted with the color bar.
 import { buildLut, decode } from './colorbar.js';
-import { parseGrid, frameForHour, makeNorm, formatValue } from './grid.js';
+import { parseGrid, frameForHour, makeNorm, formatValue, unpackGrid, chunkedGrid } from './grid.js';
 
 export const DATASETS = {
   5152: {
@@ -34,6 +34,7 @@ export const DATASETS = {
     range: [0, 1],
     source: 'https://svs.gsfc.nasa.gov/4285',
     step_hours: 0.5,
+    manifest: null,                   // grid only: no frames.json to look for
     colorbar: { stops: [[0, [8, 12, 28]], [0.08, [20, 60, 120]], [0.3, [40, 160, 220]], [0.6, [140, 230, 160]], [1, [255, 255, 255]]] },
     grid: { header: 'field_256x128.json', bin: 'field_256x128.bin' },
   },
@@ -43,16 +44,24 @@ const fetchJson = async (url) => {
   try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; }
 };
 
+let idsPromise = null;
+const listedIds = () => (idsPromise ||= fetchJson('/data-tools/datasets/index.json')
+  .then((idx) => (Array.isArray(idx) ? idx : idx?.ids)?.map(String) || null));
+
 export async function getDefinition(id, overrides = {}) {
   id = String(id);
-  const desc = await fetchJson(`/data-tools/datasets/${id}.json`);
   const builtin = DATASETS[id];
+  // Skip the descriptor request (a 404 in the console) for built-ins the index doesn't list (4285).
+  const listed = builtin ? await listedIds() : null;
+  const desc = listed && !listed.includes(id) ? null : await fetchJson(`/data-tools/datasets/${id}.json`);
   if (!desc && !builtin) throw new Error(`Unknown dataset ${id}`);
   const def = { dir: `/data/nasa-svs/${id}/web/`, manifest: 'frames.json', ...(builtin || {}), ...(desc || {}), id };
   // The descriptor's frames/colorbar describe the raw SVS files; keep web-copy file names from built-ins.
   if (overrides.dir) def.dir = overrides.dir;
   def.frames = undefined;
-  def.colorbar = { ...(desc?.colorbar || {}), ...(builtin?.colorbar ? { file: builtin.colorbar.file } : {}) };
+  def.colorbar = { ...(desc?.colorbar || {}), ...(builtin?.colorbar?.file ? { file: builtin.colorbar.file } : {}) };
+  // Built-in stops when there is no descriptor (4285: dark IMERG ramp, so the map matches the other demos).
+  if (!def.colorbar.stops && builtin?.colorbar?.stops) def.colorbar.stops = builtin.colorbar.stops;
   if (!def.colorbar.file) def.colorbar.file = 'colorbar.png';
   def.grid = desc?.grid || builtin?.grid || { header: `${id}_256x128.json`, bin: `${id}_256x128.bin` };
   return def;
@@ -72,12 +81,17 @@ export async function listDatasets() {
   return out;
 }
 
-const loadImage = (src) => new Promise((ok, fail) => {
-  const im = new Image();
-  im.onload = () => ok(im);
-  im.onerror = () => fail(new Error(`Could not load ${src}`));
-  im.src = src;
-});
+// Through fetch (so single-file builds can serve bundled frames), then decoded from a blob URL.
+const loadImage = async (src) => {
+  let url = src, blob = null;
+  try { const r = await fetch(src); if (r.ok) { blob = URL.createObjectURL(await r.blob()); url = blob; } } catch {}
+  return new Promise((ok, fail) => {
+    const im = new Image();
+    im.onload = () => { if (blob) URL.revokeObjectURL(blob); ok(im); };
+    im.onerror = () => fail(new Error(`Could not load ${src}`));
+    im.src = url;
+  });
+};
 
 function pixels(im) {
   const c = document.createElement('canvas');
@@ -85,6 +99,20 @@ function pixels(im) {
   const g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(im, 0, 0);
   return g.getImageData(0, 0, c.width, c.height);
+}
+
+const fetchBytes = (dir) => async (file) => {
+  const r = await fetch(dir + file);
+  if (!r.ok) throw new Error(`Could not load ${file}`);
+  return new Uint8Array(await r.arrayBuffer());
+};
+
+// High-resolution grid (header lists time chunks), loaded in the background after the coarse grid.
+async function tryFineGrid(def) {
+  const name = def.grid?.fine || `${def.id}_1024x512.json`;
+  const header = await fetchJson(def.dir + name);
+  if (!header?.chunks || header.encoding !== 'delta-gzip') return null;
+  return chunkedGrid(header, fetchBytes(def.dir));
 }
 
 async function tryGrid(def) {
@@ -95,6 +123,7 @@ async function tryGrid(def) {
       const h = await fetch(def.dir + g.header);
       if (!h.ok) continue;
       const header = await h.json();
+      if (header.encoding === 'delta-gzip') return parseGrid(header, await unpackGrid(header, fetchBytes(def.dir)));
       const b = await fetch(def.dir + g.bin);
       if (!b.ok) continue;
       return parseGrid(header, new Uint8Array(await b.arrayBuffer()));
@@ -122,7 +151,11 @@ export function stopColor(stops, v, log = false) {
 export async function loadDataset(id, overrides = {}) {
   const def = await getDefinition(id, overrides);
   const grid = await tryGrid(def);
-  const manifest = await fetchJson(def.dir + def.manifest);
+  const manifest = def.manifest ? await fetchJson(def.dir + def.manifest) : null;
+  // Only export-hd sets (delta-gzip grids) can have a fine grid; don't probe (404) for the others.
+  let fine = grid?.header?.encoding === 'delta-gzip' ? await tryFineGrid(def) : null;
+  if (fine && fine.frames !== grid.frames) fine = null;
+  fine?.loadAll(0);
   const images = (manifest?.frames || []).slice().sort((a, b) => a.hour - b.hour);
   if (!grid && !images.length) throw new Error(`No value grid or frames in ${def.dir}`);
   const start = new Date(grid?.times?.[0] || def.start || manifest?.start);
@@ -150,15 +183,29 @@ export async function loadDataset(id, overrides = {}) {
   const { norm, denorm } = makeNorm(def.range, transform);
   const stops = def.colorbar.stops || [[def.range[0], [255, 255, 255]], [def.range[1], [65, 32, 192]]];
 
-  // Grid datasets draw their own colour bar from the stops (the web copies ship no colorbar.png).
-  if (grid && typeof document !== 'undefined') {
+  // The original SVS colour bar when the frames manifest names one; otherwise grid datasets draw it from the stops.
+  if (manifest?.colorbar) {
+    colorbarUrl = def.dir + manifest.colorbar;
+    try { const r = await fetch(colorbarUrl); if (r.ok) colorbarUrl = URL.createObjectURL(await r.blob()); } catch {}
+  }
+  else if (grid && typeof document !== 'undefined') {
     const c = Object.assign(document.createElement('canvas'), { width: 256, height: 12 });
     const g = c.getContext('2d');
     for (let x = 0; x < 256; x++) {
       const [r, gg, b] = stopColor(stops, denorm(x / 255), transform === 'log10');
       g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(x, 0, 1, 12);
     }
-    colorbarUrl = c.toDataURL();
+    // Labelled version (low, units, high) under the ramp, for the light single-file builds.
+    const L = Object.assign(document.createElement('canvas'), { width: 512, height: 52 });
+    const lg = L.getContext('2d');
+    lg.fillStyle = '#fff'; lg.fillRect(0, 0, 512, 52);
+    lg.imageSmoothingEnabled = false; lg.drawImage(c, 8, 4, 496, 22);
+    lg.fillStyle = '#000'; lg.font = '18px system-ui, sans-serif'; lg.textBaseline = 'bottom';
+    const fmt = (v) => formatValue(v);
+    lg.textAlign = 'left'; lg.fillText(fmt(def.range[0]), 8, 50);
+    lg.textAlign = 'right'; lg.fillText(fmt(def.range[1]), 504, 50);
+    lg.textAlign = 'center'; lg.fillText(`${def.units || ''}${transform === 'log10' ? ' (log)' : ''}`, 256, 50);
+    colorbarUrl = L.toDataURL();
   }
   const cache = new Map();     // image index or 'g'+t -> { im, data }
   let current = 0;
@@ -200,6 +247,7 @@ export async function loadDataset(id, overrides = {}) {
         try {
           const im = await loadImage(def.dir + images[key].file);
           cache.set(key, { im, data: grid ? null : pixels(im) });
+          trim();
         } catch (e) { if (!grid) throw e; key = null; }
       }
     }
@@ -213,6 +261,22 @@ export async function loadDataset(id, overrides = {}) {
     return cache.get(key);
   }
 
+  // Keep at most ~40 decoded frames (2048x1024 images are 8 MB each once decoded).
+  function trim() {
+    const keys = [...cache.keys()].filter((k) => typeof k === 'number');
+    while (keys.length > 40) { const k = keys.shift(); if (cache.get(k) !== cache.get('cur')) cache.delete(k); }
+  }
+  // Warm the image (and fine grid chunk) for frame t without changing the current frame.
+  function prefetch(t) {
+    t = Math.max(0, Math.min(count - 1, t | 0));
+    fine?.ensure(t);
+    if (!images.length || !grid) return;
+    const hour = hourOf(t) + (start - imgStart) / 3600e3;
+    const key = frameForHour(images, hour);
+    if (cache.has(key)) return;
+    loadImage(def.dir + images[key].file).then((im) => { cache.set(key, { im, data: null }); trim(); }).catch(() => {});
+  }
+
   function masked(fx, fy) {
     return (def.masks || []).some(([x, y, w, h]) => fx >= x && fx < x + w && fy >= y && fy < y + h);
   }
@@ -220,7 +284,10 @@ export async function loadDataset(id, overrides = {}) {
   function valueAt(lat, lon, t = current) {
     const fx = ((lon + 180) / 360 + 1) % 1, fy = (90 - lat) / 180;
     if (fy < 0 || fy > 1 || masked(fx, fy)) return null;
-    if (grid) return grid.valueAt(lat, lon, t);
+    if (grid) {
+      const v = fine?.valueAt(lat, lon, t);
+      return v !== undefined ? v : grid.valueAt(lat, lon, t);
+    }
     const f = cache.get(t | 0) || cache.get('cur');
     if (!f?.data) return null;
     const { data, width, height } = f.data;
@@ -233,7 +300,9 @@ export async function loadDataset(id, overrides = {}) {
   return {
     id: def.id, dir: def.dir, title: def.title, units: def.units, range: def.range, source: def.source,
     frames: images, count, colorbarUrl, usingGrid: !!grid, stepHours: grid ? (count > 1 ? hourOf(1) - hourOf(0) : stepH) || stepH : (images.length > 1 ? images[1].hour - images[0].hour : stepH) || stepH,
-    timeOf, load, valueAt, image: () => cache.get('cur')?.im,
+    timeOf, load, prefetch, valueAt,
+    // Value grid resolution [width, height] in use (fine grid once its chunks load).
+    resolution: () => (fine ? [fine.width, fine.height] : grid ? [grid.width, grid.height] : null), image: () => cache.get('cur')?.im,
     // transform: 'linear' | 'log10'. norm(v) -> 0..1 over range (log space for log datasets); denorm inverts.
     transform, norm, denorm,
     // "14 ppbv", "0.013 ppbv"

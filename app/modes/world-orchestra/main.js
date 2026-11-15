@@ -293,12 +293,12 @@ export default function start(ctx) {
     }
 
     // ---- view toggle: Instruments (plain map, region phrases) or Data (cities play the dataset)
-    const hostBits = ['#colorbar', '#dataset-title', '#dataset-picker', '#timeline', '#time-heading', '#time-label'].map((q) => document.querySelector(q)).filter(Boolean);
+    const hostBits = ['#colorbar', '#dataset-title', '#dataset-picker', '#timeline', '#time-label'].map((q) => document.querySelector(q)).filter(Boolean);
     function setView(on) {
       s.atlas = on;
       if (on) time.pause();
       viewer.setPlain(on);
-      for (const el of hostBits) el.style.visibility = on ? 'hidden' : '';
+      for (const el of hostBits) el.style.display = on ? 'none' : '';   // the bar closes up; no dataset image or colour bar
       for (const el of dataBox) el.style.display = on ? 'none' : '';   // (.control.inline sets display, so not .hidden)
       for (const el of atlasBox) el.style.display = on ? '' : 'none';
       lastKey = null; viewer.redraw();

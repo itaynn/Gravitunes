@@ -34,7 +34,8 @@ export function scaleControl(panel, { value = 'pentatonic-major', onChange, desc
     if (id && sound?.useScale) sound.useScale(id).catch?.((e) => console.warn('[scale]', e.message));
     onChange?.(id || null);
   };
-  const sel = panel.select('Scale', opts, (id) => {
+  // On mode pages the menu goes into the control bar (panel.bar), next to Volume.
+  const sel = (panel.bar || panel).select('Scale', opts, (id) => {
     if (id) remember(id);
     apply(id);
     describe?.(`Scale: ${id ? SCALES[id].label : own}`);

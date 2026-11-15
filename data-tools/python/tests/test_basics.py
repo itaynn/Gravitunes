@@ -95,8 +95,11 @@ class TestMask(unittest.TestCase):
 
 class TestDescriptors(unittest.TestCase):
     def test_descriptors_valid(self):
-        files = list(DESCRIPTOR_DIR.glob("*.json"))
+        # index.json lists the descriptors; it is not one itself.
+        files = [p for p in DESCRIPTOR_DIR.glob("*.json") if p.name != "index.json"]
         self.assertTrue(files)
+        ids = json.loads((DESCRIPTOR_DIR / "index.json").read_text())["ids"]
+        self.assertEqual(sorted(ids), sorted(p.stem for p in files))
         for p in files:
             d = json.loads(p.read_text())
             for k in ("id", "title", "units", "range", "start", "step_hours", "colorbar", "frames", "masks"):
@@ -130,6 +133,20 @@ class TestExport(unittest.TestCase):
                 self.assertEqual(np.frombuffer(b.read_bytes(), np.uint8).reshape(3, 2, 2)[0, 1, 1], 127)
             finally:
                 del os.environ["GRAVITUNES_DATA_DIR"]
+
+
+class TestWebPacking(unittest.TestCase):
+    def test_delta_gzip_round_trip(self):
+        import gzip
+        from gravitunes_data.web import pack, quantize, undelta
+        g = np.random.default_rng(1).integers(0, 256, (7, 3, 5), dtype=np.uint8)
+        parts = pack(g, chunk=3)
+        self.assertEqual([(s, n) for s, n, _ in parts], [(0, 3), (3, 3), (6, 1)])
+        back = np.concatenate([undelta(np.frombuffer(gzip.decompress(b), np.uint8).reshape(n, 3, 5)) for _, n, b in parts])
+        np.testing.assert_array_equal(back, g)
+        q = quantize(g, 6)
+        self.assertTrue(np.all((q == 255) | (q % 4 == 0)))
+        self.assertTrue(np.all(q[g == 255] == 255))
 
 
 if __name__ == "__main__":

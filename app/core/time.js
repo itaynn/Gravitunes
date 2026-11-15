@@ -9,8 +9,10 @@ export function createTime(dataset, viewer) {
     n = ((Math.round(n) % dataset.count) + dataset.count) % dataset.count;
     const f = await dataset.load(n);
     t = n;
-    viewer.setImage(f.im);
+    // Cross-fade between frames over most of one frame interval while playing (a short fade when scrubbing).
+    viewer.setImage(f.im, { fade: timer ? Math.min(600, 0.8 * 1000 / fps) : 120 });
     listeners.forEach((fn) => fn(t));
+    if (timer) for (let k = 1; k <= 3; k++) dataset.prefetch?.((t + k) % dataset.count);
   }
   function start() {
     timer = setInterval(async () => {

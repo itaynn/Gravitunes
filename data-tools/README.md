@@ -7,6 +7,18 @@ uv venv .venv && uv pip install -p .venv -e data-tools/python
 .venv/bin/gravitunes_data export 5152           # browser grids -> data/nasa-svs/5152/web/
 ```
 
+High-resolution set for the app (run once per dataset after `build ... --size 1024x512 512x256 256x128`):
+
+```bash
+.venv/bin/gravitunes_data export-hd 5152   # web/: 256x128 + chunked 1024x512 grids (delta-gzip), SVS frames as WebP
+```
+
+It writes, into `data/nasa-svs/<id>/web/`: `frames2048/` + `frames.json` (every hour, original 2048x1024 SVS frames,
+WebP q75), `frames1024/` + `frames_1024.json`, `colorbar.png` (the labelled SVS bar), `<id>_256x128.json/.bin(.gz)`
+(loaded first), `<id>_1024x512.json` + 24-hour chunks (loaded in the background), and `light/` (256x128, 6-bit) and
+`hd/` (512x256) grids for `app/tools/build-standalone.py`. Delta-gzip: per chunk, first frame as is, later frames
+as byte differences mod 256, gzipped (the browser unpacks it with `DecompressionStream`).
+
 ## Python API
 
 ```python

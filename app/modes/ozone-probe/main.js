@@ -15,14 +15,14 @@ export default function start(ctx) {
   let last = null;           // last probed position
   let scale = 'pentatonic-major';
 
-  panel.slider('Neighborhood size', {
+  panel.slider('Spread', {
     min: 0, max: 10, step: 1, value: radius,
     hint: 'Wider neighborhoods make rough areas sound brighter (more harmonics).',
     format: (v) => `${v} degrees`,
   }, (v) => { radius = v; });
   scaleControl(panel, { value: scale, describe, sound, onChange: (v) => { scale = v; } });
-  panel.checkbox('Speak values', speak, (v) => { speak = v; });
-  panel.button('Describe this spot', () => (last ? probe(last, { announce: true, force: true })
+  panel.checkbox('Speak', speak, (v) => { speak = v; });
+  panel.button('Describe', () => (last ? probe(last, { announce: true, force: true })
     : describe('Move over the map or use the arrow keys first.')));
 
   function neighborhood(lat, lon, t) {

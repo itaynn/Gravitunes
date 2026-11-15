@@ -1,4 +1,5 @@
 // ctx.panel (labeled accessible controls) and ctx.describe (aria-live announcements).
+// Hints are kept for screen readers (aria-describedby) but not shown: the mode pages show almost no text.
 
 let uid = 0;
 const id = (p) => `${p}-${++uid}`;
@@ -11,7 +12,7 @@ export function createPanel(root) {
     lab.textContent = label; lab.htmlFor = control.id = control.id || id('c');
     row.append(lab, control);
     if (hint) {
-      const h = document.createElement('p'); h.className = 'hint'; h.id = id('h'); h.textContent = hint;
+      const h = document.createElement('p'); h.className = 'hint visually-hidden'; h.id = id('h'); h.textContent = hint;
       control.setAttribute('aria-describedby', h.id); row.append(h);
     }
     root.append(row);
@@ -24,7 +25,7 @@ export function createPanel(root) {
       b.type = 'button'; b.textContent = label; b.addEventListener('click', onClick);
       const row = document.createElement('div'); row.className = 'control'; row.append(b);
       if (hint) {
-        const h = document.createElement('p'); h.className = 'hint'; h.id = id('h'); h.textContent = hint;
+        const h = document.createElement('p'); h.className = 'hint visually-hidden'; h.id = id('h'); h.textContent = hint;
         b.setAttribute('aria-describedby', h.id); row.append(h);
       }
       root.append(row); rows.push(row);
@@ -54,8 +55,10 @@ export function createPanel(root) {
       const row = wrap(label, c, hint); row.classList.add('inline'); rows.push(row);
       return c;
     },
-    text(content) {
-      const p = document.createElement('p'); p.textContent = content; root.append(p); rows.push(p);
+    // Notes are read by screen readers only (visually hidden), unless { visible: true }.
+    text(content, { visible = false } = {}) {
+      const p = document.createElement('p'); p.textContent = content; if (!visible) p.className = 'visually-hidden';
+      root.append(p); rows.push(p);
       return p;
     },
     clear() { rows.splice(0).forEach((r) => r.remove()); },
@@ -64,15 +67,21 @@ export function createPanel(root) {
 }
 
 // The same "start sound first" hint in every mode: `Press "Start sound", then <next>`.
+// Screen-reader only: the Sound button in the bar is the visible cue.
 export function soundHint(panel, sound, next) {
   if (sound.started) return null;
-  const p = panel.text(`Press "Start sound", then ${next}`);
-  p.classList.add('hint');
-  return p;
+  return panel.text(`Press Sound, then ${next}`);
 }
 
 // The shared Volume slider (0..1, read as percent); applies the initial value right away.
+// On mode pages the host already put a Volume slider in the control bar (panel.bar.volume): that one is reused.
 export function volumeSlider(panel, sound, initial = 0.7, onChange = () => {}) {
+  const shared = panel.bar?.volume;
+  if (shared) {
+    shared.update(initial); shared.dispatchEvent(new Event('input'));  // the bar's own handler applies it
+    shared.addEventListener('input', () => onChange(+shared.value));
+    return shared;
+  }
   const el = panel.slider('Volume', { min: 0, max: 1, step: 0.05, value: initial, format: (v) => `${Math.round(v * 100)} percent` },
     (v) => { sound.setVolume?.(v); onChange(v); });
   sound.setVolume?.(initial);

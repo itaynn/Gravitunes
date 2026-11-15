@@ -15,6 +15,7 @@
     {
       "id": "layered-maps",
       "name": "Layered maps",
+      "summary": "One gas at a time, from NASA's GEOS-CF model. Higher values play higher notes in that gas's own instrument; hover, touch or use the arrow keys.",
       "author": "moran",
       "description": "Pick one gas with the Dataset menu (ozone, carbon monoxide or nitrogen oxides): the map shows that gas and you hear only it, in its own instrument and pitch range (carbon monoxide low, ozone in the middle, nitrogen oxides higher). Higher values play higher notes. Hover, touch or use the arrow keys.",
       "datasets": [
@@ -29,6 +30,7 @@
     {
       "id": "mapping-lab",
       "name": "Mapping lab",
+      "summary": "Hundreds of points across the map play a note when the gas rises past a threshold. Choose what drives pitch, loudness and pan under More.",
       "author": "moran",
       "description": "About 300 grid points play a note when the data rises past a threshold. Choose what drives each part of the sound (pitch, loudness, pan, brightness, depth, attack, timbre family) from longitude, latitude, value or change, flip any mapping, try presets, and share the mapping by link. Hover or use the arrow keys to hear one point and hear how it was mapped.",
       "datasets": [
@@ -43,6 +45,7 @@
     {
       "id": "ozone-probe",
       "name": "Ozone probe",
+      "summary": "Near-surface ozone from NASA's GEOS-CF model. Hover, touch or use the arrow keys: more ozone plays a higher note.",
       "author": "moran",
       "description": "Explore near-surface ozone by hover, touch or arrow keys: higher ozone plays a higher note, patchy areas sound brighter, east/west pans left/right. Play the timeline to hear it change over two weeks.",
       "datasets": [
@@ -74,6 +77,7 @@
     {
       "id": "storm-watch",
       "name": "Storm watch",
+      "summary": "Storms in NASA IMERG rain data, tracked over 24 hours. Hover a storm to hear it: north sounds higher, bigger storms louder.",
       "author": "itay",
       "description": "Follow individual storms through 48 half-hourly IMERG frames, tracked offline with computer vision (OpenCV optical flow and watershed). Hover, or press N and P on the map, to hear about each storm: north sounds higher, bigger storms louder. Enter follows a storm, and when storms merge and split the whole family stays marked; Page Up and Page Down step through time. The full tracking studio with tuning sliders is linked from the panel. From itay's clustering branch.",
       "datasets": [

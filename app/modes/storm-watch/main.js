@@ -132,16 +132,16 @@ export default function start(ctx) {
     soundHint(panel, sound, 'hover over a storm or press N for the largest storm; Enter follows the storm under the cursor.');
     scaleControl(panel, { value: s.scale, describe, sound, onChange: (v) => { s.scale = v; } });
     volumeSlider(panel, sound, s.volume);
-    panel.checkbox('Show all storm outlines', s.outlines, (on) => { s.outlines = on; viewer.redraw(); },
+    panel.checkbox('Outlines', s.outlines, (on) => { s.outlines = on; viewer.redraw(); },
       { hint: 'Faint outlines of every tracked storm; the followed storm is always drawn bright.' });
-    panel.button('Follow the largest storm', () => follow(bySize(frame().components)[0] ?? null));
-    panel.button('Stop following', () => follow(null));
+    panel.button('Largest', () => follow(bySize(frame().components)[0] ?? null)).setAttribute('aria-label', 'Follow the largest storm');
+    panel.button('Unfollow', () => follow(null)).setAttribute('aria-label', 'Stop following');
     panel.text('Keys on the map: N and P pick storms (largest first), Enter follows the storm under the cursor, '
       + 'Page Up and Page Down step through time, Escape stops following. North sounds higher, bigger storms louder.');
     // The studio needs the full-size frames, so the single-file (blob:) build leaves the link out.
     if (!import.meta.url.startsWith('blob:')) {
-      panel.text('').append(Object.assign(document.createElement('a'), { href: new URL('studio.html', import.meta.url).href,
-        textContent: 'Open the full tracking studio (full-size frames, tracker tuning)' }));
+      panel.text('', { visible: true }).append(Object.assign(document.createElement('a'), { href: new URL('studio.html', import.meta.url).href,
+        textContent: 'Studio' }));
     }
     describe(`${data.summary.trackCount} storms tracked across ${data.frames.length} frames. Press N for the largest storm.`);
     viewer.redraw();

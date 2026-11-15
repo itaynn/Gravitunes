@@ -63,6 +63,60 @@ export function parseGrid(header, bytes) {
   return { width, height, frames, times, scale, offset, nodata, transform, fromByte, valueAt, percentile, cell, bytes, header };
 }
 
+// ---- Compressed grids (header.encoding "delta-gzip", written by data-tools gravitunes_data/web.py) ----
+// Each chunk is gzip of: first frame as is, then (byte - previous frame's byte) mod 256.
+export async function gunzip(bytes) {
+  const s = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+export function undelta(buf, cells) {
+  for (let i = cells; i < buf.length; i++) buf[i] = (buf[i] + buf[i - cells]) & 255;
+  return buf;
+}
+// All frames of a delta-gzip grid as one Uint8Array. fetchBytes(file) -> Uint8Array.
+export async function unpackGrid(header, fetchBytes) {
+  const [w, h] = header.dims, n = w * h;
+  const out = new Uint8Array(header.frames * n);
+  await Promise.all(header.chunks.map(async (c) => out.set(undelta(await gunzip(await fetchBytes(c.file)), n), c.start * n)));
+  return out;
+}
+
+// A large grid loaded chunk by chunk (time ranges). valueAt returns undefined while a frame's chunk is missing,
+// so callers fall back to a coarse grid. ensure(t) loads the chunk holding t (and returns a promise).
+export function chunkedGrid(header, fetchBytes) {
+  const [width, height] = header.dims, n = width * height;
+  const { scale = 1, offset = 0 } = header, nodata = header.nodata ?? 255;
+  const fromByte = header.transform === 'log10' ? (b) => 10 ** (offset + b * scale) : (b) => offset + b * scale;
+  const data = header.chunks.map(() => null), pending = new Map();
+  const index = (t) => header.chunks.findIndex((c) => t >= c.start && t < c.start + c.frames);
+  function ensure(t) {
+    const i = index(t | 0);
+    if (i < 0 || data[i]) return Promise.resolve();
+    if (!pending.has(i)) {
+      pending.set(i, fetchBytes(header.chunks[i].file).then(gunzip)
+        .then((b) => { data[i] = undelta(b, n); }).catch((e) => { pending.delete(i); console.warn('[grid]', e.message); }));
+    }
+    return pending.get(i);
+  }
+  // Loads every chunk, nearest to `from` first, one at a time.
+  async function loadAll(from = 0) {
+    const order = header.chunks.map((c, i) => i).sort((a, b) =>
+      Math.abs(header.chunks[a].start - from) - Math.abs(header.chunks[b].start - from));
+    for (const i of order) await ensure(header.chunks[i].start);
+  }
+  function valueAt(lat, lon, t) {
+    t = Math.max(0, Math.min(header.frames - 1, t | 0));
+    const i = index(t);
+    if (i < 0 || !data[i]) return undefined;
+    const fx = ((((lon + 180) / 360) % 1) + 1) % 1, fy = (90 - lat) / 180;
+    if (!(fy >= 0 && fy <= 1)) return null;
+    const x = Math.min(width - 1, (fx * width) | 0), y = Math.min(height - 1, (fy * height) | 0);
+    const b = data[i][(t - header.chunks[i].start) * n + y * width + x];
+    return b === nodata ? null : fromByte(b);
+  }
+  return { width, height, frames: header.frames, ensure, loadAll, valueAt, loaded: (t) => !!data[index(t | 0)] };
+}
+
 // Index of the image frame (sorted by hour) to show for a given hour: the last one at or before it.
 export function frameForHour(frames, hour) {
   let best = 0;

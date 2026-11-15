@@ -53,6 +53,11 @@ def cmd_export(a):
         print(f"wrote {b} ({_mb(b.stat().st_size)}) and {j}")
 
 
+def cmd_export_hd(a):
+    from .web import export_hd
+    export_hd(a.id, fine=tuple(int(x) for x in a.fine.split("x")), frame_width=a.frame_width)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="gravitunes_data", description=__doc__)
     sp = p.add_subparsers(dest="cmd", required=True)
@@ -65,6 +70,9 @@ def main(argv=None):
     s.set_defaults(f=cmd_build)
     s = sp.add_parser("export", help="write browser grids (.bin + .json) to data/nasa-svs/<id>/web/")
     s.add_argument("id"); s.add_argument("--size", nargs="+", default=["256x128"]); s.set_defaults(f=cmd_export)
+    s = sp.add_parser("export-hd", help="served-app set: coarse + chunked fine grids (delta-gzip) and WebP SVS frames")
+    s.add_argument("id"); s.add_argument("--fine", default="1024x512"); s.add_argument("--frame-width", type=int, default=2048)
+    s.set_defaults(f=cmd_export_hd)
     a = p.parse_args(argv)
     a.f(a)
 

@@ -17,6 +17,14 @@ from .colors import BlendDecoder, line_mask, read_colorbar
 from .paths import DESCRIPTOR_DIR, dataset_dir
 
 FFMPEG = shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+
+
+def _ffmpeg() -> str:
+    """The ffmpeg binary, or a clear error saying how to install it."""
+    if shutil.which(FFMPEG) or Path(FFMPEG).is_file():
+        return FFMPEG
+    raise RuntimeError("ffmpeg not found: it is needed to read the SVS videos. Install it "
+                       "(macOS: brew install ffmpeg; Debian/Ubuntu: apt install ffmpeg) and make sure it is on PATH.")
 NODATA = 255
 
 
@@ -94,6 +102,9 @@ def fetch_sources(svs_id, png_hours: range | list = (), progress=print) -> Path:
     base = svs.vis_dir_url(svs_id)
     files = [(base + d["frames"]["mp4"]["file"], out / d["frames"]["mp4"]["file"], None),
              (base + d["colorbar"]["file"], out / d["colorbar"]["file"], None)]
+    labelled = d["colorbar"]["file"].replace("_plain", "")   # the labelled bar shown in the web app
+    if labelled != d["colorbar"]["file"]:
+        files.append((base + labelled, out / labelled, None))
     png = d["frames"]["png"]
     for h in png_hours:
         n = h - png["first_hour"] + 1
@@ -111,7 +122,7 @@ def video_frames(path: Path, indices=None, size=None):
     vf = []
     if indices is not None:
         vf = ["-vf", "select='" + "+".join(f"eq(n\\,{i})" for i in indices) + "'", "-vsync", "0"]
-    p = subprocess.Popen([FFMPEG, "-v", "error", "-i", str(path), *vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+    p = subprocess.Popen([_ffmpeg(), "-v", "error", "-i", str(path), *vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
                          stdout=subprocess.PIPE)
     n = W * H * 3
     while True:
