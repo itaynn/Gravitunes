@@ -1,7 +1,7 @@
 // Hear the storm: the shell around the Sound lab (soundlab.js does all the sound and the map).
 // This file only adds the intro, the tutorial, the "how the sound is made" card (I), the controls drawer,
 // the week timeline and the spoken voice. Keys: ? opens the tutorial (Space or arrows move its slides); Space plays
-// or stops the week (soundlab.js), and on the intro it skips straight in. I explains the sounds. Escape closes what is open.
+// or stops the week (soundlab.js), and on the intro it skips straight in. R goes back to the start of the week. I explains the sounds. Escape closes what is open.
 (() => {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
@@ -305,6 +305,15 @@
       event.preventDefault();
       if (details.hidden) openDetails();
       else closeDetails();
+      return;
+    }
+
+    // R: back to the start of the week (not Cmd/Ctrl+R, which reloads the page).
+    const plainKey = !event.metaKey && !event.ctrlKey && !event.altKey;
+    if ((event.key === "r" || event.key === "R") && plainKey && !typing && !tutorialOpen && !body.classList.contains("is-intro")) {
+      if (resetBtn.disabled) return;
+      event.preventDefault();
+      resetBtn.click();
     }
   }, { capture: true });
 
