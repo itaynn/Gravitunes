@@ -6,7 +6,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/app/",
+      "destination": "/app/modes/storm-picker/",
       "permanent": true
     }
   ]

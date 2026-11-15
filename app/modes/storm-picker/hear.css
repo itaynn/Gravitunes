@@ -860,28 +860,6 @@ body.hts {
   color: var(--acid);
 }
 
-/* The shared demo switcher, quietened to fit the drawer. */
-.hts-drawer .gt-switcher {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: 12px var(--display);
-}
-
-.hts-drawer .gt-switcher a {
-  color: var(--acid);
-}
-
-.hts-drawer .gt-switcher button {
-  border-radius: 14px;
-  background: var(--acid);
-}
-
-.hts-drawer .gt-switcher .gt-demo-desc {
-  display: none;
-}
-
 /* The I key in a serif face, so its bars show it is a capital I and not an l. */
 .hts-i {
   font-family: Georgia, "Times New Roman", serif;
