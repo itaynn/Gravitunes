@@ -8,7 +8,7 @@ Kept up to date by the main Claude session. Ideas: `docs/ideas/`.
 - Sound engine (caps, rolloff, lowpass, sample voices, open instrument library; scales, tunings, Scala, live edits, mono/stereo)
 - Data tools: ozone (5152), CO (5153), NOx (5154) value grids; log grids in front end
 - Flow analysis (analysis/): optical flow, vorticity, vortices + tracking (on 4285)
-- Standalone demos: `python3 app/tools/build-standalone.py` → dist/ (git-ignored)
+- Standalone demos: `python3 app/tools/build-standalone.py` → dist/ (git-ignored) 
 
 ## Running (agents)
 | Agent | Doing |
