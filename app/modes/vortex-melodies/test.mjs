@@ -70,15 +70,16 @@ const bed = data.frames.map((_, t) => convergence(div, t));
 assert.ok(bed.every((c) => c >= -1 && c <= 1));
 console.log(`vortex-melodies tests ok (${data.tracks.length} tracks, bed ${Math.min(...bed).toFixed(2)}..${Math.max(...bed).toFixed(2)})`);
 
-// Scale menu wiring: every motif note, in every menu scale and voice octave, is a scale tone within C2..C5.
+// Scale menu wiring: every motif note, in every menu scale and voice octave, is a scale tone within C4..E6.
 {
   const { motifFreq: mf } = await import('./vortex.js');
   const { PLEASANT, scaleFreqs, noteHz, LOW_SEMIS, HIGH_SEMIS } = await import('../../core/scales.js');
   for (const id of PLEASANT) {
-    const ts = scaleFreqs(id, noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS));
+    const { TUNE_LOW, TUNE_HIGH } = await import('./vortex.js');
+    const ts = scaleFreqs(id, noteHz(TUNE_LOW), noteHz(TUNE_HIGH));
     for (const m of MOTIFS) for (const dir of ['ccw', 'cw']) for (const oct of [-1, 0, 1]) {
       const fs = orient(m.steps, dir).map((st) => mf(ts, noteHz(m.root), st, oct));
-      for (const f of fs) assert.ok(ts.includes(f) && f >= noteHz(LOW_SEMIS) * 0.999 && f <= noteHz(HIGH_SEMIS) * 1.001, `${id} ${f}`);
+      for (const f of fs) assert.ok(ts.includes(f) && f >= noteHz(TUNE_LOW) * 0.999 && f <= noteHz(TUNE_HIGH) * 1.001, `${id} ${f}`);
       if (oct === 0) assert.ok(new Set(fs).size >= Math.min(3, new Set(m.steps).size), `${id} ${m.name} stays melodic`);
     }
   }
@@ -97,3 +98,14 @@ console.log('vortex-melodies scale wiring ok');
   assert.match(nearestText(0, 0, [{ lat: 10, lon: -10 }, { lat: -40, lon: 60 }], distKm, compass), /^no vortex; nearest 1600 km north-west$/);
   assert.equal(nearestText(0, 0, [], distKm, compass), 'no vortex; none at this time');
 }
+
+// rotating marker: one turn per melody, at note k exactly k/n of a turn, continuous across the loop
+{
+  const { markTurn } = await import('./vortex.js');
+  assert.equal(markTurn(0, 4), 0); assert.equal(markTurn(1, 4), 0.25); assert.equal(markTurn(4, 4), 0);
+  assert.ok(Math.abs(markTurn(3.9999, 4) - 1) < 1e-6 || markTurn(3.9999, 4) < 1e-6);
+  assert.ok(markTurn(0.5, 4) > 0 && markTurn(0.5, 4) < 0.25);
+  const src = readFileSync(join(here, 'main.js'), 'utf8');
+  assert.doesNotMatch(src, /lowpass:/);
+}
+console.log('vortex-melodies marker ok');

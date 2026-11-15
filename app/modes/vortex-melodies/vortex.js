@@ -3,13 +3,24 @@
 import { rankNormaliser } from '../../core/flow.js';
 import { snapToScale } from '../../core/scales.js';
 
-// Motifs as scale steps (ascending form) from a root (semitones from C4). Big vortices: longer and lower (from G2);
-// small: short and higher (from G3). Everything stays within about G2..G4.
+// The tunes' own range, semitones from C4: C4..E6 (bright, clear of the low hum).
+export const TUNE_LOW = 0, TUNE_HIGH = 28;
+
+// Motifs as scale steps (ascending form) from a root (semitones from C4). Big vortices: longer and lower (from C4);
+// small: short and higher (from C5). Everything stays within C4..E6.
 export const MOTIFS = [
-  { name: 'small', steps: [0, 2, 4], root: -5 },
-  { name: 'medium', steps: [0, 1, 3, 2, 4], root: -12 },
-  { name: 'large', steps: [0, 2, 1, 3, 2, 4, 3, 5], root: -17 },
+  { name: 'small', steps: [0, 2, 4], root: 12 },
+  { name: 'medium', steps: [0, 1, 3, 2, 4], root: 5 },
+  { name: 'large', steps: [0, 2, 1, 3, 2, 4, 3, 5], root: 0 },
 ];
+
+// Rotating marker: loop position u (in notes since the loop origin) -> fraction of one turn (0..1).
+// The mark rests at note k's angle k/n when note k sounds and glides (smoothstep) to the next, so one
+// melody = exactly one revolution and the loop restart is seamless.
+export function markTurn(u, n) {
+  const k = Math.floor(u), f = u - k, e = f * f * (3 - 2 * f);
+  return ((((k + e) / n) % 1) + 1) % 1;
+}
 
 // Counterclockwise = ascending motif; clockwise = mirrored (inverted) and descending.
 export function orient(steps, direction) {
