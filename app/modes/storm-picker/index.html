@@ -15,10 +15,10 @@
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./sonification.css">
     <link rel="stylesheet" href="./soundlab.css?v=picker-14">
-    <link rel="stylesheet" href="./hear.css?v=4">
+    <link rel="stylesheet" href="./hear.css?v=3">
     <script type="module" src="../../core/switcher.js"></script>
     <script src="./soundlab.js?v=picker-14" defer></script>
-    <script src="./hear.js?v=6" defer></script>
+    <script src="./hear.js?v=5" defer></script>
   </head>
   <body class="hts is-intro">
     <!-- The map fills the window. soundlab.js drives everything inside #sound-lab and the lab-* controls. -->
@@ -69,7 +69,7 @@
       <button class="hts-icon hts-reset" id="hts-reset" type="button" disabled aria-label="Back to the start of the week (R)" title="Back to the start of the week (R)">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"></path><path d="M4 3.5v4.5h4.5"></path></svg>
       </button>
-      <div class="hts-timeline" id="hts-timeline" role="slider" tabindex="0" aria-label="Week timeline" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Day 1" aria-disabled="true" title="Click or drag to jump in the week (arrow keys move a day)">
+      <div class="hts-timeline">
         <div class="hts-track" aria-hidden="true"><div class="hts-fill" id="hts-fill"></div><div class="hts-head" id="hts-head"></div></div>
         <div class="hts-ticks" aria-hidden="true"><span>DAY 1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span></div>
       </div>

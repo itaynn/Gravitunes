@@ -325,57 +325,13 @@
   const playBtn = $("lab-play");
   resetBtn.addEventListener("click", () => $("lab-restart").click());
 
-  // Click or drag on the timeline to jump to that point of the week; with it focused, the arrow keys move a day
-  // (Shift: an hour), Home and End go to the start and the end. Seeking keeps the week playing or stopped as it was.
-  // Picked spots stay where they are (soundlab.js only lets them drift for small steps of the video).
-  const timelineEl = $("hts-timeline");
-  const track = timelineEl.querySelector(".hts-track");
-  const ready = () => !playBtn.disabled && Number.isFinite(video.duration) && video.duration > 0;
-
-  function seekFraction(p) {
-    if (!ready()) return;
-    video.currentTime = Math.max(0, Math.min(1, p)) * Math.max(0, video.duration - 0.01);
-  }
-
-  function fractionAt(event) {
-    const rect = track.getBoundingClientRect();
-    return (event.clientX - rect.left) / rect.width;
-  }
-
-  timelineEl.addEventListener("pointerdown", (event) => {
-    if (!ready() || event.button !== 0) return;
-    event.preventDefault();
-    timelineEl.focus({ preventScroll: true });
-    timelineEl.setPointerCapture(event.pointerId);
-    timelineEl.classList.add("is-dragging");
-    seekFraction(fractionAt(event));
-  });
-  timelineEl.addEventListener("pointermove", (event) => {
-    if (timelineEl.hasPointerCapture(event.pointerId)) seekFraction(fractionAt(event));
-  });
-  const endDrag = () => timelineEl.classList.remove("is-dragging");
-  timelineEl.addEventListener("pointerup", endDrag);
-  timelineEl.addEventListener("pointercancel", endDrag);
-
-  timelineEl.addEventListener("keydown", (event) => {
-    if (!ready()) return;
-    const p = video.currentTime / video.duration;
-    const step = event.shiftKey ? 1 / (7 * 24) : 1 / 7;
-    const to = { ArrowRight: p + step, ArrowUp: p + step, ArrowLeft: p - step, ArrowDown: p - step, Home: 0, End: 1 }[event.key];
-    if (to === undefined) return;
-    event.preventDefault();
-    seekFraction(to);
-  });
-
   const fill = $("hts-fill");
   const head = $("hts-head");
   const ticks = document.querySelectorAll(".hts-ticks span");
   let lastDay = -1;
 
-  let lastPct = -1;
   function timeline() {
     resetBtn.disabled = playBtn.disabled; // usable once the map has loaded
-    timelineEl.setAttribute("aria-disabled", String(!ready()));
     if (Number.isFinite(video.duration) && video.duration > 0) {
       const p = Math.min(1, video.currentTime / video.duration);
       fill.style.width = `${p * 100}%`;
@@ -384,12 +340,6 @@
       if (day !== lastDay) {
         ticks.forEach((t, i) => t.classList.toggle("is-now", i === day));
         lastDay = day;
-      }
-      const pct = Math.round(p * 100);
-      if (pct !== lastPct) {
-        timelineEl.setAttribute("aria-valuenow", String(pct));
-        timelineEl.setAttribute("aria-valuetext", `Day ${day + 1}, ${pct}% through the week`);
-        lastPct = pct;
       }
     }
     requestAnimationFrame(timeline);
