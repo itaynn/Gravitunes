@@ -1,8 +1,7 @@
 // Hear the storm: the shell around the Sound lab (soundlab.js does all the sound and the map).
 // This file only adds the intro, the tutorial, the "how the sound is made" card (I), the controls drawer,
-// the week timeline and the spoken voice. Keys: ? opens the tutorial (arrows move its slides); Space plays or stops
-// the week (soundlab.js), and on the intro it skips straight in. I explains the sounds. Escape closes what is open.
-// Skipping the intro, or finishing or closing the tutorial, starts the week (hovering is heard while it plays).
+// the week timeline and the spoken voice. Keys: ? opens the tutorial (Space or arrows move its slides); Space plays
+// or stops the week (soundlab.js), and on the intro it skips straight in. I explains the sounds. Escape closes what is open.
 (() => {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
@@ -54,7 +53,7 @@
   }
 
   const LINES = {
-    intro: "Welcome to Hear the storm. Press the question mark key to play the tutorial, or Space to start listening.",
+    intro: "Welcome to Hear the storm. Press the question mark key to play the tutorial, or Space to skip it.",
     details:
       "Here is how the sound is made. Moving from west to east moves the sound from your left ear to your right. " +
       "Further north, the pitch gets higher, and heavier rain or snow plays louder. Rain plays an organ and snow a glockenspiel. " +
@@ -85,26 +84,9 @@
     body.classList.remove("is-intro");
   }
 
-  // Starts the week through soundlab.js's own play button (once the map is ready), unless it is already playing.
-  const playButton = $("lab-play");
-  let waitForMap = 0;
-  function startWeek() {
-    window.clearInterval(waitForMap);
-    const press = () => {
-      if (playButton.querySelector(".button-icon").textContent.trim() === "▶") playButton.click();
-    };
-    if (!playButton.disabled) return press();
-    waitForMap = window.setInterval(() => {
-      if (playButton.disabled) return;
-      window.clearInterval(waitForMap);
-      press();
-    }, 200);
-  }
-
   function skipIntro() {
     leaveIntro();
     canvas.focus({ preventScroll: true });
-    startWeek();
   }
 
   $("hts-skip").addEventListener("click", skipIntro);
@@ -213,8 +195,7 @@
     nextBtn.focus({ preventScroll: true });
   }
 
-  // start: true when the tutorial is finished or skipped (Begin, ×, Escape, Space), so the week starts playing.
-  function closeTutorial(start = false) {
+  function closeTutorial() {
     if (!tutorialOpen) return;
     tutorialOpen = false;
     cancelAnimationFrame(raf);
@@ -222,11 +203,10 @@
     card.hidden = true;
     body.classList.remove("is-tutorial");
     canvas.focus({ preventScroll: true });
-    if (start) startWeek();
   }
 
   function nextSlide() {
-    if (step === LAST) closeTutorial(true);
+    if (step === LAST) closeTutorial();
     else go(step + 1);
   }
 
@@ -236,7 +216,7 @@
 
   $("hts-start-tutorial").addEventListener("click", startTutorial);
   $("hts-tutorial-btn").addEventListener("click", startTutorial);
-  $("hts-tut-close").addEventListener("click", () => closeTutorial(true));
+  $("hts-tut-close").addEventListener("click", closeTutorial);
   nextBtn.addEventListener("click", nextSlide);
 
   // ---------- I: how the sound is made ----------
@@ -304,10 +284,10 @@
       const inCard = tutorialOpen && card.contains(event.target);
       if (typing || ((tag === "BUTTON" || tag === "SUMMARY") && !inCard)) return; // let the focused control handle it
       if (body.classList.contains("is-intro") || tutorialOpen) {
-        // On the intro or in the tutorial, Space skips in and starts the week.
+        // On the intro Space skips in; in the tutorial it moves to the next slide.
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (tutorialOpen) closeTutorial(true);
+        if (tutorialOpen) nextSlide();
         else skipIntro();
       }
       return;
@@ -315,7 +295,7 @@
 
     if (event.key === "Escape") {
       if (!details.hidden) closeDetails();
-      else if (tutorialOpen) closeTutorial(true);
+      else if (tutorialOpen) closeTutorial();
       else if (!drawer.hidden) setDrawer(false);
       else if (body.classList.contains("is-intro")) skipIntro();
       return;
