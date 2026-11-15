@@ -96,12 +96,12 @@ console.log(`flow-tracers tests ok (${n} sampled cells with flow, ${moving} movi
 
 // Scale menu wiring: shared menu, core helpers, notes snapped into the scale within C2..C5.
 {
-  const { PLEASANT, scaleFreqs, snapToScale, noteHz } = await import('../../core/scales.js');
+  const { PLEASANT, scaleFreqs, snapToScale, noteHz, LOW_SEMIS, HIGH_SEMIS } = await import('../../core/scales.js');
   for (const id of PLEASANT) {
-    const ts = scaleFreqs(id, noteHz(-24), noteHz(12));
-    for (const f of [30, noteHz(-24), 200, noteHz(7) * 2, 5000]) {
+    const ts = scaleFreqs(id, noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS));
+    for (const f of [30, noteHz(LOW_SEMIS), 200, noteHz(7) * 2, 5000]) {
       const g = snapToScale(f, ts);
-      assert.ok(ts.includes(g) && g >= noteHz(-24) * 0.999 && g <= noteHz(12) * 1.001);
+      assert.ok(ts.includes(g) && g >= noteHz(LOW_SEMIS) * 0.999 && g <= noteHz(HIGH_SEMIS) * 1.001);
     }
   }
   const src = readFileSync(join(here, 'main.js'), 'utf8');

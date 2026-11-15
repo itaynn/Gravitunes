@@ -3,7 +3,7 @@
 // few dozen larger "singing" tracers. A singing tracer over rain plays a note: heavier rain = higher and louder,
 // faster motion = brighter, east/west = right/left, timbre = world-orchestra region. Dry tracers are silent.
 import { loadFlow, flowAt, compass, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { quantize, noteHz, scaleFreqs } from '../../core/scales.js';
+import { quantize, noteHz, scaleFreqs, LOW_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { voiceNote, pickVoice } from '../../core/voices.js';
 import { voiceAt, formatLatLon } from '../../core/geo.js';
@@ -14,7 +14,7 @@ import { createBackdrop } from '../../core/svs-frames.js';
 import { rng, scatter, pickVoices, speedBrightness, hoverGesture, flowBetween, moveParticle, rateText } from './tracers.js';
 
 // Pitch range: the shared bounds (C2 up to the engine's top fundamental).
-const LOW_HZ = noteHz(-24), HIGH_HZ = MAX_FUND_HZ;
+const LOW_HZ = noteHz(LOW_SEMIS), HIGH_HZ = MAX_FUND_HZ;
 const DRY = 0.02;   // field value of the lightest rain colour (0.1 mm/h); below = dry
 
 export default function start(ctx) {

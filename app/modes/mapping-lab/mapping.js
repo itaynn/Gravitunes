@@ -1,6 +1,6 @@
 // Mapping lab: pure logic (no DOM), tested by app/modes/mapping-lab/test.mjs.
 // A mapping says, for each sound parameter, which data source drives it (or 'off') and whether it is flipped.
-import { quantize, noteHz, noteName, C4 } from '../../core/scales.js';
+import { quantize, noteHz, noteName, C4, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { blendVoices, shapeForPitch } from '../../core/voices.js';
 
 export const SOURCES = {
@@ -116,10 +116,10 @@ export const freqName = (f) => noteName(Math.round(12 * Math.log2(f / C4)));
 // Note for one point: ready-to-play sound.play() options plus spoken labels per parameter.
 // opts: { range, scale, lowSemis, highSemis, instruments, dur }
 export function renderNote(mapping, point, opts) {
-  const { range, norm, scale = 'pentatonic-major', lowSemis = -24, highSemis = 12, instruments, dur = 0.5 } = opts;
+  const { range, norm, scale = 'pentatonic-major', lowSemis = LOW_SEMIS, highSemis = HIGH_SEMIS, instruments, dur = 0.5 } = opts;
   const src = sourceValues(point, range, norm);
   const c = controls(mapping, src);
-  const lowHz = noteHz(Math.max(-24, lowSemis)), highHz = noteHz(Math.min(12, highSemis));
+  const lowHz = noteHz(Math.max(LOW_SEMIS, lowSemis)), highHz = noteHz(Math.min(HIGH_SEMIS, highSemis));
   const freq = quantize(c.pitch, [0, 1], scale, lowHz, highHz).freq;
 
   const { voice: base, label: timbreLabel } = familyVoice(c.timbre, instruments);

@@ -1,11 +1,11 @@
-// Tone lab: pick an instrument (world voices from data/earth/instruments.json, or recorded instruments from
-// sound-engine/library) and hear a note, a scale, a chord or its phrase, between C2 and C5.
-import { createSound } from '../../core/sound.js';
+// Tone lab: pick an instrument (world voices from data/earth/instruments.json, sampled instruments from
+// sound-engine/library/samples, or analysed recordings from sound-engine/library) and hear a note, a scale, a chord or its phrase, between C2 and A5.
+import { createSound, loadSampleIndex } from '../../core/sound.js';
 import { createDescribe, createPanel } from '../../core/ui.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, getJson, repoUrl } from '../../core/data.js';
 import { playNotes } from '../../core/gestures.js';
-import { noteHz, noteName, C4 } from '../../core/scales.js';
+import { noteHz, noteName, C4, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { toneNotes } from './tones.js';
 import '../../core/switcher.js';
 
@@ -19,7 +19,7 @@ let scale = null;   // null: the instrument's own scale
 scaleControl(createPanel($('#tone-scale')), { value: 'pentatonic-major', own: 'Instrument\'s own', describe,
   onChange: (v) => { scale = v; },
   hint: 'Used by Scale and Chord. Phrase plays the instrument\'s own typical notes.' });
-let instruments = {}, library = [], current = null;   // current: { label, voice, name? }
+let instruments = {}, library = [], samples = {}, current = null;   // current: { label, voice, name? }
 
 const syncPitch = () => pitch.setAttribute('aria-valuetext', noteName(+pitch.value));
 syncPitch();
@@ -43,6 +43,12 @@ try {
 try {
   library = await getJson(repoUrl('sound-engine/library/presets/index.json'));
 } catch (e) { console.warn(e); }
+samples = await loadSampleIndex();
+// Load every recording now (decoding needs no user gesture); voices without one stay synthesized.
+const sampleLoad = sound.loadSamples?.(Object.keys(samples)).then((r) => {
+  console.info(`[tone-lab] samples loaded: ${r.loaded.join(', ') || 'none'}; fallback: ${r.fallback.join(', ') || 'none'}`);
+  return r;
+});
 
 sel.replaceChildren();
 const group = (label, items) => {
@@ -52,7 +58,8 @@ const group = (label, items) => {
   sel.append(og);
 };
 group('World instruments (as on the map)', Object.entries(instruments).map(([id, v]) => [`w:${id}`, `${cap(v.label)} (${v.inspiredBy})`]));
-group('Recorded instruments', library.map((p) => [`l:${p.id}`, `${p.name}${p.pitched === false ? ' (unpitched)' : ''}`]));
+group('Sampled instruments', Object.entries(samples).map(([id, v]) => [`s:${id}`, `${v.label}${v.kind === 'hit' ? ' (drum)' : ''}`]));
+group('Analysed recordings', library.map((p) => [`l:${p.id}`, `${p.name}${p.pitched === false ? ' (unpitched)' : ''}`]));
 if (!sel.options.length) { sel.append(new Option('No instruments found', '')); status('Could not load the instrument lists.'); }
 
 function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
@@ -64,7 +71,18 @@ async function choose(value) {
   if (kind === 'w') {
     const v = instruments[id];
     current = { label: v.label, voice: v };
-    about.textContent = `${cap(v.label)}, inspired by ${v.inspiredBy}. ${cap(v.family || '')}`.trim();
+    await sampleLoad;
+    if (token !== chooseSeq) return;
+    const rec = v.sample && sound.hasSample?.(v.sample) ? ` Recorded: ${samples[v.sample].label}.` : ' Synthesized.';
+    about.textContent = `${cap(v.label)}, ${v.inspiredBy}. ${cap(v.family || '')}.${rec}`.replace('..', '.');
+  } else if (kind === 's') {
+    const v = samples[id];
+    await sampleLoad;
+    if (token !== chooseSeq) return;
+    const ok = sound.hasSample?.(id);
+    // A sampled instrument without its file (or on the built-in synth) plays a plain tone.
+    current = { label: v.label, voice: { sample: id, harmonics: [1, 0.5, 0.25], dur: v.kind === 'hit' ? 0.3 : 0.7 } };
+    about.textContent = `${v.label}: ${ok ? 'recording' : 'recording not loaded, plain tone'}. ${v.source}, ${v.license}.`;
   } else if (kind === 'l') {
     const p = library.find((x) => x.id === id);
     current = null;
@@ -100,7 +118,7 @@ function play(kind) {
   } else {
     playNotes(sound, current.voice, notes, { amp: 0.4 });
   }
-  // Scales and chords that would pass C5 start an octave lower: announce the note actually played.
+  // Scales and chords that would pass A5 start an octave lower: announce the note actually played.
   describe(`${cap(current.label)}: ${KIND_TEXT[kind]} from ${notes.length ? nameOf(notes[0].freq) : noteName(+pitch.value)}`);
 }
 for (const k of Object.keys(KIND_TEXT)) $(`#play-${k}`).addEventListener('click', () => play(k));
@@ -114,7 +132,7 @@ document.addEventListener('keydown', (e) => {
   if (/^(SELECT|INPUT|TEXTAREA)$/.test(tag)) return;
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
     e.preventDefault();
-    pitch.value = Math.max(-24, Math.min(12, +pitch.value + (e.key === 'ArrowUp' ? 1 : -1)));
+    pitch.value = Math.max(LOW_SEMIS, Math.min(HIGH_SEMIS, +pitch.value + (e.key === 'ArrowUp' ? 1 : -1)));
     syncPitch();
     describe(noteName(+pitch.value));
     play('note');

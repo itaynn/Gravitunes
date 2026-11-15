@@ -9,7 +9,7 @@ rises past the threshold (previous hour below, this hour at or above) plays one 
   pan flute, Celtic harp, marimba, balalaika, bandoneón, didgeridoo, banjo, mbira, duduk, bouzouki, plus
   an ocean pad. They are not recordings or faithful models.
 - **Pitch:** value, quantized to the chosen scale (pentatonic default; slendro and pelog use the sound
-  engine's gamelan cents). Range is low to mid: default G2 to G4, adjustable within C2 to C5. Upper
+  engine's gamelan cents). Range is low to mid: default G2 to G4, adjustable within C2 to A5. Upper
   partials roll off as pitch rises (and above 4 kHz are dropped) so bright voices are not shrill.
 - **Loudness:** value. **Pan:** longitude.
 - **Controls:** play/pause, speed (hours per second), scale, threshold (default: dataset 70th percentile),
@@ -24,3 +24,5 @@ Works with any dataset that has a descriptor and a value grid (`?dataset=<id>`);
 
 Tests: `node app/modes/world-orchestra/test.mjs` (nearest center and blending, triggering, scale
 quantization, and decoding the real 256x128 grid when `data/nasa-svs/5152/web/5152_256x128.bin` exists).
+
+Instruments view (on at first, the former Timbre atlas): no dataset, a plain Natural Earth map, and each of the ~60 regions plays its own phrase or drum pattern on a recorded instrument (sound-engine/library/samples). Old `?mode=timbre-atlas` and `timbre-atlas.html` links redirect here.

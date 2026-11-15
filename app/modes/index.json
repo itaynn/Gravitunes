@@ -88,23 +88,16 @@
       "id": "synth-lab",
       "name": "Tone lab",
       "author": "moran",
-      "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from low C2 up to C5.",
+      "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to A5.",
       "datasets": "none",
       "href": "index.html",
       "standalone": {
         "files": [
           "data/earth/instruments.json",
-          "sound-engine/library/presets/*.json"
+          "sound-engine/library/presets/*.json",
+          "sound-engine/library/samples/*"
         ]
       }
-    },
-    {
-      "id": "timbre-atlas",
-      "name": "Timbre atlas",
-      "author": "moran",
-      "description": "Just the world map and its instruments: move the mouse, touch, or use the arrow keys, and each region plays a short phrase in its own voice (guzheng bends, gamelan pelog, sitar slides, oud maqam, balalaika tremolo, didgeridoo drone...). Voices blend near borders.",
-      "datasets": "any",
-      "data": false
     },
     {
       "id": "vortex-melodies",
@@ -122,14 +115,17 @@
       "id": "world-orchestra",
       "name": "World orchestra",
       "author": "moran",
-      "description": "About 280 world cities listen to the data. When a city's value rises past a threshold it plays one note, in a voice inspired by a nearby musical tradition (organ, guzheng, gamelan, sitar, kora, pan flute...). Pitch follows the value, east/west pans left/right; hover or use the arrow keys to hear and hear about any region.",
+      "description": "The world's musical regions on one map. Instruments (on at first): move the mouse, touch, or use the arrow keys, and each region plays a short phrase on a recorded instrument (djembe, kora, oud, balalaika, khomus, morin khuur, sitar, koto, pan flute...). Turn it off and about 280 cities play the data: a city whose value rises past a threshold plays one note in its region's voice.",
       "datasets": [
         "5152",
         "5153",
         "5154"
       ],
       "standalone": {
-        "every": 6
+        "every": 6,
+        "files": [
+          "sound-engine/library/samples/*"
+        ]
       }
     }
   ]

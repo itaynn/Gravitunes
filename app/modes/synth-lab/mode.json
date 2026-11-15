@@ -1,10 +1,14 @@
 {
   "name": "Tone lab",
   "author": "moran",
-  "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from low C2 up to C5.",
+  "description": "Hear how each instrument sounds before you hear the data: pick a world instrument from the map or a recorded one, then play a note, a scale, a chord or its typical phrase, from C2 up to A5.",
   "datasets": "none",
   "href": "index.html",
   "standalone": {
-    "files": ["data/earth/instruments.json", "sound-engine/library/presets/*.json"]
+    "files": [
+      "data/earth/instruments.json",
+      "sound-engine/library/presets/*.json",
+      "sound-engine/library/samples/*"
+    ]
   }
 }

@@ -2,7 +2,7 @@
 // Loop speed <- spin rank, loudness <- strength x size rank, pan <- longitude, ccw rising / cw falling,
 // timbre <- world-orchestra region at the center. A soft bed follows net convergence of the flow.
 import { loadFlow, rankNormaliser, layerByPrefix, drawFlowArrows } from '../../core/flow.js';
-import { scaleFreqs, noteHz, snapToScale } from '../../core/scales.js';
+import { scaleFreqs, noteHz, snapToScale, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { shapeForPitch, pickVoice } from '../../core/voices.js';
 import { voiceAt, distKm, compass, formatLatLon } from '../../core/geo.js';
@@ -47,7 +47,7 @@ export default function start(ctx) {
     const phase = new Map();           // vortex id -> loop start (seconds, performance clock)
     let active = [], solo = null;      // solo: { id, until }
 
-    const tones = () => scaleFreqs(s.scale, noteHz(-24), MAX_FUND_HZ);   // the shared range: C2 to the top fundamental
+    const tones = () => scaleFreqs(s.scale, noteHz(LOW_SEMIS), MAX_FUND_HZ);   // the shared range: C2 to the top fundamental (A5)
     function voiceFor(v) {
       const region = voiceAt(v.lat, v.lon, centers, instruments, 900);
       if (s.timbre === 'region') return { voice: region.voice, name: instLabel(region.primary.instrument), center: region.primary };

@@ -2,7 +2,7 @@
 import { formatLatLon as fmt } from '../../core/geo.js';
 import { valueHelpers } from '../../core/data.js';
 import { soundHint, throttle } from '../../core/ui.js';
-import { quantize, noteHz } from '../../core/scales.js';
+import { quantize, noteHz, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { scaleControl } from '../../core/scale-control.js';
 
 // pitch <- value, harmonics <- roughness (spread) of the neighborhood, pan <- longitude.
@@ -52,7 +52,7 @@ export default function start(ctx) {
     const rough01 = Math.min(1, spread * 3);
     const harmonics = 1 + Math.round(rough01 * 6);
     sound.play({
-      freq: quantize(n, [0, 1], scale, noteHz(-24), noteHz(12)).freq, harmonics, pan: lon / 180,
+      freq: quantize(n, [0, 1], scale, noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS)).freq, harmonics, pan: lon / 180,
       amplitude: 0.25, duration: 0.35,
       // Patchy spots also get a breathy edge, so smooth and rough areas are easy to tell apart.
       ...(rough01 > 0.1 && { noise: { amount: rough01 * 0.3, attack: 0.01, decay: 0.25, cutoff: 2500 } }),

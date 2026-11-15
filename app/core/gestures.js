@@ -1,5 +1,5 @@
 // Instrument gestures: turn a voice (data/earth/instruments.json shape) into a short idiomatic phrase. Pure.
-import { MAX_FUND_HZ } from './sound.js';
+import { MAX_FUND_HZ } from './scales.js';
 import { shapeForPitch } from './voices.js';
 
 const cents = (f, c) => f * 2 ** (c / 1200);
@@ -11,11 +11,13 @@ export function degreeCents({ scale = [0], period = 1200 }, step) {
 }
 
 // Notes for one gesture: [{ freq, t, dur, amp, glide?, vibrato? }]. phrase=false gives a single tonic note.
-// Everything (including glide targets and vibrato peaks) is shifted down by octaves until it is <= C5.
+// Everything (including glide targets and vibrato peaks) is shifted down by octaves until it is <= MAX_FUND_HZ.
+// Drum patterns: gesture.rhythm (onset of each step, in units of gap), gesture.accents (amp per step) and
+// gesture.fixedHz (the drum's own pitch, ignoring baseHz) turn steps into a pattern of drum tones.
 export function gestureNotes(voice, baseHz, { phrase = true, floorHz = 0 } = {}) {
   const g = voice.gesture || { scale: [0], steps: [0], gap: 0.3 };
   const steps = phrase ? g.steps : [0];
-  const base = baseHz * 2 ** (voice.octave || 0);
+  const base = (g.fixedHz || baseHz) * 2 ** (voice.octave || 0);
   const dur = g.dur ?? voice.dur ?? 0.4, gap = g.gap ?? 0.3;
   const notes = [];
   let t = 0;
@@ -30,7 +32,8 @@ export function gestureNotes(voice, baseHz, { phrase = true, floorHz = 0 } = {})
       t += trem.count * trem.gap + (last ? 0 : gap * 0.4);
       return;
     }
-    const n = { freq: f, t, dur: g.hold ? dur + (steps.length - 1 - i) * gap : dur, amp: 1 };
+    const at = phrase && g.rhythm ? g.rhythm[i] * gap : t;
+    const n = { freq: f, t: at, dur: g.hold ? dur + (steps.length - 1 - i) * gap : dur, amp: phrase && g.accents ? g.accents[i] ?? 1 : 1 };
     if (voice.slide && (i === 0 || g.slideEach)) {
       n.freq = cents(f, voice.slide.cents);
       n.glide = { to: f, time: voice.slide.time ?? 0.1, at: 0 };
@@ -67,11 +70,19 @@ export function liftToFloor(notes, floorHz, ceilHz = MAX_FUND_HZ) {
 // Length of a gesture in seconds (start of last note + its duration).
 export const gestureLength = (notes) => Math.max(0, ...notes.map((n) => n.t + n.dur));
 
-// Play gesture notes with a voice through ctx.sound (pitch-safe shaping per note).
+// Play gesture notes with a voice through ctx.sound (pitch-safe shaping per note). A voice with `samples`
+// ([{ id, w }], from blendVoices) or `sample` (an id) plays each loaded recording at its weight (a crossfade near
+// borders); an instrument without a loaded sample plays its synthesized voice instead.
 export function playNotes(sound, voice, notes, { amp = 0.4, pan = 0 } = {}) {
+  const mix = voice.samples || (voice.sample ? [{ id: voice.sample, w: 1 }] : []);
+  const live = mix.filter((m) => m.w > 0.02 && sound.hasSample?.(m.id));
+  const synthW = 1 - live.reduce((a, m) => a + m.w, 0);
   for (const n of notes) {
+    for (const m of live) sound.play({ sample: m.id, freq: n.freq, t: n.t, dur: n.dur, amp: amp * 1.6 * m.w * (n.amp ?? 1), pan,
+      glide: n.glide, vibrato: n.vibrato });
+    if (synthW <= 0.02) continue;
     const sh = shapeForPitch(voice, n.freq);
-    sound.play({ freq: n.freq, t: n.t, dur: n.dur, amp: amp * (n.amp ?? 1), pan,
+    sound.play({ freq: n.freq, t: n.t, dur: n.dur, amp: amp * synthW * (n.amp ?? 1), pan,
       harmonics: sh.harmonics, partials: sh.partials, envelope: sh.envelope, noise: sh.noise,
       glide: n.glide, vibrato: n.vibrato, wah: n.wah && sh.wah });
   }

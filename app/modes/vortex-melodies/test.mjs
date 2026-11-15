@@ -73,12 +73,12 @@ console.log(`vortex-melodies tests ok (${data.tracks.length} tracks, bed ${Math.
 // Scale menu wiring: every motif note, in every menu scale and voice octave, is a scale tone within C2..C5.
 {
   const { motifFreq: mf } = await import('./vortex.js');
-  const { PLEASANT, scaleFreqs, noteHz } = await import('../../core/scales.js');
+  const { PLEASANT, scaleFreqs, noteHz, LOW_SEMIS, HIGH_SEMIS } = await import('../../core/scales.js');
   for (const id of PLEASANT) {
-    const ts = scaleFreqs(id, noteHz(-24), noteHz(12));
+    const ts = scaleFreqs(id, noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS));
     for (const m of MOTIFS) for (const dir of ['ccw', 'cw']) for (const oct of [-1, 0, 1]) {
       const fs = orient(m.steps, dir).map((st) => mf(ts, noteHz(m.root), st, oct));
-      for (const f of fs) assert.ok(ts.includes(f) && f >= noteHz(-24) * 0.999 && f <= noteHz(12) * 1.001, `${id} ${f}`);
+      for (const f of fs) assert.ok(ts.includes(f) && f >= noteHz(LOW_SEMIS) * 0.999 && f <= noteHz(HIGH_SEMIS) * 1.001, `${id} ${f}`);
       if (oct === 0) assert.ok(new Set(fs).size >= Math.min(3, new Set(m.steps).size), `${id} ${m.name} stays melodic`);
     }
   }

@@ -5,7 +5,7 @@ import { SOURCES, PARAMS, PRESETS, cloneMapping, presetOf, encodeMapping, decode
   renderNote, describeNote, makePoints } from './mapping.js';
 import { selectTriggers, percentileOf } from '../../core/triggers.js';
 import { formatValue as fmtNum } from '../../core/grid.js';
-import { noteName } from '../../core/scales.js';
+import { noteName, LOW_SEMIS, HIGH_SEMIS } from '../../core/scales.js';
 import { formatLatLon } from '../../core/geo.js';
 import { scaleControl } from '../../core/scale-control.js';
 import { loadEarth, valueHelpers } from '../../core/data.js';
@@ -28,7 +28,7 @@ export default function start(ctx) {
       mapping: decodeMapping(url.get('map')) || cloneMapping(PRESETS.classic.mapping),
       scale: 'pentatonic-major',   // set by the shared Scale menu (?scale= or the remembered choice)
       speed: 6, maxNotes: 6, cooldown: 6, volume: 0.7,
-      lowSemis: -24, highSemis: 12,            // C2 .. C5
+      lowSemis: LOW_SEMIS, highSemis: HIGH_SEMIS,   // C2 .. A5
       threshold: null,
     };
     const valuesAt = (t) => points.map((p) => dataset.valueAt(p.lat, p.lon, t));
@@ -98,10 +98,10 @@ export default function start(ctx) {
     const stepH = dataset.stepHours || 1;
     const cool = panel.slider('Point cooldown', { min: 0, max: 48, step: 1, value: s.cooldown,
       hint: 'Hours before a point can play again.', format: (v) => `${Math.round(v * stepH)} hours` }, (v) => { s.cooldown = v; });
-    const low = panel.slider('Lowest note', { min: -24, max: 0, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
+    const low = panel.slider('Lowest note', { min: LOW_SEMIS, max: HIGH_SEMIS - 7, step: 1, value: s.lowSemis, format: (v) => noteName(v) },
       (v) => { s.lowSemis = Math.min(v, s.highSemis - 7); low.update(s.lowSemis); });
-    const high = panel.slider('Highest note', { min: -12, max: 12, step: 1, value: s.highSemis, format: (v) => noteName(v),
-      hint: 'Pitch range, C2 to C5.' }, (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
+    const high = panel.slider('Highest note', { min: LOW_SEMIS + 7, max: HIGH_SEMIS, step: 1, value: s.highSemis, format: (v) => noteName(v),
+      hint: 'Pitch range, C2 to A5.' }, (v) => { s.highSemis = Math.max(v, s.lowSemis + 7); high.update(s.highSemis); });
     // Keep Preset, Scale, Threshold, Volume up front; the rest is one click away.
     fold('Customize mapping', Object.values(mapControls).flatMap((c) => [c.sel, c.flip]));
     fold('More sound settings', [dens, cool, low, high]);

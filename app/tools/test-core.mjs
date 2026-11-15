@@ -99,13 +99,13 @@ console.log('grid tests ok');
 {
   const { voiceNote, pickVoice } = await import('../core/voices.js');
   const { throttle } = await import('../core/ui.js');
-  const { noteHz, scaleFreqs } = await import('../core/scales.js');
+  const { noteHz, scaleFreqs, LOW_SEMIS, HIGH_SEMIS } = await import('../core/scales.js');
   const v = { harmonics: [1, 0.5], octave: 1, dur: 0.3 };
-  const hi = voiceNote(v, noteHz(6));                      // shifted an octave up, folded back an octave under C5
-  assert.ok(Math.abs(hi.note.freq - noteHz(6)) < 1e-9 && hi.dur === 0.3);
+  const hi = voiceNote(v, noteHz(15));                     // shifted an octave up, folded back an octave under A5
+  assert.ok(Math.abs(hi.note.freq - noteHz(15)) < 1e-9 && hi.dur === 0.3);
   const lo = voiceNote({ harmonics: [1], octave: -1 }, noteHz(-17));   // G2 an octave down -> folded to G2, not C2
   assert.ok(Math.abs(lo.note.freq - noteHz(-17)) < 1e-9);
-  const tones = scaleFreqs('pentatonic-major', noteHz(-24), noteHz(12));
+  const tones = scaleFreqs('pentatonic-major', noteHz(LOW_SEMIS), noteHz(HIGH_SEMIS));
   assert.ok(tones.includes(voiceNote({ harmonics: [1] }, 300, { tones }).note.freq));
   assert.equal(pickVoice(['a', 'b', 'c'], 0), 'a');
   assert.equal(pickVoice(['a', 'b', 'c'], 1), 'c');

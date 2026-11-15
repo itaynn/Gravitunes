@@ -3,8 +3,8 @@
 // Standalone builds set window.__GT_MODES__ ([{id, name, description, file}]) and window.__GT_CURRENT__;
 // the dropdown then switches between the built dist/*.html files.
 
-// Gallery order: the tone lab, then the timbre atlas, then the data demos as listed.
-export const FIRST = ['synth-lab', 'timbre-atlas'];
+// Gallery order: the tone lab, then the world orchestra (instruments map), then the data demos as listed.
+export const FIRST = ['synth-lab', 'world-orchestra'];
 export function orderModes(modes) {
   const rank = (m) => (FIRST.includes(m.id) ? FIRST.indexOf(m.id) : FIRST.length);
   return modes.map((m, i) => [m, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([m]) => m);

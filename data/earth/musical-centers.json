@@ -1,26 +1,501 @@
 {
-  "note": "Musical centers for the world-orchestra mode. Each city takes the voice of its nearest center; near a border two voices blend. Locations are symbolic, not claims about where an instrument is from exclusively.",
-  "centers": [
-    { "id": "germany", "label": "Central Europe", "region": "Central Europe", "lat": 51.34, "lon": 12.37, "instrument": "organ" },
-    { "id": "ireland", "label": "Ireland and Britain", "region": "Northwest Europe", "lat": 53.35, "lon": -6.26, "instrument": "celticharp" },
-    { "id": "greece", "label": "Mediterranean", "region": "Southern Europe", "lat": 37.98, "lon": 23.73, "instrument": "bouzouki" },
-    { "id": "russia", "label": "Russia and Eastern Europe", "region": "Eastern Europe", "lat": 55.75, "lon": 37.62, "instrument": "balalaika" },
-    { "id": "caucasus", "label": "Caucasus", "region": "Caucasus", "lat": 40.18, "lon": 44.51, "instrument": "duduk" },
-    { "id": "middle-east", "label": "Middle East and North Africa", "region": "Middle East", "lat": 30.0, "lon": 38.0, "instrument": "oud" },
-    { "id": "india", "label": "South Asia", "region": "South Asia", "lat": 25.32, "lon": 82.97, "instrument": "sitar" },
-    { "id": "china", "label": "China", "region": "East Asia", "lat": 34.34, "lon": 108.94, "instrument": "guzheng" },
-    { "id": "japan", "label": "Japan and Korea", "region": "East Asia", "lat": 35.01, "lon": 135.77, "instrument": "koto" },
-    { "id": "indonesia", "label": "Southeast Asia", "region": "Southeast Asia", "lat": -7.8, "lon": 110.36, "instrument": "gamelan" },
-    { "id": "australia", "label": "Australia", "region": "Oceania", "lat": -23.7, "lon": 133.88, "instrument": "didgeridoo" },
-    { "id": "senegambia", "label": "West Africa (coast)", "region": "West Africa", "lat": 13.45, "lon": -16.58, "instrument": "kora" },
-    { "id": "mali", "label": "West Africa (Sahel)", "region": "West Africa", "lat": 9.0, "lon": 2.0, "instrument": "balafon" },
-    { "id": "zimbabwe", "label": "Southern and East Africa", "region": "Southern Africa", "lat": -17.83, "lon": 31.05, "instrument": "mbira" },
-    { "id": "usa", "label": "North America", "region": "North America", "lat": 38.0, "lon": -90.0, "instrument": "banjo" },
-    { "id": "mexico", "label": "Mexico and Central America", "region": "Central America", "lat": 17.0, "lon": -93.0, "instrument": "marimba" },
-    { "id": "andes", "label": "Andes", "region": "South America", "lat": -13.53, "lon": -71.97, "instrument": "panflute" },
-    { "id": "rio-plata", "label": "Río de la Plata and Brazil", "region": "South America", "lat": -30.0, "lon": -55.0, "instrument": "bandoneon" },
-    { "id": "pacific", "label": "Pacific Ocean", "region": "Pacific", "lat": 5.0, "lon": -150.0, "instrument": "ocean" },
-    { "id": "atlantic", "label": "Atlantic Ocean", "region": "Atlantic", "lat": 10.0, "lon": -35.0, "instrument": "ocean" },
-    { "id": "indian-ocean", "label": "Indian Ocean", "region": "Indian Ocean", "lat": -25.0, "lon": 75.0, "instrument": "ocean" }
-  ]
+ "note": "Musical centers for the world-orchestra mode. Each city takes the voice of its nearest center; near a border two voices blend. Locations are symbolic, not claims about where an instrument is from exclusively.",
+ "centers": [
+  {
+   "id": "ireland",
+   "label": "Ireland",
+   "region": "Ireland",
+   "lat": 53.3,
+   "lon": -7.5,
+   "instrument": "fiddle"
+  },
+  {
+   "id": "scotland",
+   "label": "Scotland",
+   "region": "Scotland",
+   "lat": 57.0,
+   "lon": -4.2,
+   "instrument": "bagpipe"
+  },
+  {
+   "id": "france",
+   "label": "France",
+   "region": "France",
+   "lat": 46.5,
+   "lon": 2.5,
+   "instrument": "accordion"
+  },
+  {
+   "id": "spain",
+   "label": "Spain",
+   "region": "Spain",
+   "lat": 39.5,
+   "lon": -4.0,
+   "instrument": "flamenco"
+  },
+  {
+   "id": "germany",
+   "label": "Central Europe",
+   "region": "Central Europe",
+   "lat": 51.0,
+   "lon": 11.5,
+   "instrument": "organ"
+  },
+  {
+   "id": "norway",
+   "label": "Scandinavia",
+   "region": "Scandinavia",
+   "lat": 61.5,
+   "lon": 9.0,
+   "instrument": "hardanger"
+  },
+  {
+   "id": "greece",
+   "label": "Greece and the Balkans",
+   "region": "Greece and the Balkans",
+   "lat": 39.5,
+   "lon": 22.0,
+   "instrument": "bouzouki"
+  },
+  {
+   "id": "russia",
+   "label": "Western Russia",
+   "region": "Western Russia",
+   "lat": 55.7,
+   "lon": 37.6,
+   "instrument": "balalaika"
+  },
+  {
+   "id": "west-siberia",
+   "label": "Western Siberia",
+   "region": "Western Siberia",
+   "lat": 61.0,
+   "lon": 75.0,
+   "instrument": "shamandrum"
+  },
+  {
+   "id": "sakha",
+   "label": "Sakha (Yakutia)",
+   "region": "Sakha (Yakutia)",
+   "lat": 64.0,
+   "lon": 125.0,
+   "instrument": "khomus"
+  },
+  {
+   "id": "tuva",
+   "label": "Tuva and Altai",
+   "region": "Tuva and Altai",
+   "lat": 51.5,
+   "lon": 94.0,
+   "instrument": "throat"
+  },
+  {
+   "id": "chukotka",
+   "label": "Russian Far East",
+   "region": "Russian Far East",
+   "lat": 64.0,
+   "lon": 165.0,
+   "instrument": "shamandrum"
+  },
+  {
+   "id": "mongolia",
+   "label": "Mongolia",
+   "region": "Mongolia",
+   "lat": 47.0,
+   "lon": 104.0,
+   "instrument": "morinkhuur"
+  },
+  {
+   "id": "kazakhstan",
+   "label": "Kazakhstan",
+   "region": "Kazakhstan",
+   "lat": 48.0,
+   "lon": 67.0,
+   "instrument": "dombra"
+  },
+  {
+   "id": "uzbekistan",
+   "label": "Uzbekistan",
+   "region": "Uzbekistan",
+   "lat": 40.0,
+   "lon": 63.0,
+   "instrument": "dutar"
+  },
+  {
+   "id": "caucasus",
+   "label": "Caucasus and Armenia",
+   "region": "Caucasus and Armenia",
+   "lat": 40.5,
+   "lon": 44.5,
+   "instrument": "duduk"
+  },
+  {
+   "id": "iran",
+   "label": "Persia",
+   "region": "Persia",
+   "lat": 32.0,
+   "lon": 53.0,
+   "instrument": "santur"
+  },
+  {
+   "id": "levant",
+   "label": "Egypt and the Levant",
+   "region": "Egypt and the Levant",
+   "lat": 30.0,
+   "lon": 34.0,
+   "instrument": "oud"
+  },
+  {
+   "id": "maghreb",
+   "label": "Maghreb",
+   "region": "Maghreb",
+   "lat": 31.5,
+   "lon": -5.0,
+   "instrument": "darbuka"
+  },
+  {
+   "id": "sahel",
+   "label": "Mali",
+   "region": "Mali",
+   "lat": 15.5,
+   "lon": -4.0,
+   "instrument": "ngoni"
+  },
+  {
+   "id": "senegambia",
+   "label": "Senegal and Gambia",
+   "region": "Senegal and Gambia",
+   "lat": 13.5,
+   "lon": -15.5,
+   "instrument": "kora"
+  },
+  {
+   "id": "guinea",
+   "label": "Guinea and the coast",
+   "region": "Guinea and the coast",
+   "lat": 9.5,
+   "lon": -10.0,
+   "instrument": "djembe"
+  },
+  {
+   "id": "burkina",
+   "label": "Burkina Faso and Ghana",
+   "region": "Burkina Faso and Ghana",
+   "lat": 10.0,
+   "lon": -1.0,
+   "instrument": "balafon"
+  },
+  {
+   "id": "nigeria",
+   "label": "Nigeria",
+   "region": "Nigeria",
+   "lat": 8.0,
+   "lon": 5.5,
+   "instrument": "talkingdrum"
+  },
+  {
+   "id": "ethiopia",
+   "label": "Ethiopia",
+   "region": "Ethiopia",
+   "lat": 9.0,
+   "lon": 39.0,
+   "instrument": "masenqo"
+  },
+  {
+   "id": "congo",
+   "label": "Congo",
+   "region": "Congo",
+   "lat": -2.0,
+   "lon": 21.0,
+   "instrument": "likembe"
+  },
+  {
+   "id": "east-africa",
+   "label": "East Africa",
+   "region": "East Africa",
+   "lat": -3.0,
+   "lon": 36.5,
+   "instrument": "ngoma"
+  },
+  {
+   "id": "zimbabwe",
+   "label": "Zimbabwe",
+   "region": "Zimbabwe",
+   "lat": -18.5,
+   "lon": 30.0,
+   "instrument": "mbira"
+  },
+  {
+   "id": "mozambique",
+   "label": "Mozambique",
+   "region": "Mozambique",
+   "lat": -23.5,
+   "lon": 34.5,
+   "instrument": "timbila"
+  },
+  {
+   "id": "south-africa",
+   "label": "South Africa",
+   "region": "South Africa",
+   "lat": -29.0,
+   "lon": 25.0,
+   "instrument": "maskandi"
+  },
+  {
+   "id": "madagascar",
+   "label": "Madagascar",
+   "region": "Madagascar",
+   "lat": -19.0,
+   "lon": 46.5,
+   "instrument": "valiha"
+  },
+  {
+   "id": "north-india",
+   "label": "North India",
+   "region": "North India",
+   "lat": 27.0,
+   "lon": 80.0,
+   "instrument": "sitar"
+  },
+  {
+   "id": "south-india",
+   "label": "South India",
+   "region": "South India",
+   "lat": 12.0,
+   "lon": 78.0,
+   "instrument": "shehnai"
+  },
+  {
+   "id": "tibet",
+   "label": "Tibet and Nepal",
+   "region": "Tibet and Nepal",
+   "lat": 30.5,
+   "lon": 88.0,
+   "instrument": "bowls"
+  },
+  {
+   "id": "china",
+   "label": "Northern China",
+   "region": "Northern China",
+   "lat": 36.0,
+   "lon": 110.0,
+   "instrument": "guzheng"
+  },
+  {
+   "id": "south-china",
+   "label": "Southern China",
+   "region": "Southern China",
+   "lat": 25.0,
+   "lon": 113.0,
+   "instrument": "erhu"
+  },
+  {
+   "id": "korea",
+   "label": "Korea",
+   "region": "Korea",
+   "lat": 37.0,
+   "lon": 127.5,
+   "instrument": "janggu"
+  },
+  {
+   "id": "japan",
+   "label": "Japan",
+   "region": "Japan",
+   "lat": 36.0,
+   "lon": 138.5,
+   "instrument": "koto"
+  },
+  {
+   "id": "vietnam",
+   "label": "Vietnam",
+   "region": "Vietnam",
+   "lat": 16.0,
+   "lon": 107.5,
+   "instrument": "danbau"
+  },
+  {
+   "id": "thailand",
+   "label": "Thailand",
+   "region": "Thailand",
+   "lat": 15.0,
+   "lon": 100.5,
+   "instrument": "ranat"
+  },
+  {
+   "id": "java",
+   "label": "Java and Bali",
+   "region": "Java and Bali",
+   "lat": -7.5,
+   "lon": 110.5,
+   "instrument": "gamelan"
+  },
+  {
+   "id": "philippines",
+   "label": "Philippines",
+   "region": "Philippines",
+   "lat": 9.0,
+   "lon": 124.0,
+   "instrument": "kulintang"
+  },
+  {
+   "id": "png",
+   "label": "New Guinea",
+   "region": "New Guinea",
+   "lat": -6.0,
+   "lon": 144.0,
+   "instrument": "garamut"
+  },
+  {
+   "id": "australia",
+   "label": "Australia",
+   "region": "Australia",
+   "lat": -24.0,
+   "lon": 134.0,
+   "instrument": "didgeridoo"
+  },
+  {
+   "id": "nz",
+   "label": "Aotearoa New Zealand",
+   "region": "Aotearoa New Zealand",
+   "lat": -41.0,
+   "lon": 174.0,
+   "instrument": "koauau"
+  },
+  {
+   "id": "hawaii",
+   "label": "Hawaii and Polynesia",
+   "region": "Hawaii and Polynesia",
+   "lat": 20.5,
+   "lon": -157.0,
+   "instrument": "slackkey"
+  },
+  {
+   "id": "arctic",
+   "label": "Arctic Canada and Greenland",
+   "region": "Arctic Canada and Greenland",
+   "lat": 66.0,
+   "lon": -80.0,
+   "instrument": "qilaut"
+  },
+  {
+   "id": "plains",
+   "label": "Great Plains",
+   "region": "Great Plains",
+   "lat": 44.0,
+   "lon": -102.0,
+   "instrument": "powwow"
+  },
+  {
+   "id": "appalachia",
+   "label": "Appalachia",
+   "region": "Appalachia",
+   "lat": 37.5,
+   "lon": -82.0,
+   "instrument": "banjo"
+  },
+  {
+   "id": "mexico",
+   "label": "Mexico",
+   "region": "Mexico",
+   "lat": 21.0,
+   "lon": -103.0,
+   "instrument": "mariachi"
+  },
+  {
+   "id": "central-america",
+   "label": "Central America",
+   "region": "Central America",
+   "lat": 15.0,
+   "lon": -90.0,
+   "instrument": "marimba"
+  },
+  {
+   "id": "cuba",
+   "label": "Cuba",
+   "region": "Cuba",
+   "lat": 22.0,
+   "lon": -79.5,
+   "instrument": "bongo"
+  },
+  {
+   "id": "trinidad",
+   "label": "Caribbean",
+   "region": "Caribbean",
+   "lat": 12.0,
+   "lon": -64.0,
+   "instrument": "steelpan"
+  },
+  {
+   "id": "andes",
+   "label": "Andes",
+   "region": "Andes",
+   "lat": -14.0,
+   "lon": -71.0,
+   "instrument": "panflute"
+  },
+  {
+   "id": "brazil",
+   "label": "Brazil",
+   "region": "Brazil",
+   "lat": -12.0,
+   "lon": -46.0,
+   "instrument": "agogo"
+  },
+  {
+   "id": "rio-plata",
+   "label": "Río de la Plata",
+   "region": "Río de la Plata",
+   "lat": -34.0,
+   "lon": -60.0,
+   "instrument": "bandoneon"
+  },
+  {
+   "id": "pacific",
+   "label": "Pacific Ocean",
+   "region": "Pacific Ocean",
+   "lat": 5.0,
+   "lon": -140.0,
+   "instrument": "ocean"
+  },
+  {
+   "id": "south-pacific",
+   "label": "South Pacific",
+   "region": "South Pacific",
+   "lat": -35.0,
+   "lon": -120.0,
+   "instrument": "ocean"
+  },
+  {
+   "id": "atlantic",
+   "label": "Atlantic Ocean",
+   "region": "Atlantic Ocean",
+   "lat": 25.0,
+   "lon": -40.0,
+   "instrument": "ocean"
+  },
+  {
+   "id": "south-atlantic",
+   "label": "South Atlantic",
+   "region": "South Atlantic",
+   "lat": -30.0,
+   "lon": -15.0,
+   "instrument": "ocean"
+  },
+  {
+   "id": "indian-ocean",
+   "label": "Indian Ocean",
+   "region": "Indian Ocean",
+   "lat": -25.0,
+   "lon": 80.0,
+   "instrument": "ocean"
+  },
+  {
+   "id": "southern-ocean",
+   "label": "Southern Ocean",
+   "region": "Southern Ocean",
+   "lat": -62.0,
+   "lon": 60.0,
+   "instrument": "ocean"
+  }
+ ]
 }

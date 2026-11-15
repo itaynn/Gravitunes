@@ -1,5 +1,5 @@
 // ctx.sound adapter. Uses the real engine (/sound-engine/js/index.js) when it exists,
-// otherwise a small built-in Web Audio synth with the same play() shape. Value-only notes map to C2..C5 on
+// otherwise a small built-in Web Audio synth with the same play() shape. Value-only notes map to MIN_FUND_HZ..MAX_FUND_HZ on
 // the current scale (major pentatonic until setScale) in both. Also: setOutput/setBalance/setWidth (stereo default),
 // setScale/setTuning (the built-in synth follows setScale with app/core/scales.js ids).
 // Browsers only allow audio after a user gesture: call start() from a click/keypress.
@@ -15,7 +15,8 @@
 // lowpass (Hz, needs freq): per-note low-pass. The engine has no per-note filter yet, so the adapter
 // approximates it by attenuating harmonics/partials with a 2nd-order (12 dB/oct) response (applyLowpass).
 
-import { quantize, SCALES } from './scales.js';
+import { quantize, SCALES, MIN_FUND_HZ, MAX_FUND_HZ } from './scales.js';
+export { MIN_FUND_HZ, MAX_FUND_HZ };
 import { repoUrl } from './data.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -52,9 +53,9 @@ export function applyLowpass({ harmonics, partials, noise } = {}, freq, cutoff) 
   return out;
 }
 
-// Comfort caps for every mode: fundamentals stay at or below ~C5, and no harmonic/partial above ~5 kHz
-// (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above).
-export const MAX_FUND_HZ = 523.25, FADE_HZ = 4000, PARTIAL_CAP_HZ = 5000;
+// Comfort caps for every mode: fundamentals stay in MIN_FUND_HZ..MAX_FUND_HZ (C2..A5, app/core/scales.js), and no
+// harmonic/partial above ~8 kHz (faded from FADE_HZ to PARTIAL_CAP_HZ, dropped above). Samples get a SAMPLE_LOWPASS_HZ low-pass.
+export const FADE_HZ = 6000, PARTIAL_CAP_HZ = 8000, SAMPLE_LOWPASS_HZ = 7000;
 export const capGain = (f) => (f >= PARTIAL_CAP_HZ ? 0 : f <= FADE_HZ ? 1 : (PARTIAL_CAP_HZ - f) / (PARTIAL_CAP_HZ - FADE_HZ));
 export function capTimbre({ freq, harmonics, partials } = {}) {
   const f0 = Math.min(MAX_FUND_HZ, freq);
@@ -63,7 +64,6 @@ export function capTimbre({ freq, harmonics, partials } = {}) {
   return { freq: f0, harmonics: hs.some((a) => a > 0) ? hs : [1], partials: ps };
 }
 
-const C2_HZ = 65.4064;
 
 function fallbackEngine() {
   let ac = null, master = null, bal = null;
@@ -97,7 +97,7 @@ function fallbackEngine() {
     },
     play({ freq, value, range = [0, 1], dur = 0.3, amp = 0.2, pan = 0, t: dt = 0, harmonics = 1, partials, envelope, glide, vibrato } = {}) {
       if (!ac) return { stop() {}, set() {} };
-      const f0 = freq ?? quantize(value ?? 0, range, scaleId, C2_HZ, MAX_FUND_HZ).freq;   // C2..C5, like the engine
+      const f0 = freq ?? quantize(value ?? 0, range, scaleId, MIN_FUND_HZ, MAX_FUND_HZ).freq;   // like the engine
       const env = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.3, ...(envelope || {}) };
       const t = ac.currentTime + Math.max(0, dt), out = ac.createGain(), panner = ac.createStereoPanner();
       panner.pan.value = output === 'mono' ? 0 : clamp(pan + width * clamp(Math.log2(f0 / 261.6256) / 2, -1, 1), -1, 1);
@@ -201,12 +201,33 @@ function modulate(h, startS, endS, rate, make) {
   setTimeout(tick, Math.max(0, startS) * 1000);
 }
 
+// Sampled instruments (sound-engine/library/samples/index.json, built by fetch.py --samples): id -> { kind, zones }.
+// Each zone is one recorded note {file, f0}; a note plays the zone nearest in pitch, repitched with playbackRate.
+let sampleIndex = null;
+export function loadSampleIndex() {
+  sampleIndex ??= fetch(repoUrl('sound-engine/library/samples/index.json')).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  return sampleIndex;
+}
+// Nearest zone (in octaves) to `freq`. Pure.
+export function pickZone(zones, freq) {
+  let best = 0, d = Infinity;
+  zones.forEach((z, i) => { const e = Math.abs(Math.log2(freq / z.f0)); if (e < d) { d = e; best = i; } });
+  return best;
+}
+// How long a sampled note rings: plucked/struck samples ring past the written duration (up to `ring` s).
+export const SAMPLE_ENV = {
+  pluck: { envelope: { attack: 0.003, decay: 0.1, sustain: 1, release: 0.25 }, ring: 1.4 },
+  hit: { envelope: { attack: 0.001, decay: 0.1, sustain: 1, release: 0.15 }, ring: 1.0 },
+  sustain: { envelope: { attack: 0.03, decay: 0.1, sustain: 1, release: 0.3 }, ring: 0 },
+};
+
 export async function createSound() {
   let engine = null, name = 'built-in';
+  const sampled = new Map();   // id -> { kind, zones: [{ name, f0 }] } once loaded
   try {
     const mod = await import('../../sound-engine/js/index.js');
     // Explicit bases: the engine's import.meta.url defaults fail when modules are blob: URLs (standalone
-    // builds); repoUrl handles that and sub-path hosting. The C5 / 5 kHz comfort caps live in the engine too.
+    // builds); repoUrl handles that and sub-path hosting. The pitch / overtone comfort caps live in the engine too.
     engine = mod.createEngine({ polyphony: 32, output: 'stereo', scale: 'pentatonic-major',
       maxNoteFreq: MAX_FUND_HZ, noteLimit: 'clamp', maxFreq: PARTIAL_CAP_HZ,
       libraryBase: repoUrl('sound-engine/library/presets/'), sampleBase: repoUrl('data/earth/instruments/') });
@@ -233,6 +254,15 @@ export async function createSound() {
           ...applyLowpass({ harmonics: harmonics ?? 1, partials, noise }, rest.freq, lowpass) });
       }
       if (rest.freq > 0) ({ freq: rest.freq, harmonics, partials } = capTimbre({ freq: rest.freq, harmonics, partials }));
+      // Sampled instrument: play the nearest recorded zone (its own attack, so no added noise or wah); else synthesis.
+      const smp = rest.sample && rest.freq > 0 ? sampled.get(rest.sample) : null;
+      delete rest.sample;
+      if (smp) {
+        const z = smp.zones[pickZone(smp.zones, rest.freq)], kenv = SAMPLE_ENV[smp.kind] || SAMPLE_ENV.pluck;
+        rest.voice = z.name; harmonics = partials = envelope = noise = wah = undefined;
+        const d = duration ?? rest.dur ?? 0.3;
+        rest.dur = Math.max(d, Math.min(kenv.ring, z.len ?? kenv.ring));
+      }
       if (noise) noise = { ...noise, cutoff: Math.min(noise.cutoff ?? 2000, FADE_HZ) };
       const ev = { ...rest, ...sanitizeTimbre({ harmonics, partials, envelope }) };
       if (amplitude != null && ev.amp == null) ev.amp = amplitude;
@@ -241,7 +271,7 @@ export async function createSound() {
       if (ev.pan != null) ev.pan = clamp(ev.pan, -1, 1);
       if (ev.amp != null) ev.amp = clamp(ev.amp, 0, 1);
       // Preset/recorded voices keep their own timbre: cap them with the engine's per-note low-pass instead.
-      if (rest.voice && !builtIn) ev.lowpass = Math.min(lowpass > 0 ? lowpass : Infinity, 4500);
+      if (rest.voice && !builtIn) ev.lowpass = Math.min(lowpass > 0 ? lowpass : Infinity, SAMPLE_LOWPASS_HZ);
       if (glide?.to > 0) ev.glide = { ...glide, to: Math.min(MAX_FUND_HZ, glide.to) };
       if (builtIn && vibrato) ev.vibrato = vibrato;
       // The real engine maps value+range itself; the fallback quantizes with scales.js.
@@ -261,6 +291,29 @@ export async function createSound() {
       return h;
     },
     stopAll() { try { engine.stopAll(); } catch {} },
+    // Load sampled instruments by id (see loadSampleIndex). Returns { loaded: [...ids], fallback: [...ids] };
+    // ids that fail (or the built-in synth, which cannot play samples) keep their synthesized voice.
+    async loadSamples(ids) {
+      const idx = await loadSampleIndex(), loaded = [], fallback = [];
+      await Promise.all([...new Set(ids)].map(async (id) => {
+        if (sampled.has(id)) { loaded.push(id); return; }
+        const def = idx[id];
+        if (!def || !engine.loadSample) { fallback.push(id); return; }
+        try {
+          const zones = await Promise.all(def.zones.map(async (z, i) => {
+            const buf = await engine.loadSample(repoUrl(`sound-engine/library/samples/${z.file}`));
+            const vname = `smp-${id}-${i}`;
+            engine.voice(vname, { harmonics: [1], envelope: (SAMPLE_ENV[def.kind] || SAMPLE_ENV.pluck).envelope,
+              sample: { url: repoUrl(`sound-engine/library/samples/${z.file}`), f0: z.f0 } });
+            return { name: vname, f0: z.f0, len: buf.duration };
+          }));
+          sampled.set(id, { kind: def.kind, zones });
+          loaded.push(id);
+        } catch (e) { console.warn(`[sound] sample ${id}: ${e.message}; using synthesis`); fallback.push(id); }
+      }));
+      return { loaded: loaded.sort(), fallback: fallback.sort() };
+    },
+    hasSample(id) { return sampled.has(id); },
     // A recorded instrument from sound-engine/library: { name, def, sample }. With the engine, play it with
     // { voice: name } (uses the recording when downloaded, else its analysed overtones); the built-in synth
     // only gets def (overtones and envelope) to pass inline.
@@ -278,7 +331,7 @@ export async function createSound() {
     get output() { return engine.output ?? 'stereo'; },
     get balance() { return engine.balance ?? 0; },
     get width() { return engine.width ?? 0; },
-    // Tuning/scale for value-only notes (maps value -> C2..C5 on the scale). The built-in synth follows setScale
+    // Tuning/scale for value-only notes (maps value -> MIN_FUND_HZ..MAX_FUND_HZ on the scale). The built-in synth follows setScale
     // with app/core/scales.js ids. Modes that pass freq (quantized in app/core/scales.js) don't need them.
     // useScale(id): sets the engine tuning first (gamelan scales need it), then the scale.
     async useScale(id) {

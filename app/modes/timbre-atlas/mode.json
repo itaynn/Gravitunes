@@ -1,7 +1,0 @@
-{
-  "name": "Timbre atlas",
-  "author": "moran",
-  "description": "Just the world map and its instruments: move the mouse, touch, or use the arrow keys, and each region plays a short phrase in its own voice (guzheng bends, gamelan pelog, sitar slides, oud maqam, balalaika tremolo, didgeridoo drone...). Voices blend near borders.",
-  "datasets": "any",
-  "data": false
-}

@@ -3,13 +3,28 @@
 
 // Basemap: Natural Earth (public domain) coastlines + land borders, data/earth/{coastlines,borders}.json,
 // {lines: [[lon, lat, lon, lat, ...], ...]}. Drawn thin and faint between the data image and mode overlays.
+// Plain mode (createViewer {plain: true} or setPlain): no data image; land (data/earth/land.json, Natural Earth via
+// world-atlas) filled on a light ocean, with coastlines and country borders, for maps that only show places.
 let basemapData = null;
 export function loadBasemap(base = '/data/earth/') {
-  basemapData ??= Promise.all(['coastlines', 'borders'].map((n) =>
+  basemapData ??= Promise.all(['coastlines', 'borders', 'land'].map((n) =>
     fetch(`${base}${n}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null)))
-    .then(([coast, borders]) => ({ coast: coast?.lines || [], borders: borders?.lines || [] }));
+    .then(([coast, borders, land]) => ({ coast: coast?.lines || [], borders: borders?.lines || [], land: land?.rings || [] }));
   return basemapData;
 }
+
+// A land ring as one continuous path: longitudes are unwrapped across the date line, so the caller draws it
+// again shifted by +-360 degrees to fill both edges of the map.
+export function unwrapRing(L) {
+  const out = [];
+  let off = 0;
+  for (let i = 0; i < L.length; i += 2) {
+    if (i && Math.abs(L[i] - L[i - 2]) > 180) off += L[i] < L[i - 2] ? 360 : -360;
+    out.push([L[i] + off, L[i + 1]]);
+  }
+  return out;
+}
+export const PLAIN = { ocean: '#a8c5dc', land: '#fbf9f3', coast: '#4f6070', border: '#8d99a4' };
 
 // Split a polyline where it jumps across the date line, so no segment streaks across the map.
 export function basemapPaths(lines, toPixel) {
@@ -25,11 +40,32 @@ export function basemapPaths(lines, toPixel) {
   return out;
 }
 
-export function createViewer(canvas, { basemap = true } = {}) {
+export function createViewer(canvas, { basemap = true, plain = false } = {}) {
   const g = canvas.getContext('2d');
   const overlays = new Set();
-  let image = null, cursor = null, base = null, showBase = basemap;
-  if (basemap && typeof fetch === 'function') loadBasemap().then((b) => { base = b; draw(); });
+  let image = null, cursor = null, base = null, showBase = basemap, isPlain = plain;
+  if ((basemap || plain) && typeof fetch === 'function') loadBasemap().then((b) => { base = b; draw(); });
+
+  function drawPlain() {
+    const W = canvas.width, H = canvas.height;
+    g.save();
+    g.fillStyle = PLAIN.ocean; g.fillRect(0, 0, W, H);
+    if (base) {
+      g.fillStyle = PLAIN.land; g.beginPath();
+      for (const ring of base.land) {
+        const pts = unwrapRing(ring);
+        for (const shift of [0, -360, 360]) {
+          pts.forEach(([lon, lat], i) => { const [x, y] = viewer.toPixel(lat, lon + shift); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+          g.closePath();
+        }
+      }
+      g.fill('evenodd');
+      const w = Math.max(0.6, W / 1400);
+      strokeLines(base.borders, w * 0.9, 0.9, PLAIN.border);
+      strokeLines(base.coast, w * 1.1, 0.9, PLAIN.coast);
+    }
+    g.restore();
+  }
 
   function strokeLines(lines, width, alpha, color) {
     g.save();
@@ -53,8 +89,11 @@ export function createViewer(canvas, { basemap = true } = {}) {
   function draw() {
     const { width: W, height: H } = canvas;
     g.clearRect(0, 0, W, H);
-    if (image) g.drawImage(image, 0, 0, W, H);
-    if (showBase && base) drawBasemap();
+    if (isPlain) drawPlain();
+    else {
+      if (image) g.drawImage(image, 0, 0, W, H);
+      if (showBase && base) drawBasemap();
+    }
     for (const fn of overlays) fn(g, viewer);
     if (cursor) {
       const [x, y] = viewer.toPixel(cursor.lat, cursor.lon);
@@ -69,6 +108,13 @@ export function createViewer(canvas, { basemap = true } = {}) {
     // Overlay: fn(ctx2d, viewer) drawn on top of the frame. Returns a remover.
     addOverlay(fn) { overlays.add(fn); draw(); return () => { overlays.delete(fn); draw(); }; },
     redraw: draw,
+    // Plain map (no data image; land, coastlines and borders on a light ocean).
+    get plain() { return isPlain; },
+    setPlain(on) {
+      isPlain = !!on;
+      if (isPlain && !base && typeof fetch === 'function') loadBasemap().then((b) => { base = b; draw(); });
+      draw();
+    },
     // Basemap (coastlines + borders) toggle; on by default.
     get basemap() { return showBase; },
     setBasemap(on) {

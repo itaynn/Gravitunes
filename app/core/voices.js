@@ -1,6 +1,6 @@
 // Instrument voices (data/earth/instruments.json shape): crossfade and pitch-safe shaping. Pure, runs in node too.
 
-import { noteHz, snapToScale } from './scales.js';
+import { snapToScale, MIN_FUND_HZ, MAX_FUND_HZ } from './scales.js';
 
 const lerp = (a, b, w) => a * w + b * (1 - w);
 
@@ -8,6 +8,7 @@ const lerp = (a, b, w) => a * w + b * (1 - w);
 export function blendVoices(a, b, w) {
   if (!b || w >= 1) return { ...a };
   if (w <= 0) return { ...b };
+  if (a.sample && a.sample === b.sample) return blendVoices({ ...a, sample: null }, { ...b, sample: null }, w) && { ...blendVoices({ ...a, sample: null }, { ...b, sample: null }, w), samples: [{ id: a.sample, w: 1 }] };
   const ha = a.harmonics || [], hb = b.harmonics || [];
   const n = Math.max(ha.length, hb.length);
   const harmonics = n ? Array.from({ length: n }, (_, k) => lerp(ha[k] || 0, hb[k] || 0, w)) : undefined;
@@ -27,7 +28,10 @@ export function blendVoices(a, b, w) {
   } : undefined;
   // Expressive traits (vibrato, slides, wah, gesture, octave) are not averaged: the nearer voice wins.
   const dom = w >= 0.5 ? a : b;
+  // Recorded instruments crossfade by weight (playNotes plays each); a side without a sample is synthesized.
+  const samples = [{ id: a.sample, w }, { id: b.sample, w: 1 - w }].filter((m) => m.id);
   return {
+    samples,
     vibrato: dom.vibrato, slide: dom.slide, wah: dom.wah, gesture: dom.gesture, octave: dom.octave,
     harmonics: harmonics || [0], partials, envelope, noise,
     brightness: lerp(a.brightness ?? 0.5, b.brightness ?? 0.5, w),
@@ -55,11 +59,11 @@ export function shapeForPitch(voice, freq, { cutoff = 1800, ceiling = 4000 } = {
 
 
 // A playable note for `voice` at `freq` (Hz): the voice's octave shift is applied, then the pitch is kept in
-// C2..C5 by folding whole octaves (so nearby values keep distinct pitches), snapped to `tones` when given,
+// MIN_FUND_HZ..MAX_FUND_HZ (C2..A5) by folding whole octaves (so nearby values keep distinct pitches), snapped to `tones` when given,
 // then shaped for pitch. Returns { note, dur }.
 export function voiceNote(voice, freq, { tones } = {}) {
   let f = freq * 2 ** (voice.octave || 0);
-  const lo = noteHz(-24), hi = noteHz(12);
+  const lo = MIN_FUND_HZ, hi = MAX_FUND_HZ;
   if (f > 0) { while (f < lo - 1e-6) f *= 2; while (f > hi + 1e-6) f /= 2; } else f = lo;
   if (tones?.length) f = snapToScale(f, tones);
   f = Math.max(lo, Math.min(hi, f));

@@ -8,6 +8,8 @@ import './switcher.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
+// Timbre atlas became World orchestra's Instruments view: old links land there.
+if (params.get('mode') === 'timbre-atlas') location.replace(`?mode=world-orchestra&instruments=1`);
 const modeName = params.get('mode') || '_template';
 
 function pickDataset(meta) {
@@ -16,6 +18,10 @@ function pickDataset(meta) {
   if (d == null || d === 'any' || d === 'none') return '5152';
   return String(d);
 }
+
+// Stand-in dataset for "data": false modes: one empty frame, nothing to fetch.
+const NO_DATASET = { id: 'none', title: '', units: '', range: [0, 1], count: 1, colorbarUrl: '', format: (v) => String(v),
+  load: async () => ({ im: null }), timeOf: () => new Date(0), valueAt: () => null };
 
 async function main() {
   if (!/^[\w-]+$/.test(modeName)) throw new Error('Bad mode name');
@@ -66,7 +72,8 @@ async function main() {
   try {
     // mode.json "datasetDirs": {"<id>": "data/<id>/"} lets a mode ship its own copy of a dataset.
     const own = meta.datasetDirs?.[current];
-    dataset = await loadDataset(current, own ? { dir: new URL(own, base).pathname } : {});
+    // "data": false modes get a stub (no download) and the plain basemap.
+    dataset = noData ? NO_DATASET : await loadDataset(current, own ? { dir: new URL(own, base).pathname } : {});
   } catch (e) {
     status(`Could not load the dataset (${e.message}). Run: sh app/tools/fetch-sample.sh`);
     throw e;
@@ -75,7 +82,7 @@ async function main() {
   $('#colorbar').onerror = () => { $('#colorbar').hidden = true; };
   if (!noData) $('#colorbar').src = dataset.colorbarUrl;
 
-  const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0' });
+  const viewer = createViewer($('#map'), { basemap: params.get('basemap') !== '0', plain: noData });
   const input = createInput(viewer);
   const time = createTime(dataset, viewer);
   const panel = createPanel($('#mode-controls'));

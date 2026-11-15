@@ -25,7 +25,11 @@ MODES = ROOT / 'app' / 'modes'
 SKIP = {}
 DEFAULT_EVERY = 3  # a mode can override with "standalone": {"every": N} in mode.json
 DROP_SOURCES = ('.mp4',)
-FIRST = ['synth-lab', 'timbre-atlas']  # gallery order, as in app/core/switcher.js orderModes()
+FIRST = ['synth-lab', 'world-orchestra']  # gallery order, as in app/core/switcher.js orderModes()
+
+
+REDIRECT = ('<!doctype html><meta charset="utf-8"><title>World orchestra</title>'
+            '<meta http-equiv="refresh" content="0; url={to}"><a href="{to}">World orchestra</a>')
 
 
 def order_modes(modes):
@@ -47,12 +51,14 @@ def switcher_js(all_modes, mid, only=None):
 
 
 def extra_files(m):
-    """mode.json "standalone": {"files": [repo globs]} -> virtual files (JSON/text only)."""
+    """mode.json "standalone": {"files": [repo globs]} -> virtual files (text, or base64 for binaries such as samples)."""
     out = {}
     for pat in ((m.get('standalone') or {}).get('files') or []):
         for p in sorted(ROOT.glob(pat)):
-            if p.is_file():
+            if p.is_file() and p.suffix in ('.json', '.txt', '.csv', '.md'):
                 out[key_of(p)] = {'text': p.read_text(), 'type': mimetypes.guess_type(str(p))[0] or 'text/plain'}
+            elif p.is_file():  # audio samples and other binaries
+                out[key_of(p)] = {'b64': base64.b64encode(p.read_bytes()).decode()}
     return out  # precipitation-ball: keep the 2.8 MB webm, drop the 30 MB mp4
 
 
@@ -271,6 +277,7 @@ def build_host_mode(m, data, every, link_map, all_modes):
             files[f'/data-tools/datasets/{ds}.json'] = {'text': desc.read_text(), 'type': 'application/json'}
     files['/data-tools/datasets/index.json'] = {'text': json.dumps({'ids': ids}), 'type': 'application/json'}
     files[f'/modes/{mid}/mode.json'] = {'text': (MODES / mid / 'mode.json').read_text(), 'type': 'application/json'}
+    files.update(extra_files(m))  # mode.json standalone.files, e.g. the instrument samples
     # data/earth/*.json is tracked: prefer this checkout's copy (falls back to the data root).
     earth = {p.name: p for p in sorted((data / 'earth').glob('*.json'))}
     earth.update({p.name: p for p in sorted((ROOT / 'data' / 'earth').glob('*.json'))})
@@ -368,6 +375,9 @@ def main():
         print(f'built {f.relative_to(ROOT) if f.is_relative_to(ROOT) else f}  {size:.1f} MB' + ('  (over 10 MB!)' if size > 10 else ''))
         built.append(m)
 
+    # Timbre atlas is now World orchestra's Instruments view: keep old dist/timbre-atlas.html links working.
+    if (out / 'world-orchestra.html').is_file():
+        (out / 'timbre-atlas.html').write_text(REDIRECT.format(to='world-orchestra.html?instruments=1'))
     existing = [m for m in order_modes(all_modes) if (out / f"{m['id']}.html").is_file()]
     # Second pass: the switcher in each built page lists only demos whose files exist.
     have = {m['id'] for m in existing}

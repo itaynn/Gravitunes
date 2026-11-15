@@ -14,7 +14,7 @@ const { instruments } = JSON.parse(readFileSync(join(root, 'data/earth/instrumen
 const lib = JSON.parse(readFileSync(join(root, 'sound-engine/library/presets/index.json'), 'utf8'));
 const voices = [...Object.values(instruments), ...lib.map((p) => JSON.parse(readFileSync(join(root, `sound-engine/library/presets/${p.id}.json`), 'utf8')))];
 
-for (const v of voices) for (const semis of [-24, -12, 0, 12]) for (const kind of ['note', 'scale', 'chord', 'phrase']) {
+for (const v of voices) for (const semis of [-24, -12, 0, 12, 21]) for (const kind of ['note', 'scale', 'chord', 'phrase']) {
   const notes = toneNotes(v, noteHz(semis), kind);
   assert.ok(notes.length >= 1, kind);
   for (const n of notes) {
@@ -33,10 +33,10 @@ assert.equal(toneNotes({}, noteHz(-12), 'scale', 'slendro').length, 6);
 assert.deepEqual(chordSteps(SCALES['pentatonic-major'].cents), [0, 2, 3]);
 for (const id of PLEASANT) assert.equal(toneNotes({}, noteHz(-12), 'chord', id).length, 3, id);
 
-// Gallery / switcher order: tone lab, timbre atlas, then the rest in index order.
+// Gallery / switcher order: tone lab, world orchestra, then the rest in index order.
 const { modes } = JSON.parse(readFileSync(join(root, 'app/modes/index.json'), 'utf8'));
 const ids = orderModes(modes).map((m) => m.id);
-assert.deepEqual(ids.slice(0, 2), ['synth-lab', 'timbre-atlas']);
+assert.deepEqual(ids.slice(0, 2), ['synth-lab', 'world-orchestra']);
 assert.equal(ids.length, modes.length);
 assert.equal(oneLine('One. Two.'), 'One.');
 console.log('tone lab tests ok');
